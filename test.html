@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMTEQ | Enrollment Form 2026-2027</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .form-input {
+            transition: all 0.2s;
+        }
+        .form-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <!-- Header -->
+    <header class="bg-white border-b">
+        <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <img src="public/images/logo.png" alt="COMTEQ Logo" class="h-20">
+            </div>
+            <div class="text-right">
+                <p class="text-sm font-semibold">Academic Year 2026-2027</p>
+                <p class="text-xs text-emerald-600">Student Enrollment</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-5xl mx-auto px-6 py-10">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-semibold text-slate-800">Student Enrollment Form</h1>
+            <p class="text-slate-600 mt-2">Please fill out all required fields accurately.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border p-10">
+            <form id="enrollmentForm">
+
+                <!-- Basic Info -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Student Number <span class="text-red-500">*</span></label>
+                        <input type="text" id="studentNumber" placeholder="e.g. 2026-XXXXX"
+                               class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Date Filled</label>
+                        <input type="date" id="dateFiled"
+                               class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">School Year</label>
+                        <input type="text" id="studentNumber" placeholder="e.g. 2026-2027"
+                               class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    </div>
+                </div>
+
+                <!-- Personal Information -->
+                <div class="mt-12">
+                    <h2 class="section-title border-b border-slate-200 pb-3 mb-6">PERSONAL INFORMATION</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="firstName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
+                            <input type="text" id="middleName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="lastName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Cellphone Number <span class="text-red-500">*</span></label>
+                            <input type="text" id="firstName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Email Address</label>
+                            <input type="text" id="middleName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                    </div>
+
+                    <!-- Detailed Personal Info from Image -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-8">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Present Address</label>
+                            <input type="text" id="presentAddress" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl"
+                                   placeholder="House No., Street, Subdivision">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Barangay</label>
+                            <input type="text" id="barangay" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">City / Town</label>
+                            <input type="text" id="city" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Province</label>
+                            <input type="text" id="province" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Date of Birth</label>
+                            <input type="date" id="dateOfBirth" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Age</label>
+                            <input type="number" id="age" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Place of Birth</label>
+                            <input type="text" id="placeOfBirth" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Civil Status</label>
+                            <select id="civilStatus" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                <option value="">Select</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Widowed">Widowed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Gender</label>
+                            <select id="gender" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                <option value="">Select</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Religion</label>
+                            <input type="text" id="religion" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Father's Name</label>
+                                <input type="text" id="fatherName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Mother's Maiden Name</label>
+                                <input type="text" id="motherName" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Last School Attended</label>
+                            <input type="text" id="lastSchool" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Program -->
+                <div class="mt-14">
+                    <h2 class="section-title border-b border-slate-200 pb-3 mb-6">ACADEMIC PROGRAM</h2>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-600 mb-3">Choose Program</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="courseGrid"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Year Level</label>
+                            <select id="yearLevel" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                <option value="1">1st Year</option>
+                                <option value="2" selected>2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Semester</label>
+                            <select id="semester" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd" selected>2nd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Contact Number</label>
+                            <input type="tel" id="contact" placeholder="09XX-XXX-XXXX"
+                                   class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-12 flex justify-center">
+                    <button type="button" onclick="generateForm()"
+                            class="px-12 py-5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg rounded-3xl flex items-center gap-3 shadow-lg shadow-blue-500/30 transition-all">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>GENERATE ENROLLMENT FORM (PDF)</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-white max-w-4xl w-full mx-4 rounded-3xl max-h-[92vh] overflow-auto">
+            <div class="p-6 border-b flex justify-between sticky top-0 bg-white">
+                <h3 class="font-semibold text-xl">Enrollment Form Preview</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </div>
+            <div id="formPreview" class="p-10"></div>
+        </div>
+    </div>
+
+    <footer class="bg-white py-8 text-center text-xs text-slate-400 mt-16">
+        © 2026 COMTEQ Computer & Business College • All Rights Reserved
+    </footer>
+
+    <script>
+        const dateInput = document.getElementById('dateFiled');
+
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(now - offset).toISOString().slice(0, 10);
+
+        dateInput.value = localISOTime;
+        dateInput.readOnly = true;
+        dateInput.style.backgroundColor = '#f1f5f9';
+        dateInput.style.cursor = 'not-allowed';
+
+        const courses = [
+            {code: "BSIT", name: "BS Information Technology"},
+            {code: "BSCS", name: "BS Computer Science"},
+            {code: "ACT", name: "Associate in Computer Technology"},
+            {code: "BSHM", name: "BS Hospitality Management"},
+            {code: "BSOM", name: "BS Office Management"},
+            {code: "BSA", name: "BS Accountancy"}
+        ];
+
+        function populateCourses() {
+            const container = document.getElementById('courseGrid');
+            container.innerHTML = '';
+            courses.forEach(course => {
+                const div = document.createElement('div');
+                div.className = `p-5 border-2 border-transparent hover:border-blue-200 rounded-3xl cursor-pointer transition-all course-card text-center`;
+                div.innerHTML = `
+                    <div class="font-bold text-xl">${course.code}</div>
+                    <div class="text-xs text-slate-500 mt-1">${course.name}</div>
+                `;
+                div.onclick = () => selectCourse(div, course.code, course.name);
+                container.appendChild(div);
+            });
+        }
+
+        let selectedCourseCode = "BSIT";
+        let selectedCourseName = "BS Information Technology";
+
+        function selectCourse(el, code, name) {
+            document.querySelectorAll('.course-card').forEach(card => card.classList.remove('border-blue-600', 'bg-blue-50'));
+            el.classList.add('border-blue-600', 'bg-blue-50');
+            selectedCourseCode = code;
+            selectedCourseName = name;
+        }
+
+        function generateForm() {
+            const data = {
+                studentNumber: document.getElementById('studentNumber').value || "2026-XXXXX",
+                dateFiled: document.getElementById('dateFiled').value,
+                firstName: document.getElementById('firstName').value || "",
+                middleName: document.getElementById('middleName').value || "",
+                lastName: document.getElementById('lastName').value || "",
+                presentAddress: document.getElementById('presentAddress').value,
+                barangay: document.getElementById('barangay').value,
+                city: document.getElementById('city').value,
+                province: document.getElementById('province').value,
+                dob: document.getElementById('dateOfBirth').value,
+                age: document.getElementById('age').value,
+                pob: document.getElementById('placeOfBirth').value,
+                civilStatus: document.getElementById('civilStatus').value,
+                gender: document.getElementById('gender').value,
+                religion: document.getElementById('religion').value,
+                father: document.getElementById('fatherName').value,
+                mother: document.getElementById('motherName').value,
+                lastSchool: document.getElementById('lastSchool').value,
+                contact: document.getElementById('contact').value,
+                yearLevel: document.getElementById('yearLevel').value,
+                semester: document.getElementById('semester').value,
+                courseCode: selectedCourseCode,
+                courseName: selectedCourseName
+            };
+
+            const previewHTML = `
+                <div class="max-w-3xl mx-auto border-2 border-slate-300 p-8 rounded-xl">
+                    <div class="text-center border-b pb-6 mb-8">
+                        <h2 class="text-2xl font-bold text-[#1e40af]">COMTEQ Computer & Business College</h2>
+                        <p class="text-sm">Official Enrollment Form • Academic Year 2026-2027</p>
+                    </div>
+
+                    <h3 class="font-semibold text-lg mb-4">PERSONAL INFORMATION</h3>
+                    <div class="grid grid-cols-2 gap-y-5 text-sm">
+                        <div><strong>Student Number:</strong> ${data.studentNumber}</div>
+                        <div><strong>Date Filed:</strong> ${data.dateFiled}</div>
+                        <div class="col-span-2"><strong>Full Name:</strong> ${data.firstName} ${data.middleName} ${data.lastName}</div>
+                        <div class="col-span-2"><strong>Present Address:</strong> ${data.presentAddress || '-'} | Brgy. ${data.barangay || '-'} | ${data.city || '-'}, ${data.province || '-'}</div>
+                        <div><strong>Date of Birth:</strong> ${data.dob || '-'}</div>
+                        <div><strong>Age:</strong> ${data.age || '-'}</div>
+                        <div><strong>Place of Birth:</strong> ${data.pob || '-'}</div>
+                        <div><strong>Gender:</strong> ${data.gender || '-'}</div>
+                        <div><strong>Civil Status:</strong> ${data.civilStatus || '-'}</div>
+                        <div><strong>Religion:</strong> ${data.religion || '-'}</div>
+                        <div><strong>Father's Name:</strong> ${data.father || '-'}</div>
+                        <div><strong>Mother's Maiden Name:</strong> ${data.mother || '-'}</div>
+                        <div><strong>Last School Attended:</strong> ${data.lastSchool || '-'}</div>
+                        <div><strong>Contact:</strong> ${data.contact || '-'}</div>
+                    </div>
+
+                    <div class="mt-10 pt-8 border-t border-slate-200">
+                        <strong>Program:</strong> ${data.courseCode} — ${data.courseName}<br>
+                        <strong>Year Level:</strong> ${data.yearLevel} Year | <strong>Semester:</strong> ${data.semester}
+                    </div>
+
+                    <div class="mt-16 text-xs text-slate-500 text-center border-t pt-8">
+                        Student's Signature: ___________________________________ &nbsp;&nbsp;&nbsp; Date: ____________
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('formPreview').innerHTML = previewHTML;
+            document.getElementById('previewModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').classList.add('hidden');
+        }
+
+        function printForm() {
+            window.print();
+        }
+
+        window.onload = () => {
+            populateCourses();
+        };
+    </script>
+</body>
+</html>
