@@ -3,81 +3,133 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\Tcpdf\Fpdi;
+use App\Models\Enrollment;   // Make sure this model exists
 
 class EnrollmentController extends Controller
 {
+    /**
+     * Show the enrollment form
+     */
     public function create()
     {
         return view('enrollment.create');
     }
 
+    /**
+     * Store enrollment and generate filled PDF
+     */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'student_number'   => 'required',
-            'first_name'       => 'required',
-            'middle_name'      => 'nullable',
-            'last_name'        => 'required',
-            'present_address'  => 'required',
-            'barangay'         => 'nullable',
-            'city'             => 'nullable',
-            'province'         => 'nullable',
-            'date_of_birth'    => 'nullable',
-            'age'              => 'nullable',
-            'gender'           => 'nullable',
-            'course_code'      => 'nullable',
-            'year_level'       => 'nullable',
-            'semester'         => 'nullable',
-            // Add other fields you need
+        $validated = $request->validate([
+            'student_number'   => 'nullable|string|max:50',
+            'date_filed'       => 'nullable|date',
+            'school_year'      => 'nullable|string',
+            'first_name'       => 'nullable|string|max:100',
+            'middle_name'      => 'nullable|string|max:100',
+            'last_name'        => 'nullable|string|max:100',
+            'cellphone'        => 'nullable|string|max:20',
+            'email'            => 'nullable|email|max:100',
+            'last_school'      => 'nullable|string|max:150',
+            'present_address'  => 'nullable|string',
+            'barangay'         => 'nullable|string',
+            'city'             => 'nullable|string',
+            'province'         => 'nullable|string',
+            'date_of_birth'    => 'nullable|date',
+            'age'              => 'nullable|integer|min:1',
+            'place_of_birth'   => 'nullable|string',
+            'civil_status'     => 'nullable|string',
+            'gender'           => 'nullable|string',
+            'religion'         => 'nullable|string',
+            'father_name'      => 'nullable|string',
+            'father_address'   => 'nullable|string',
+            'father_cpNumber'  => 'nullable|string',
+            'mother_name'      => 'nullable|string',
+            'mother_address'   => 'nullable|string',
+            'mother_cpNumber'  => 'nullable|string',
+            'course_code'      => 'nullable|string',
+            'course_name'      => 'nullable|string',
+            'year_level'       => 'nullable|string',
+            'semester'         => 'nullable|string',
         ]);
 
-        $templatePath = storage_path('app/public/templates/enrollment-template.pdf');
-        $outputDir = storage_path('app/public/filled-enrollments/');
+        $enrollment = Enrollment::create($validated);
 
-        if (!file_exists($outputDir)) {
-            mkdir($outputDir, 0755, true);
-        }
+        $pdfContent = $this->fillExistingPDF($enrollment);
 
-        $filename = 'ENROLLMENT_' . $data['student_number'] . '_' . time() . '.pdf';
-        $outputPath = $outputDir . $filename;
+        $filename = 'Enrollment_' . ($enrollment->student_number ?? 'Unknown') . '_' . now()->format('YmdHis') . '.pdf';
 
-        $this->fillPdfTemplate($templatePath, $outputPath, $data);
-
-        return response()->download($outputPath, $filename)
-                         ->deleteFileAfterSend(true);
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
-    private function fillPdfTemplate($templatePath, $outputPath, $data)
+    /**
+     * Fill your existing PDF template using FPDI
+     */
+    private function fillExistingPDF($enrollment)
     {
         $pdf = new Fpdi();
-        $pageCount = $pdf->setSourceFile($templatePath);
 
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $pdf->AddPage();
-            $tplId = $pdf->importPage($i);
-            $pdf->useTemplate($tplId);
+        $templatePath = public_path('templates/enrollment-template.pdf');
 
-            $pdf->SetFont('Helvetica', '', 12);
-            $pdf->SetTextColor(0, 0, 0);
-
-            // ==================== ADJUST THESE COORDINATES ====================
-            // Format: SetXY(X, Y)  - X = horizontal, Y = vertical (from top)
-
-            $pdf->SetXY(253, 112);  $pdf->Write(8, $data['student_number'] ?? '');
-            $pdf->SetXY(45, 85);  $pdf->Write(8, $data['first_name'] . ' ' . $data['middle_name'] . ' ' . $data['last_name']);
-            $pdf->SetXY(45, 105); $pdf->Write(8, $data['present_address'] ?? '');
-            $pdf->SetXY(45, 125); $pdf->Write(8, ($data['barangay'] ?? '') . ', ' . ($data['city'] ?? ''));
-            $pdf->SetXY(45, 145); $pdf->Write(8, $data['province'] ?? '');
-            
-            $pdf->SetXY(45, 165); $pdf->Write(8, $data['date_of_birth'] ?? '');
-            $pdf->SetXY(45, 180); $pdf->Write(8, $data['age'] ?? '');
-            $pdf->SetXY(45, 195); $pdf->Write(8, $data['gender'] ?? '');
-
-            $pdf->SetXY(45, 250); $pdf->Write(8, ($data['course_code'] ?? '') . ' - ' . ($data['year_level'] ?? '') . ' Year');
-            // Add more fields as needed...
+        if (!file_exists($templatePath)) {
+            abort(500, 'PDF Template not found!');
         }
 
-        $pdf->Output($outputPath, 'F');
+        $pdf->setSourceFile($templatePath);
+        $templateId = $pdf->importPage(1);
+
+        // Use exact size from your PDF
+        $pdf->AddPage('P', [381, 508]);     // Width 381mm, Height 508mm, Portrait
+        $pdf->useTemplate($templateId);
+
+        // Font Configuration
+        $pdf->SetFont('Helvetica', '', 11);
+        $pdf->SetTextColor(0, 0, 0);
+
+        // ====================== FILL FIELDS ======================
+
+        // Top Header
+        $pdf->SetXY(88, 38);  $pdf->Write(0, $enrollment->student_number ?? '');
+        $pdf->SetXY(380, 48);  $pdf->Write(0, $enrollment->date_filed ? $enrollment->date_filed->format('m/d/Y') : '');
+        $pdf->SetXY(580, 48);  $pdf->Write(0, $enrollment->school_year ?? '2026-2027');
+
+        // Name Fields
+        $pdf->SetXY(135, 78);  $pdf->Write(0, $enrollment->last_name ?? '');
+        $pdf->SetXY(340, 78);  $pdf->Write(0, $enrollment->first_name ?? '');
+        $pdf->SetXY(520, 78);  $pdf->Write(0, $enrollment->middle_name ?? '');
+
+        // Contact
+        $pdf->SetXY(135, 105); $pdf->Write(0, $enrollment->cellphone ?? '');
+        $pdf->SetXY(380, 105); $pdf->Write(0, $enrollment->email ?? '');
+
+        // Course & Academic
+        $pdf->SetXY(135, 145); $pdf->Write(0, $enrollment->course_code ?? '');
+        $pdf->SetXY(380, 175); $pdf->Write(0, $enrollment->year_level ?? '');
+        $pdf->SetXY(520, 175); $pdf->Write(0, $enrollment->semester ?? '');
+
+        // Personal Information
+        $pdf->SetXY(135, 280); $pdf->Write(0, $enrollment->present_address ?? '');
+        $pdf->SetXY(480, 280); $pdf->Write(0, $enrollment->barangay ?? '');
+
+        $pdf->SetXY(135, 305); $pdf->Write(0, $enrollment->city ?? '');
+        $pdf->SetXY(480, 305); $pdf->Write(0, $enrollment->province ?? '');
+
+        $pdf->SetXY(135, 330); $pdf->Write(0, $enrollment->date_of_birth ? $enrollment->date_of_birth->format('m/d/Y') : '');
+        $pdf->SetXY(380, 330); $pdf->Write(0, $enrollment->age ?? '');
+        $pdf->SetXY(520, 330); $pdf->Write(0, $enrollment->gender ?? '');
+
+        $pdf->SetXY(135, 355); $pdf->Write(0, $enrollment->place_of_birth ?? '');
+        $pdf->SetXY(520, 355); $pdf->Write(0, $enrollment->religion ?? '');
+
+        // Parents Information
+        $pdf->SetXY(135, 390); $pdf->Write(0, $enrollment->father_name ?? '');
+        $pdf->SetXY(480, 390); $pdf->Write(0, $enrollment->father_cpNumber ?? '');
+
+        $pdf->SetXY(135, 415); $pdf->Write(0, $enrollment->mother_name ?? '');
+        $pdf->SetXY(480, 415); $pdf->Write(0, $enrollment->mother_cpNumber ?? '');
+
+        return $pdf->Output('', 'S');
     }
 }
