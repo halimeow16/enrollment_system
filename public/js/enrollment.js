@@ -43,7 +43,6 @@ function generatePreview() {
     const form = document.getElementById('enrollmentForm');
     const formData = new FormData(form);
 
-    // Show loading
     document.getElementById('formPreview').innerHTML = `
         <div class="text-center py-20">
             <div class="animate-spin h-8 w-8 mx-auto border-4 border-blue-600 border-t-transparent rounded-full"></div>
@@ -94,16 +93,11 @@ function closeModal() {
     document.getElementById('previewModal').classList.add('hidden');
 }
 
-// Keep your other functions (populateCourses, selectCourse)
-
 function closeModal() {
     document.getElementById('previewModal').classList.add('hidden');
 }
 
-// Initialize
 window.onload = populateCourses;
-
-// ==================== PHILIPPINE ADDRESS CASCADING DROPDOWN ====================
 
 async function loadProvinces() {
     const provinceSelect = document.getElementById('province');
@@ -116,8 +110,8 @@ async function loadProvinces() {
 
         provinces.forEach(p => {
             const option = document.createElement('option');
-            option.value = p.name;           // ✅ value = readable name
-            option.dataset.code = String(p.code); // store code for API lookup
+            option.value = p.name;           
+            option.dataset.code = String(p.code); 
             option.textContent = p.name || 'Unknown Province';
             provinceSelect.appendChild(option);
         });
@@ -147,8 +141,8 @@ async function loadCities(provinceCode) {
 
         cities.forEach(city => {
             const option = document.createElement('option');
-            option.value = city.name;           // ✅ value = readable name
-            option.dataset.code = String(city.code); // store code for API lookup
+            option.value = city.name;          
+            option.dataset.code = String(city.code); 
             option.textContent = city.name || 'Unknown City';
             citySelect.appendChild(option);
         });
@@ -190,7 +184,6 @@ async function loadBarangays(cityCode) {
     }
 }
 
-// ==================== HELPER: GET SELECTED ADDRESS AS READABLE NAMES ====================
 
 function getSelectedAddress() {
     const provinceSelect = document.getElementById('province');
@@ -204,23 +197,21 @@ function getSelectedAddress() {
     };
 }
 
-// ==================== EVENT LISTENERS ====================
 
 document.addEventListener('DOMContentLoaded', function () {
     loadProvinces();
 
     document.getElementById('province').addEventListener('change', function () {
         const selectedOption = this.options[this.selectedIndex];
-        loadCities(selectedOption.dataset.code); // ✅ pass code to API, not name
+        loadCities(selectedOption.dataset.code); 
     });
 
     document.getElementById('city').addEventListener('change', function () {
         const selectedOption = this.options[this.selectedIndex];
-        loadBarangays(selectedOption.dataset.code); // ✅ pass code to API, not name
+        loadBarangays(selectedOption.dataset.code); 
     });
 });
 
-// ==================== DATE OF BIRTH + AGE CALCULATION ====================
 
 function calculateAge() {
     const dobInput = document.getElementById('date_of_birth');
@@ -244,26 +235,22 @@ function calculateAge() {
     ageInput.value = age > 0 ? age : '';
 }
 
-// Set maximum date (15 years ago)
 function setMaxDate() {
     const dobInput = document.getElementById('date_of_birth');
     const today = new Date();
     
     const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
     
-    // Format as YYYY-MM-DD
     const formattedMaxDate = maxDate.toISOString().split('T')[0];
     dobInput.setAttribute('max', formattedMaxDate);
 }
 
-// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     setMaxDate();
     
     const dobInput = document.getElementById('date_of_birth');
     dobInput.addEventListener('change', calculateAge);
     
-    // Calculate age if value already exists
     if (dobInput.value) {
         calculateAge();
     }

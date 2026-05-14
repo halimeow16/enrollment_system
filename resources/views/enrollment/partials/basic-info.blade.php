@@ -1,4 +1,3 @@
-<!-- Basic Info -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <div>
         <label class="block text-sm font-medium text-slate-600 mb-1">Student Number <span class="text-red-500">*</span></label>

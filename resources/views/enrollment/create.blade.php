@@ -4,7 +4,6 @@
 
 @section('content')
 <div class="bg-slate-50 min-h-screen">
-    <!-- Header -->
     @include('enrollment.partials.header')
 
     <div class="max-w-5xl mx-auto px-6 py-10">
@@ -38,7 +37,6 @@
     </div>
 </div>
 
-<!-- Preview Modal -->
 @include('enrollment.partials.preview-modal')
 @endsection
 
@@ -46,7 +44,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
 
 <script>
-    // Pass Laravel routes to JavaScript
     window.previewUrl = "{{ route('enrollment.preview') }}";
 </script>
 

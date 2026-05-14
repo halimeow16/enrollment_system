@@ -1,4 +1,3 @@
-<!-- Required Credentials -->
 <div class="mt-12">
     <h2 class="section-title border-b border-slate-200 pb-3 mb-6">
         REQUIRED CREDENTIALS
@@ -6,7 +5,6 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 bg-slate-50 p-8 rounded-3xl border">
 
-        <!-- Column 1 -->
         <div class="space-y-5">
 
             <div class="flex items-start gap-3">

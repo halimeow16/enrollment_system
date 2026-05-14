@@ -36,7 +36,6 @@ return new class extends Migration
             $table->string('gender')->nullable();
             $table->string('religion')->nullable();
 
-            // Parents
             $table->string('father_name')->nullable();
             $table->text('father_address')->nullable();
             $table->string('father_cpNumber')->nullable();
@@ -45,18 +44,15 @@ return new class extends Migration
             $table->text('mother_address')->nullable();
             $table->string('mother_cpNumber')->nullable();
 
-            // Academic
             $table->string('course_code')->nullable();
             $table->string('course_name')->nullable();
             $table->string('year_level')->nullable();
             $table->string('semester')->nullable();
 
-            // Credentials (Array/JSON)
             $table->json('credentials')->nullable();
 
             $table->timestamps();
 
-            // Optional: Add indexes for better performance
             $table->index(['course_code', 'year_level']);
             $table->index('student_number');
         });

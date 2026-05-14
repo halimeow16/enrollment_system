@@ -151,7 +151,6 @@ class EnrollmentController extends Controller
         $pdf->SetXY(203, 322); $pdf->Write(0, $data->mother_address ?? '');
         $pdf->SetXY(300, 322); $pdf->Write(0, $data->mother_cpNumber ?? '');
 
-        // Checkboxes
         $this->checkCourseBox($pdf, $data->course_code ?? '');
         $this->checkYearLevelBox($pdf, $data->year_level ?? '');
         $this->checkSemesterBox($pdf, $data->semester ?? '');
@@ -160,8 +159,6 @@ class EnrollmentController extends Controller
 
         return $pdf->Output('', 'S');
     }
-
-    // ==================== CHECKBOX FUNCTIONS ====================
 
     private function checkCourseBox($pdf, $courseCode)
     {
@@ -186,10 +183,10 @@ class EnrollmentController extends Controller
         $check = '✓';
 
         switch (trim($yearLevel)) {
-            case '1': $pdf->SetXY(131, 99); $pdf->Write(0, $check); break; // 1st
-            case '2': $pdf->SetXY(152, 99); $pdf->Write(0, $check); break; // 2nd
-            case '3': $pdf->SetXY(173, 99); $pdf->Write(0, $check); break; // 3rd
-            case '4': $pdf->SetXY(194, 99); $pdf->Write(0, $check); break; // 4th
+            case '1': $pdf->SetXY(131, 99); $pdf->Write(0, $check); break;
+            case '2': $pdf->SetXY(152, 99); $pdf->Write(0, $check); break; 
+            case '3': $pdf->SetXY(173, 99); $pdf->Write(0, $check); break; 
+            case '4': $pdf->SetXY(194, 99); $pdf->Write(0, $check); break; 
         }
     }
 
@@ -218,17 +215,14 @@ class EnrollmentController extends Controller
 
         $positions = [
 
-            // COLUMN 1
             'form_138' => [54, 126.5],
             'birth_certificate' => [54, 138],
             'good_moral' => [54, 149],
 
-            // COLUMN 2
             'certificate_grades' => [133.5, 126.5],
             'certificate_eligibility' => [133.5, 138],
             'transcript' => [133.5, 149],
 
-            // COLUMN 3
             'long_folder' => [266.5, 126.5],
             'picture' => [266.5, 138],
         ];

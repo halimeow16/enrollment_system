@@ -1,4 +1,3 @@
-<!-- Personal Information -->
 <div class="mt-12">
     <h2 class="section-title border-b border-slate-200 pb-3 mb-6">PERSONAL INFORMATION</h2>
     
@@ -105,9 +104,7 @@
 
         <div class="md:col-span-2 border-t border-slate-100 my-2"></div>
 
-        <!-- Father's & Mother's Information -->
         <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Father's Section -->
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-slate-600 mb-1">Father's Name</label>
                 <input type="text" name="father_name" value="{{ old('father_name') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
@@ -123,7 +120,6 @@
 
             <div class="md:col-span-2 border-t border-slate-100 my-2"></div>
 
-            <!-- Mother's Section -->
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-slate-600 mb-1">Mother's Maiden Name</label>
                 <input type="text" name="mother_name" value="{{ old('mother_name') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">

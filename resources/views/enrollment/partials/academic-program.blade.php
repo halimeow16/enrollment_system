@@ -1,8 +1,6 @@
-<!-- Academic Program -->
 <div class="mt-14">
     <h2 class="section-title border-b border-slate-200 pb-3 mb-6">ACADEMIC PROGRAM</h2>
     
-    <!-- Course Selection Grid -->
     <div class="mb-8">
         <label class="block text-sm font-medium text-slate-600 mb-3">Choose Program</label>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="courseGrid"></div>
