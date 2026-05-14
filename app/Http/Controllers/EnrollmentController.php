@@ -4,21 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
-use App\Models\Enrollment;   // Make sure this model exists
+use App\Models\Enrollment;
 
 class EnrollmentController extends Controller
 {
-    /**
-     * Show the enrollment form
-     */
     public function create()
     {
         return view('enrollment.create');
     }
 
-    /**
-     * Store enrollment and generate filled PDF
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -51,6 +45,8 @@ class EnrollmentController extends Controller
             'course_name'      => 'nullable|string',
             'year_level'       => 'nullable|string',
             'semester'         => 'nullable|string',
+            'credentials'      => 'nullable|array',
+            'credentials.*'    => 'string',
         ]);
 
         $enrollment = Enrollment::create($validated);
@@ -64,10 +60,16 @@ class EnrollmentController extends Controller
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
-    /**
-     * Fill your existing PDF template using FPDI
-     */
-    private function fillExistingPDF($enrollment)
+    public function preview(Request $request)
+    {
+        $data = $request->all();
+        $pdfContent = $this->fillExistingPDF((object)$data);
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf');
+    }
+
+    private function fillExistingPDF($data)
     {
         $pdf = new Fpdi();
 
@@ -80,56 +82,166 @@ class EnrollmentController extends Controller
         $pdf->setSourceFile($templatePath);
         $templateId = $pdf->importPage(1);
 
-        // Use exact size from your PDF
-        $pdf->AddPage('P', [381, 508]);     // Width 381mm, Height 508mm, Portrait
+        $pdf->AddPage('P', [381, 508]);
         $pdf->useTemplate($templateId);
 
-        // Font Configuration
-        $pdf->SetFont('Helvetica', '', 11);
+        $pdf->SetFont('Helvetica', '', 15);
         $pdf->SetTextColor(0, 0, 0);
 
-        // ====================== FILL FIELDS ======================
+        // ==================== TEXT FIELDS ====================
+        $pdf->SetXY(90, 37.5);   $pdf->Write(0, $data->student_number ?? '');
+        $pdf->SetXY(205, 37.5);  $pdf->Write(0, $data->date_filed ?? '');
+        $pdf->SetXY(313, 37.5);  $pdf->Write(0, $data->school_year ?? '');
 
-        // Top Header
-        $pdf->SetXY(88, 38);  $pdf->Write(0, $enrollment->student_number ?? '');
-        $pdf->SetXY(380, 48);  $pdf->Write(0, $enrollment->date_filed ? $enrollment->date_filed->format('m/d/Y') : '');
-        $pdf->SetXY(580, 48);  $pdf->Write(0, $enrollment->school_year ?? '2026-2027');
+        $pdf->SetXY(98, 45);   $pdf->Write(0, $data->last_name ?? '');
+        $pdf->SetXY(185, 45);  $pdf->Write(0, $data->first_name ?? '');
+        $pdf->SetXY(289, 45);  $pdf->Write(0, $data->middle_name ?? '');
 
-        // Name Fields
-        $pdf->SetXY(135, 78);  $pdf->Write(0, $enrollment->last_name ?? '');
-        $pdf->SetXY(340, 78);  $pdf->Write(0, $enrollment->first_name ?? '');
-        $pdf->SetXY(520, 78);  $pdf->Write(0, $enrollment->middle_name ?? '');
+        $pdf->SetXY(90, 59);   $pdf->Write(0, $data->cellphone ?? '');
+        $pdf->SetXY(193, 59);  $pdf->Write(0, $data->email ?? '');
+        $pdf->SetXY(105, 112);  $pdf->Write(0, $data->last_school ?? '');
 
-        // Contact
-        $pdf->SetXY(135, 105); $pdf->Write(0, $enrollment->cellphone ?? '');
-        $pdf->SetXY(380, 105); $pdf->Write(0, $enrollment->email ?? '');
+        $address = $data->present_address ?? '';
+        $maxWidth = 107;
+        $initialFontSize = 15;
+        $minFontSize = 6;
+        $currentFontSize = $initialFontSize;
+        $pdf->SetFont('Helvetica', '', $currentFontSize);
+        while ($pdf->GetStringWidth($address) > $maxWidth && $currentFontSize > $minFontSize) {
+            $currentFontSize -= 0.5;
+            $pdf->SetFont('Helvetica', '', $currentFontSize);
+        }
+        $pdf->SetXY(84, 284);
+        $pdf->Cell($maxWidth, 5, $address, 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', $initialFontSize);
 
-        // Course & Academic
-        $pdf->SetXY(135, 145); $pdf->Write(0, $enrollment->course_code ?? '');
-        $pdf->SetXY(380, 175); $pdf->Write(0, $enrollment->year_level ?? '');
-        $pdf->SetXY(520, 175); $pdf->Write(0, $enrollment->semester ?? '');
+        $pdf->SetXY(224, 284); $pdf->Write(0, $data->barangay ?? '');
+        $pdf->SetXY(70, 291.5); $pdf->Write(0, $data->city ?? '');
+        $pdf->SetXY(224, 291.5); $pdf->Write(0, $data->province ?? '');
 
-        // Personal Information
-        $pdf->SetXY(135, 280); $pdf->Write(0, $enrollment->present_address ?? '');
-        $pdf->SetXY(480, 280); $pdf->Write(0, $enrollment->barangay ?? '');
+        $pdf->SetXY(77, 299); $pdf->Write(0, $data->date_of_birth ?? '');
+        $pdf->SetXY(200, 299); $pdf->Write(0, $data->age ?? '');
+        $pdf->SetXY(261, 299); $pdf->Write(0, $data->civil_status ?? '');
 
-        $pdf->SetXY(135, 305); $pdf->Write(0, $enrollment->city ?? '');
-        $pdf->SetXY(480, 305); $pdf->Write(0, $enrollment->province ?? '');
+        $place_of_birth = $data->place_of_birth ?? '';
+        $maxWidth = 99; 
+        $initialFontSize = 15; 
+        $minFontSize = 6;      
+        $currentFontSize = $initialFontSize;
+        $pdf->SetFont('Helvetica', '', $currentFontSize);
+        while ($pdf->GetStringWidth($place_of_birth) > $maxWidth && $currentFontSize > $minFontSize) {
+            $currentFontSize -= 0.5;
+            $pdf->SetFont('Helvetica', '', $currentFontSize);
+        }
+        $pdf->SetXY(77, 307);
+        $pdf->Cell($maxWidth, 5, $place_of_birth, 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', $initialFontSize);
 
-        $pdf->SetXY(135, 330); $pdf->Write(0, $enrollment->date_of_birth ? $enrollment->date_of_birth->format('m/d/Y') : '');
-        $pdf->SetXY(380, 330); $pdf->Write(0, $enrollment->age ?? '');
-        $pdf->SetXY(520, 330); $pdf->Write(0, $enrollment->gender ?? '');
 
-        $pdf->SetXY(135, 355); $pdf->Write(0, $enrollment->place_of_birth ?? '');
-        $pdf->SetXY(520, 355); $pdf->Write(0, $enrollment->religion ?? '');
 
-        // Parents Information
-        $pdf->SetXY(135, 390); $pdf->Write(0, $enrollment->father_name ?? '');
-        $pdf->SetXY(480, 390); $pdf->Write(0, $enrollment->father_cpNumber ?? '');
 
-        $pdf->SetXY(135, 415); $pdf->Write(0, $enrollment->mother_name ?? '');
-        $pdf->SetXY(480, 415); $pdf->Write(0, $enrollment->mother_cpNumber ?? '');
+        $pdf->SetXY(203, 307); $pdf->Write(0, $data->gender ?? '');
+        $pdf->SetXY(255, 307); $pdf->Write(0, $data->religion ?? '');
+
+        $pdf->SetXY(80, 314); $pdf->Write(0, $data->father_name ?? '');
+        $pdf->SetXY(203, 314); $pdf->Write(0, $data->father_address ?? '');
+        $pdf->SetXY(300, 314); $pdf->Write(0, $data->father_cpNumber ?? '');
+
+        $pdf->SetXY(102, 322); $pdf->Write(0, $data->mother_name ?? '');
+        $pdf->SetXY(203, 322); $pdf->Write(0, $data->mother_address ?? '');
+        $pdf->SetXY(300, 322); $pdf->Write(0, $data->mother_cpNumber ?? '');
+
+        // Checkboxes
+        $this->checkCourseBox($pdf, $data->course_code ?? '');
+        $this->checkYearLevelBox($pdf, $data->year_level ?? '');
+        $this->checkSemesterBox($pdf, $data->semester ?? '');
+
+        $this->checkCredentialBoxes($pdf, $data->credentials ?? []);
 
         return $pdf->Output('', 'S');
+    }
+
+    // ==================== CHECKBOX FUNCTIONS ====================
+
+    private function checkCourseBox($pdf, $courseCode)
+    {
+        $pdf->SetFont('dejavusans', 'B', 32);
+        $pdf->SetTextColor(0, 100, 0);
+        $check = '✓';
+
+        switch (strtoupper(trim($courseCode))) {
+            case 'BSIT':  $pdf->SetXY(77, 71);  $pdf->Write(0, $check); break;
+            case 'BSCS':  $pdf->SetXY(158, 71); $pdf->Write(0, $check); break;
+            case 'ACT':   $pdf->SetXY(225, 71); $pdf->Write(0, $check); break;
+            case 'BSHM':  $pdf->SetXY(77, 86);  $pdf->Write(0, $check); break;
+            case 'BSOM':  $pdf->SetXY(205, 86); $pdf->Write(0, $check); break;
+            case 'BSA':   $pdf->SetXY(285, 86); $pdf->Write(0, $check); break;
+        }
+    }
+
+    private function checkYearLevelBox($pdf, $yearLevel)
+    {
+        $pdf->SetFont('dejavusans', 'B', 32);
+        $pdf->SetTextColor(0, 100, 0);
+        $check = '✓';
+
+        switch (trim($yearLevel)) {
+            case '1': $pdf->SetXY(131, 99); $pdf->Write(0, $check); break; // 1st
+            case '2': $pdf->SetXY(152, 99); $pdf->Write(0, $check); break; // 2nd
+            case '3': $pdf->SetXY(173, 99); $pdf->Write(0, $check); break; // 3rd
+            case '4': $pdf->SetXY(194, 99); $pdf->Write(0, $check); break; // 4th
+        }
+    }
+
+    private function checkSemesterBox($pdf, $semester)
+    {
+        $pdf->SetFont('dejavusans', 'B', 32);
+        $pdf->SetTextColor(0, 100, 0);
+        $check = '✓';
+
+        switch (strtolower(trim($semester))) {
+            case '1st':    $pdf->SetXY(262, 99); $pdf->Write(0, $check); break;
+            case '2nd':    $pdf->SetXY(287.5, 99); $pdf->Write(0, $check); break;
+            case 'summer': $pdf->SetXY(325, 99); $pdf->Write(0, $check); break;
+        }
+    }
+    private function checkCredentialBoxes($pdf, $credentials)
+    {
+        $pdf->SetFont('dejavusans', 'B', 28);
+        $pdf->SetTextColor(0, 100, 0);
+
+        $check = '✓';
+
+        if (!is_array($credentials)) {
+            return;
+        }
+
+        $positions = [
+
+            // COLUMN 1
+            'form_138' => [54, 126.5],
+            'birth_certificate' => [54, 138],
+            'good_moral' => [54, 149],
+
+            // COLUMN 2
+            'certificate_grades' => [133.5, 126.5],
+            'certificate_eligibility' => [133.5, 138],
+            'transcript' => [133.5, 149],
+
+            // COLUMN 3
+            'long_folder' => [266.5, 126.5],
+            'picture' => [266.5, 138],
+        ];
+
+        foreach ($credentials as $credential) {
+
+            if (isset($positions[$credential])) {
+
+                [$x, $y] = $positions[$credential];
+
+                $pdf->SetXY($x, $y);
+                $pdf->Write(0, $check);
+            }
+        }
     }
 }

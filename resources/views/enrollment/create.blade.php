@@ -20,6 +20,7 @@
                 @include('enrollment.partials.basic-info')
                 @include('enrollment.partials.personal-info')
                 @include('enrollment.partials.academic-program')
+                @include('enrollment.partials.required-credentials')
 
                 <div class="mt-12 flex justify-center gap-4">
                     <button type="button" onclick="generatePreview()" 
@@ -43,5 +44,11 @@
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+
+<script>
+    // Pass Laravel routes to JavaScript
+    window.previewUrl = "{{ route('enrollment.preview') }}";
+</script>
+
 <script src="{{ asset('js/enrollment.js') }}"></script>
 @endpush

@@ -14,18 +14,20 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Year Level</label>
-            <select name="year_level" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <select name="year_level" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                <option value="" disabled selected hidden>Select Year Level</option>
                 <option value="1">1st Year</option>
-                <option value="2" selected>2nd Year</option>
+                <option value="2">2nd Year</option>
                 <option value="3">3rd Year</option>
                 <option value="4">4th Year</option>
             </select>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Semester</label>
-            <select name="semester" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <select name="semester" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                <option value="" disabled selected hidden>Select Semester</option>
                 <option value="1st">1st Semester</option>
-                <option value="2nd" selected>2nd Semester</option>
+                <option value="2nd">2nd Semester</option>
                 <option value="Summer">Summer</option>
             </select>
         </div>

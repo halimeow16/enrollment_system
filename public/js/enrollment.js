@@ -40,33 +40,61 @@ function selectCourse(el, code, name) {
 }
 
 function generatePreview() {
-    // You can expand this later with full data
-    const data = {
-        studentNumber: document.querySelector('[name="student_number"]').value || "2026-XXXXX",
-        firstName: document.querySelector('[name="first_name"]').value,
-        middleName: document.querySelector('[name="middle_name"]').value,
-        lastName: document.querySelector('[name="last_name"]').value,
-        courseCode: selectedCourseCode,
-        courseName: selectedCourseName,
-    };
+    const form = document.getElementById('enrollmentForm');
+    const formData = new FormData(form);
 
-    const previewHTML = `
-        <div class="max-w-3xl mx-auto border-2 border-slate-300 p-8 rounded-xl">
-            <h2 class="text-2xl font-bold text-center text-[#1e40af] mb-6">COMTEQ Computer & Business College</h2>
-            <p class="text-center mb-8">Academic Year 2026-2027</p>
-            
-            <h3 class="font-semibold mb-4">Selected Program</h3>
-            <p class="text-lg"><strong>${data.courseCode} — ${data.courseName}</strong></p>
-            
-            <div class="mt-8 text-center text-sm text-slate-500">
-                Full preview coming soon...
-            </div>
+    // Show loading
+    document.getElementById('formPreview').innerHTML = `
+        <div class="text-center py-20">
+            <div class="animate-spin h-8 w-8 mx-auto border-4 border-blue-600 border-t-transparent rounded-full"></div>
+            <p class="mt-4 text-slate-600">Generating PDF Preview...</p>
         </div>
     `;
-
-    document.getElementById('formPreview').innerHTML = previewHTML;
     document.getElementById('previewModal').classList.remove('hidden');
+
+    fetch(window.previewUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => { throw new Error(text || response.statusText); });
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const previewHTML = `
+            <iframe src="${url}" width="100%" height="820px" 
+                    style="border: none; border-radius: 12px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);">
+            </iframe>
+        `;
+        document.getElementById('formPreview').innerHTML = previewHTML;
+    })
+    .catch(error => {
+        console.error('Preview Error:', error);
+        document.getElementById('formPreview').innerHTML = `
+            <div class="text-red-600 text-center py-10 px-6">
+                <p class="font-medium">Failed to generate preview</p>
+                <p class="text-sm mt-2 text-slate-600">${error.message}</p>
+                <button onclick="generatePreview()" 
+                        class="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl">
+                    Try Again
+                </button>
+            </div>
+        `;
+    });
 }
+
+function closeModal() {
+    document.getElementById('previewModal').classList.add('hidden');
+}
+
+// Keep your other functions (populateCourses, selectCourse)
 
 function closeModal() {
     document.getElementById('previewModal').classList.add('hidden');
@@ -74,3 +102,169 @@ function closeModal() {
 
 // Initialize
 window.onload = populateCourses;
+
+// ==================== PHILIPPINE ADDRESS CASCADING DROPDOWN ====================
+
+async function loadProvinces() {
+    const provinceSelect = document.getElementById('province');
+    provinceSelect.innerHTML = '<option value="">Select Province</option>';
+
+    try {
+        const res = await fetch('https://psgc.cloud/api/provinces');
+        const json = await res.json();
+        const provinces = json.data ?? json;
+
+        provinces.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.name;           // ✅ value = readable name
+            option.dataset.code = String(p.code); // store code for API lookup
+            option.textContent = p.name || 'Unknown Province';
+            provinceSelect.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Failed to load provinces:", error);
+    }
+}
+
+async function loadCities(provinceCode) {
+    const citySelect = document.getElementById('city');
+    const barangaySelect = document.getElementById('barangay');
+
+    citySelect.innerHTML = '<option value="">Select City/Town</option>';
+    citySelect.disabled = true;
+    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+    barangaySelect.disabled = true;
+
+    if (!provinceCode) return;
+
+    try {
+        const res = await fetch(
+            `https://psgc.cloud/api/provinces/${provinceCode}/cities-municipalities`
+        );
+        const json = await res.json();
+        const cities = json.data ?? json;
+
+        cities.forEach(city => {
+            const option = document.createElement('option');
+            option.value = city.name;           // ✅ value = readable name
+            option.dataset.code = String(city.code); // store code for API lookup
+            option.textContent = city.name || 'Unknown City';
+            citySelect.appendChild(option);
+        });
+
+        citySelect.disabled = false;
+
+    } catch (error) {
+        console.error("Failed to load cities:", error);
+    }
+}
+
+async function loadBarangays(cityCode) {
+    const barangaySelect = document.getElementById('barangay');
+    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+    barangaySelect.disabled = true;
+
+    if (!cityCode) return;
+
+    try {
+        const res = await fetch(
+            `https://psgc.cloud/api/cities-municipalities/${cityCode}/barangays`
+        );
+
+        const json = await res.json();
+        const barangays = json.data ?? json;
+
+        barangays.forEach(b => {
+            const option = document.createElement('option');
+            option.value = b.name;
+            option.textContent = b.name;
+            barangaySelect.appendChild(option);
+        });
+
+        barangaySelect.disabled = false;
+
+    } catch (error) {
+        console.error("Failed to load barangays:", error);
+        barangaySelect.disabled = false;
+    }
+}
+
+// ==================== HELPER: GET SELECTED ADDRESS AS READABLE NAMES ====================
+
+function getSelectedAddress() {
+    const provinceSelect = document.getElementById('province');
+    const citySelect = document.getElementById('city');
+    const barangaySelect = document.getElementById('barangay');
+
+    return {
+        province: provinceSelect.value ?? '',
+        city:     citySelect.value ?? '',
+        barangay: barangaySelect.value,
+    };
+}
+
+// ==================== EVENT LISTENERS ====================
+
+document.addEventListener('DOMContentLoaded', function () {
+    loadProvinces();
+
+    document.getElementById('province').addEventListener('change', function () {
+        const selectedOption = this.options[this.selectedIndex];
+        loadCities(selectedOption.dataset.code); // ✅ pass code to API, not name
+    });
+
+    document.getElementById('city').addEventListener('change', function () {
+        const selectedOption = this.options[this.selectedIndex];
+        loadBarangays(selectedOption.dataset.code); // ✅ pass code to API, not name
+    });
+});
+
+// ==================== DATE OF BIRTH + AGE CALCULATION ====================
+
+function calculateAge() {
+    const dobInput = document.getElementById('date_of_birth');
+    const ageInput = document.getElementById('age');
+
+    if (!dobInput.value) {
+        ageInput.value = '';
+        return;
+    }
+
+    const birthDate = new Date(dobInput.value);
+    const today = new Date();
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    ageInput.value = age > 0 ? age : '';
+}
+
+// Set maximum date (15 years ago)
+function setMaxDate() {
+    const dobInput = document.getElementById('date_of_birth');
+    const today = new Date();
+    
+    const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
+    
+    // Format as YYYY-MM-DD
+    const formattedMaxDate = maxDate.toISOString().split('T')[0];
+    dobInput.setAttribute('max', formattedMaxDate);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    setMaxDate();
+    
+    const dobInput = document.getElementById('date_of_birth');
+    dobInput.addEventListener('change', calculateAge);
+    
+    // Calculate age if value already exists
+    if (dobInput.value) {
+        calculateAge();
+    }
+});

@@ -19,11 +19,13 @@ class Enrollment extends Model
         'father_name', 'father_address', 'father_cpNumber',
         'mother_name', 'mother_address', 'mother_cpNumber',
         'course_code', 'course_name', 'year_level', 'semester',
+        'credentials',                    // ← Added
     ];
 
     protected $casts = [
         'date_filed'    => 'date',
         'date_of_birth' => 'date',
         'age'           => 'integer',
+        'credentials'   => 'array',       // ← Important
     ];
 }

@@ -12,7 +12,7 @@
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-600 mb-1">School Year</label>
-        <input type="text" name="school_year" value="2026-2027"
+        <input type="text" name="school_year" required
                class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
     </div>
 </div>
