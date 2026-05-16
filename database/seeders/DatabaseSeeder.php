@@ -55,6 +55,8 @@ class DatabaseSeeder extends Seeder
             ['start_time' => '10:30', 'end_time' => '12:00', 'label' => '10:30 AM - 12:00 PM'],
             ['start_time' => '13:00', 'end_time' => '14:30', 'label' => '1:00 PM - 2:30 PM'],
             ['start_time' => '14:30', 'end_time' => '16:00', 'label' => '2:30 PM - 4:00 PM'],
+            ['start_time' => '16:00', 'end_time' => '17:30', 'label' => '4:00 PM - 5:30 PM'],
+            ['start_time' => '17:30', 'end_time' => '19:00', 'label' => '5:30 PM - 7:00 PM'],
         ] as $slot) {
             TimeSlot::updateOrCreate(
                 ['start_time' => $slot['start_time'], 'end_time' => $slot['end_time']],
@@ -62,7 +64,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        foreach (['Room 101', 'Room 102', 'Computer Lab 1', 'Computer Lab 2'] as $room) {
+        foreach (['Room 101', 'Room 102', 'Room 103', 'Room 104', 'Computer Lab 1', 'Computer Lab 2', 'Computer Lab 3'] as $room) {
             Room::updateOrCreate(['name' => $room], ['is_active' => true]);
         }
 
@@ -98,6 +100,8 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]);
         }
+
+        $this->seedSubjectSchedules();
 
         $enrollments = [
             ['student_number' => '2026-00001', 'first_name' => 'Miguel', 'middle_name' => 'A.', 'last_name' => 'Dela Cruz', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['GE101', 'CC101', 'CC102']],
@@ -328,5 +332,49 @@ class DatabaseSeeder extends Seeder
         }
 
         return $rows;
+    }
+
+    private function seedSubjectSchedules(): void
+    {
+        $days = Day::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()->values();
+        $timeSlots = TimeSlot::where('is_active', true)->orderBy('start_time')->get()->values();
+        $lectureRooms = Room::where('is_active', true)
+            ->where('name', 'not like', '%Lab%')
+            ->orderBy('name')
+            ->get()
+            ->values();
+        $labRooms = Room::where('is_active', true)
+            ->where('name', 'like', '%Lab%')
+            ->orderBy('name')
+            ->get()
+            ->values();
+
+        $lectureIndex = 0;
+        $labIndex = 0;
+
+        Subject::orderBy('course_code')
+            ->orderBy('year_level')
+            ->orderBy('semester')
+            ->orderBy('code')
+            ->get()
+            ->each(function (Subject $subject) use ($days, $timeSlots, $lectureRooms, $labRooms, &$lectureIndex, &$labIndex): void {
+                $usesLab = in_array($subject->type, ['LAB', 'BOTH'], true);
+                $rooms = $usesLab && $labRooms->isNotEmpty() ? $labRooms : $lectureRooms;
+                $index = $usesLab ? $labIndex++ : $lectureIndex++;
+
+                $room = $rooms[$index % $rooms->count()];
+                $slotIndex = intdiv($index, $rooms->count());
+                $timeSlot = $timeSlots[$slotIndex % $timeSlots->count()];
+                $day = $days[intdiv($slotIndex, $timeSlots->count()) % $days->count()];
+
+                SubjectSchedule::updateOrCreate(
+                    [
+                        'subject_id' => $subject->id,
+                        'day_id' => $day->id,
+                        'time_slot_id' => $timeSlot->id,
+                    ],
+                    ['room_id' => $room->id]
+                );
+            });
     }
 }
