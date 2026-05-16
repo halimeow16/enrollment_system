@@ -191,18 +191,27 @@
     </section>
 
     {{-- All enrollments --}}
-    <section x-show="activeTab === 'enrollments'" x-cloak class="max-h-[calc(100vh-170px)] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
+    <section x-show="activeTab === 'enrollments'" x-cloak class="h-[calc(100vh-170px)] min-h-[560px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
         <div class="px-5 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/10">
             <div>
                 <h2 class="font-extrabold text-white">All Enrollments</h2>
                 <p class="text-xs text-slate-300 mt-0.5">{{ $allEnrollments->count() }} total records from the enrollment table.</p>
             </div>
-            <div class="relative w-full md:w-72">
-                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
-                <input type="search"
-                       x-model="search"
-                       placeholder="Search student, number, course..."
-                       class="w-full rounded-2xl border border-white/10 bg-white/10 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+            <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                <div class="relative w-full md:w-72">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                    <input type="search"
+                           x-model="search"
+                           placeholder="Search student, number, course..."
+                           class="w-full rounded-2xl border border-white/10 bg-white/10 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-400 outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+                </div>
+                <select x-model="statusFilter"
+                        class="w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20 sm:w-44">
+                    <option class="text-slate-900" value="">All Status</option>
+                    <option class="text-slate-900" value="pending">Pending</option>
+                    <option class="text-slate-900" value="enrolled">Enrolled</option>
+                    <option class="text-slate-900" value="cancelled">Cancelled</option>
+                </select>
             </div>
         </div>
         @include('dashboard.partials.enrollment-table', ['enrollments' => $allEnrollments, 'compact' => false])
@@ -231,6 +240,7 @@
             activeTab: 'overview',
             previousTab: 'overview',
             search: '',
+            statusFilter: '',
             titles: {
                 overview: 'Dashboard',
                 enrollments: 'Enrollments',
@@ -255,6 +265,12 @@
             },
             matchesSearch(rowText) {
                 return !this.search || rowText.toLowerCase().includes(this.search.toLowerCase());
+            },
+            matchesEnrollment(rowText, status) {
+                const matchesText = !this.search || rowText.toLowerCase().includes(this.search.toLowerCase());
+                const matchesStatus = !this.statusFilter || status === this.statusFilter;
+
+                return matchesText && matchesStatus;
             },
         };
     };

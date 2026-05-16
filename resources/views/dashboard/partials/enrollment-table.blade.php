@@ -2,7 +2,7 @@
     $compact = $compact ?? false;
 @endphp
 
-<div class="{{ $compact ? 'max-h-[374px]' : 'max-h-[calc(100vh-260px)] min-h-[360px]' }} overflow-auto">
+<div class="{{ $compact ? 'max-h-[374px]' : 'h-[calc(100vh-270px)] min-h-[450px]' }} overflow-auto">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10">
             <tr class="bg-white/5 text-slate-300 text-xs uppercase tracking-wide">
@@ -34,7 +34,7 @@
                     ]));
                 @endphp
                 <tr class="hover:bg-white/5 transition-colors duration-100"
-                    @unless($compact) x-show="matchesSearch(@js($rowText))" @endunless>
+                    @unless($compact) x-show="matchesEnrollment(@js($rowText), @js($enrollment->enrollment_status ?? 'pending'))" @endunless>
                     <td class="px-5 py-3.5">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-300/20 flex items-center justify-center text-blue-100 text-xs font-bold shrink-0">
