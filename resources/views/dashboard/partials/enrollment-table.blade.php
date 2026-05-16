@@ -2,9 +2,9 @@
     $compact = $compact ?? false;
 @endphp
 
-<div class="overflow-x-auto">
+<div class="{{ $compact ? 'max-h-[374px]' : 'max-h-[calc(100vh-260px)] min-h-[360px]' }} overflow-auto">
     <table class="w-full text-sm">
-        <thead>
+        <thead class="sticky top-0 z-10">
             <tr class="bg-white/5 text-slate-300 text-xs uppercase tracking-wide">
                 <th class="px-5 py-3 text-left font-semibold">Student</th>
                 <th class="px-5 py-3 text-left font-semibold">Program</th>

@@ -1,6 +1,6 @@
 <div class="space-y-5">
     <div class="grid grid-cols-12 gap-5">
-        <div class="col-span-12 xl:col-span-5 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+        <div class="col-span-12 max-h-[calc(100vh-210px)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 xl:col-span-5">
             <div class="mb-4">
                 <h2 class="font-extrabold text-white">Add Subject</h2>
                 <p class="mt-1 text-xs text-slate-300">Subjects are assigned by course, year level, and semester.</p>
@@ -69,17 +69,56 @@
             </form>
         </div>
 
-        <div class="col-span-12 xl:col-span-7 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
-            <div class="mb-4 flex items-center justify-between">
+        <div class="col-span-12 max-h-[calc(100vh-210px)] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 xl:col-span-7"
+             x-data="{ course: '', year: '', semester: '' }">
+            <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 class="font-extrabold text-white">Subjects</h2>
                     <p class="mt-1 text-xs text-slate-300">{{ $subjects->count() }} configured subjects.</p>
                 </div>
+
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Course</label>
+                        <select x-model="course" class="mt-1 w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-blue-300/40">
+                            <option class="text-slate-900" value="">All</option>
+                            @foreach($subjects->pluck('course_code')->unique()->sort()->values() as $courseCode)
+                                <option class="text-slate-900" value="{{ $courseCode }}">{{ $courseCode }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Year</label>
+                        <select x-model="year" class="mt-1 w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-blue-300/40">
+                            <option class="text-slate-900" value="">All</option>
+                            @foreach(['1', '2', '3', '4'] as $yearLevel)
+                                <option class="text-slate-900" value="{{ $yearLevel }}">Year {{ $yearLevel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Semester</label>
+                        <select x-model="semester" class="mt-1 w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white outline-none focus:border-blue-300/40">
+                            <option class="text-slate-900" value="">All</option>
+                            @foreach(['1st', '2nd', 'Summer'] as $semesterName)
+                                <option class="text-slate-900" value="{{ $semesterName }}">{{ $semesterName }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="button"
+                            @click="course = ''; year = ''; semester = ''"
+                            class="mt-4 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/15 sm:mt-5">
+                        Clear
+                    </button>
+                </div>
             </div>
 
-            <div class="max-h-[520px] overflow-auto rounded-2xl border border-white/10">
+            <div class="max-h-[calc(100vh-380px)] min-h-[320px] overflow-auto rounded-2xl border border-white/10">
                 <table class="w-full text-sm">
-                    <thead class="bg-white/5 text-xs uppercase text-slate-300">
+                    <thead class="sticky top-0 z-10 bg-white/5 text-xs uppercase text-slate-300 backdrop-blur">
                         <tr>
                             <th class="px-3 py-2 text-left">Subject</th>
                             <th class="px-3 py-2 text-left">Group</th>
@@ -90,7 +129,7 @@
                     </thead>
                     <tbody class="divide-y divide-white/10">
                         @forelse($subjects as $subject)
-                            <tr>
+                            <tr x-show="(!course || course === @js($subject->course_code)) && (!year || year === @js($subject->year_level)) && (!semester || semester === @js($subject->semester))">
                                 <td class="px-3 py-3">
                                     <p class="font-bold text-white">{{ $subject->code }}</p>
                                     <p class="text-xs text-slate-400">{{ $subject->name }}</p>
@@ -167,7 +206,7 @@
     </div>
 
     <div class="grid grid-cols-12 gap-5">
-        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+        <div class="col-span-12 max-h-[520px] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 lg:col-span-4">
             <h2 class="font-extrabold text-white">Schedule Options</h2>
             <p class="mt-1 text-xs text-slate-300">Add the day, time, and room choices used in subject schedules.</p>
 
@@ -194,7 +233,7 @@
             </form>
         </div>
 
-        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+        <div class="col-span-12 max-h-[520px] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 lg:col-span-4">
             <h2 class="font-extrabold text-white">Assign Schedule</h2>
             <p class="mt-1 text-xs text-slate-300">Saving is blocked when a room already has the selected day and time.</p>
             <form action="{{ route('academic.schedules.store') }}" method="POST" class="mt-4 space-y-3">
@@ -227,7 +266,7 @@
             </form>
         </div>
 
-        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+        <div class="col-span-12 max-h-[520px] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 lg:col-span-4">
             <h2 class="font-extrabold text-white">Department Heads</h2>
             <p class="mt-1 text-xs text-slate-300">The active name auto-fills in enrollment forms.</p>
             <form action="{{ route('academic.department-heads.store') }}" method="POST" class="mt-4 space-y-3">
@@ -254,7 +293,7 @@
         </div>
     </div>
 
-    <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+    <div class="max-h-[620px] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
         <h2 class="font-extrabold text-white">Assigned Schedules</h2>
         <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             @forelse($subjectSchedules as $schedule)

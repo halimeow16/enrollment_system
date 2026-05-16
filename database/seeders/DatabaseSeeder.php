@@ -12,6 +12,7 @@ use App\Models\SubjectSchedule;
 use App\Models\TimeSlot;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
@@ -81,68 +82,28 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        $subjects = [
-            ['code' => 'IT101', 'name' => 'Introduction to Computing', 'course_code' => 'BSIT', 'year_level' => '1', 'semester' => '1st', 'type' => 'LEC', 'lecture_units' => 3, 'laboratory_units' => 0],
-            ['code' => 'IT102', 'name' => 'Computer Programming 1', 'course_code' => 'BSIT', 'year_level' => '1', 'semester' => '1st', 'type' => 'BOTH', 'lecture_units' => 2, 'laboratory_units' => 1],
-            ['code' => 'IT103', 'name' => 'Web Systems and Technologies', 'course_code' => 'BSIT', 'year_level' => '1', 'semester' => '2nd', 'type' => 'BOTH', 'lecture_units' => 2, 'laboratory_units' => 1],
-            ['code' => 'IT201', 'name' => 'Data Structures and Algorithms', 'course_code' => 'BSIT', 'year_level' => '2', 'semester' => '1st', 'type' => 'BOTH', 'lecture_units' => 2, 'laboratory_units' => 1],
-            ['code' => 'CS101', 'name' => 'Discrete Structures', 'course_code' => 'BSCS', 'year_level' => '1', 'semester' => '1st', 'type' => 'LEC', 'lecture_units' => 3, 'laboratory_units' => 0],
-            ['code' => 'CS102', 'name' => 'Computer Programming Fundamentals', 'course_code' => 'BSCS', 'year_level' => '1', 'semester' => '1st', 'type' => 'BOTH', 'lecture_units' => 2, 'laboratory_units' => 1],
-            ['code' => 'ACT101', 'name' => 'Productivity Tools', 'course_code' => 'ACT', 'year_level' => '1', 'semester' => '1st', 'type' => 'LAB', 'lecture_units' => 0, 'laboratory_units' => 3],
-            ['code' => 'HM101', 'name' => 'Introduction to Hospitality Management', 'course_code' => 'BSHM', 'year_level' => '1', 'semester' => '1st', 'type' => 'LEC', 'lecture_units' => 3, 'laboratory_units' => 0],
-            ['code' => 'OM101', 'name' => 'Office Procedures and Administration', 'course_code' => 'BSOM', 'year_level' => '1', 'semester' => '1st', 'type' => 'LEC', 'lecture_units' => 3, 'laboratory_units' => 0],
-            ['code' => 'ACC101', 'name' => 'Fundamentals of Accounting', 'course_code' => 'BSA', 'year_level' => '1', 'semester' => '1st', 'type' => 'LEC', 'lecture_units' => 3, 'laboratory_units' => 0],
-        ];
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::table('schedule_conflicts')->truncate();
+        DB::table('enrollment_subjects')->truncate();
+        DB::table('subject_schedules')->truncate();
+        DB::table('subjects')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+        $subjects = $this->curriculumSubjects();
 
         foreach ($subjects as $subject) {
-            Subject::updateOrCreate(
-                ['code' => $subject['code']],
-                $subject + [
-                    'description' => null,
-                    'total_units' => $subject['lecture_units'] + $subject['laboratory_units'],
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        $scheduleRows = [
-            ['subject' => 'IT101', 'day' => 'Monday', 'time' => '07:30', 'room' => 'Room 101'],
-            ['subject' => 'IT102', 'day' => 'Monday', 'time' => '09:00', 'room' => 'Computer Lab 1'],
-            ['subject' => 'IT103', 'day' => 'Tuesday', 'time' => '10:30', 'room' => 'Computer Lab 1'],
-            ['subject' => 'IT201', 'day' => 'Wednesday', 'time' => '13:00', 'room' => 'Computer Lab 2'],
-            ['subject' => 'CS101', 'day' => 'Tuesday', 'time' => '07:30', 'room' => 'Room 102'],
-            ['subject' => 'CS102', 'day' => 'Tuesday', 'time' => '09:00', 'room' => 'Computer Lab 2'],
-            ['subject' => 'ACT101', 'day' => 'Wednesday', 'time' => '09:00', 'room' => 'Computer Lab 1'],
-            ['subject' => 'HM101', 'day' => 'Thursday', 'time' => '07:30', 'room' => 'Room 101'],
-            ['subject' => 'OM101', 'day' => 'Thursday', 'time' => '09:00', 'room' => 'Room 102'],
-            ['subject' => 'ACC101', 'day' => 'Friday', 'time' => '07:30', 'room' => 'Room 101'],
-        ];
-
-        foreach ($scheduleRows as $row) {
-            $subject = Subject::where('code', $row['subject'])->first();
-            $day = Day::where('name', $row['day'])->first();
-            $timeSlot = TimeSlot::where('start_time', $row['time'])->first();
-            $room = Room::where('name', $row['room'])->first();
-
-            if (! $subject || ! $day || ! $timeSlot || ! $room) {
-                continue;
-            }
-
-            SubjectSchedule::updateOrCreate(
-                [
-                    'subject_id' => $subject->id,
-                    'day_id' => $day->id,
-                    'time_slot_id' => $timeSlot->id,
-                ],
-                ['room_id' => $room->id]
-            );
+            Subject::create($subject + [
+                'description' => null,
+                'total_units' => $subject['lecture_units'] + $subject['laboratory_units'],
+                'is_active' => true,
+            ]);
         }
 
         $enrollments = [
-            ['student_number' => '2026-00001', 'first_name' => 'Miguel', 'middle_name' => 'A.', 'last_name' => 'Dela Cruz', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['IT101', 'IT102']],
-            ['student_number' => '2026-00002', 'first_name' => 'Sofia', 'middle_name' => 'B.', 'last_name' => 'Reyes', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '2nd', 'enrollment_status' => 'pending', 'subjects' => ['IT103']],
-            ['student_number' => '2026-00003', 'first_name' => 'Carlo', 'middle_name' => 'C.', 'last_name' => 'Mendoza', 'course_code' => 'BSCS', 'course_name' => 'BS Computer Science', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['CS101', 'CS102']],
-            ['student_number' => '2026-00004', 'first_name' => 'Bianca', 'middle_name' => 'D.', 'last_name' => 'Garcia', 'course_code' => 'ACT', 'course_name' => 'Associate in Computer Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'pending', 'subjects' => ['ACT101']],
+            ['student_number' => '2026-00001', 'first_name' => 'Miguel', 'middle_name' => 'A.', 'last_name' => 'Dela Cruz', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['GE101', 'CC101', 'CC102']],
+            ['student_number' => '2026-00002', 'first_name' => 'Sofia', 'middle_name' => 'B.', 'last_name' => 'Reyes', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '2nd', 'enrollment_status' => 'pending', 'subjects' => ['GE103', 'CC104', 'HCI101']],
+            ['student_number' => '2026-00003', 'first_name' => 'Carlo', 'middle_name' => 'C.', 'last_name' => 'Mendoza', 'course_code' => 'BSCS', 'course_name' => 'BS Computer Science', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['GE101', 'CC101', 'CC102']],
+            ['student_number' => '2026-00004', 'first_name' => 'Bianca', 'middle_name' => 'D.', 'last_name' => 'Garcia', 'course_code' => 'ACT', 'course_name' => 'Associate in Computer Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'pending', 'subjects' => ['GE101', 'SPI101', 'CC101']],
             ['student_number' => '2026-00005', 'first_name' => 'Jerome', 'middle_name' => 'E.', 'last_name' => 'Aquino', 'course_code' => 'BSHM', 'course_name' => 'BS Hospitality Management', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['HM101']],
             ['student_number' => '2026-00006', 'first_name' => 'Angelica', 'middle_name' => 'F.', 'last_name' => 'Torres', 'course_code' => 'BSOM', 'course_name' => 'BS Office Management', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'cancelled', 'subjects' => ['OM101']],
             ['student_number' => '2026-00007', 'first_name' => 'Nathan', 'middle_name' => 'G.', 'last_name' => 'Lim', 'course_code' => 'BSA', 'course_name' => 'BS Accountancy', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'dropped', 'subjects' => ['ACC101']],
@@ -177,7 +138,10 @@ class DatabaseSeeder extends Seeder
                 ]
             );
 
-            $syncData = Subject::whereIn('code', $subjectCodes)->get()->mapWithKeys(function (Subject $subject) {
+            $syncData = Subject::where('course_code', $row['course_code'])
+                ->whereIn('code', $subjectCodes)
+                ->get()
+                ->mapWithKeys(function (Subject $subject) {
                 return [
                     $subject->id => [
                         'lecture_units' => $subject->lecture_units,
@@ -189,5 +153,180 @@ class DatabaseSeeder extends Seeder
 
             $enrollment->subjects()->sync($syncData);
         }
+    }
+
+    private function curriculumSubjects(): array
+    {
+        $rows = [];
+
+        $add = function (string $course, string $year, string $semester, string $code, string $name, float $lec, float $lab, float $units) use (&$rows): void {
+            $rows[] = [
+                'course_code' => $course,
+                'year_level' => $year,
+                'semester' => $semester,
+                'code' => $code,
+                'name' => $name,
+                'type' => $lec > 0 && $lab > 0 ? 'BOTH' : ($lab > 0 ? 'LAB' : 'LEC'),
+                'lecture_units' => $lec,
+                'laboratory_units' => $lab,
+                'total_units' => $units,
+            ];
+        };
+
+        foreach (['BSIT', 'BSCS'] as $course) {
+            $add($course, '1', '1st', 'GE101', 'Understanding the Self', 3, 0, 3);
+            $add($course, '1', '1st', 'GE102', 'Readings in Philippine History with Peoples Studies/Education', 3, 0, 3);
+            $add($course, '1', '1st', 'CC101', 'Introduction to Computing', 3, 1, 3);
+            $add($course, '1', '1st', 'CC102', 'Computer Programming 1 (Fundamentals of Programming)', 3, 1, 3);
+            $add($course, '1', '1st', 'CC103', 'Data Structures and Algorithms', 3, 1, 3);
+            $add($course, '1', '1st', 'PATHFIT 1', 'Movement Competency Training', 2, 0, 2);
+
+            $add($course, '1', '2nd', 'GE103', 'The Contemporary World with Peace Studies/Education', 3, 0, 3);
+            $add($course, '1', '2nd', 'GE104', 'Mathematics in the Modern World', 3, 0, 3);
+            $add($course, '1', '2nd', 'GE105', 'Purposive Communication', 3, 0, 3);
+            $add($course, '1', '2nd', 'GE106', 'Art Appreciation', 3, 0, 3);
+            $add($course, '1', '2nd', 'CC104', 'Computer Programming 2 (Intermediate Programming)', 2, 1, 3);
+            $add($course, '1', '2nd', 'HCI101', 'Human Computer Interaction', 2, 1, 3);
+            $add($course, '1', '2nd', 'PATHFIT 2', 'Exercise-based Fitness Activities', 2, 0, 2);
+
+            $add($course, '2', '1st', 'GE107', 'Science, Technology and Society', 3, 0, 3);
+            $add($course, '2', '1st', 'GE108', 'Ethics', 3, 0, 3);
+            $add($course, '2', '1st', 'GE109', 'Rizal Life and Works', 3, 0, 3);
+            $add($course, '2', '1st', 'FIL1', 'Wika at Kultura', 3, 0, 3);
+            $add($course, '2', '1st', 'CC105', 'Fundamentals of Information Management and Database Systems', 2, 1, 3);
+            $add($course, '2', '1st', 'NET101', 'Networking Fundamentals', 2, 1, 3);
+            $add($course, '2', '1st', 'PATHFIT 3', 'Dance, Outdoor and Adventures Activities', 2, 0, 2);
+            $add($course, '2', '1st', 'NSTP1', 'National Service Training Program 1', 3, 0, 3);
+
+            $add($course, '2', '2nd', 'FIL2', 'Malikhaing Pagsulat', 3, 0, 3);
+            $add($course, '2', '2nd', 'PHIL101', 'Philippine Literature', 3, 0, 3);
+            $add($course, '2', '2nd', 'ITM101', 'Probability and Statistics', 3, 0, 3);
+            $add($course, '2', '2nd', 'CG101', 'Calculus', 3, 0, 3);
+            $add($course, '2', '2nd', 'CC106', 'Applications Development and Emerging Technologies', 2, 1, 3);
+            $add($course, '2', '2nd', 'NET102', 'Network Management and Design', 2, 1, 3);
+            $add($course, '2', '2nd', 'PATHFIT 4', 'Sports', 2, 0, 2);
+            $add($course, '2', '2nd', 'NSTP2', 'National Service Training Program 2', 3, 0, 3);
+        }
+
+        foreach ([
+            ['PT101', 'Network Servers, Virtualization and Cloud Computing', 2, 1, 3],
+            ['IM101', 'Advance Database Systems', 2, 1, 3],
+            ['PF101', 'Object Oriented and Event Driven Programming', 2, 1, 3],
+            ['WMS101', 'Web and Mobile System Technologies', 2, 1, 3],
+            ['ITM103', 'Discrete Mathematics', 3, 0, 3],
+            ['IAS101', 'Information Assurance and Security 1', 3, 0, 3],
+            ['SIA101', 'Fundamentals of System Integration and Architecture', 2, 1, 2],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSIT', '3', '1st', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['IAS102', 'Information Assurance and Security 2', 3, 0, 3],
+            ['IPT101', 'Integrative Programming and Technologies 1', 2, 1, 3],
+            ['WMS102', 'Advance Web and Mobile System Technologies', 2, 1, 3],
+            ['SIA102', 'Advance System Integration and Architecture', 2, 1, 3],
+            ['SDM101', 'Social Issues and Professional Practice', 3, 0, 3],
+            ['ITE101', 'IT Elective 1', 2, 1, 3],
+            ['ITE102', 'IT Elective 2', 2, 1, 3],
+            ['CAPS101', 'Capstone Project 1', 3, 0, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSIT', '3', '2nd', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['SDM102', 'System Testing and Quality Assurance', 2, 1, 3],
+            ['SAM101', 'Systems Administration and Maintenance', 2, 1, 3],
+            ['ITE103', 'IT Elective 3', 2, 1, 3],
+            ['ITE104', 'IT Elective 4', 2, 1, 3],
+            ['SPI101', 'Project Planning and Management', 3, 0, 3],
+            ['CAPS102', 'Capstone Project 2', 3, 0, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSIT', '4', '1st', $code, $name, $lec, $lab, $units);
+        }
+        $add('BSIT', '4', '2nd', 'PRAACT101', 'Practicum', 6, 0, 6);
+
+        foreach ([
+            ['CSELEC1', 'CS Elective 1', 2, 1, 3],
+            ['IM101', 'Advance Database Systems', 2, 1, 3],
+            ['PF101', 'Object Oriented and Event Driven Programming', 2, 1, 3],
+            ['DAA101', 'Design and Analysis of Algorithm', 3, 0, 3],
+            ['ITM103', 'Discrete Mathematics', 3, 0, 3],
+            ['IAS101', 'Information Assurance and Security 1', 3, 0, 3],
+            ['SE101', 'Software Engineering 1', 2, 1, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSCS', '3', '1st', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['CSELEC2', 'CS Elective 2', 2, 1, 3],
+            ['WP101', 'Web Programming 1', 2, 1, 3],
+            ['PL101', 'Programming Language', 2, 1, 3],
+            ['SE102', 'Software Engineering 2', 2, 1, 3],
+            ['CA101', 'Computer Architecture and Organization', 2, 1, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSCS', '3', '2nd', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['CT101', 'Automata Theory and Formal Language', 2, 1, 3],
+            ['CSELEC3', 'CS Elective 3', 2, 1, 3],
+            ['THS101', 'Thesis Writing 1', 3, 0, 3],
+            ['OS101', 'Operating System', 2, 1, 3],
+            ['SP101', 'Social Issues and Professional Practice', 3, 0, 3],
+            ['PRAC160', 'Practicum', 3, 0, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('BSCS', '4', '1st', $code, $name, $lec, $lab, $units);
+        }
+        $add('BSCS', '4', '2nd', 'THS102', 'Thesis Writing 2', 3, 0, 3);
+        $add('BSCS', '4', '2nd', 'SEM101', 'Seminar on Advanced Topics', 3, 0, 3);
+
+        foreach ([
+            ['GE101', 'Understanding the Self', 3, 0, 3],
+            ['SPI101', 'Social Issues and Professional Practice', 3, 0, 3],
+            ['CC101', 'Introduction to Computing', 3, 1, 3],
+            ['CC102', 'Computer Programming 1 (Fundamentals of Programming)', 3, 1, 3],
+            ['CC103', 'Data Structures and Algorithms', 3, 1, 3],
+            ['PATHFIT 1', 'Movement Competency Training or MCT', 2, 0, 2],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('ACT', '1', '1st', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['GE103', 'The Contemporary World with Peace Studies/Education', 3, 0, 3],
+            ['GE104', 'Mathematics in the Modern World', 3, 0, 3],
+            ['GE105', 'Purposive Communication', 3, 0, 3],
+            ['WDD101', 'Web and Design Development', 2, 1, 3],
+            ['ITE101', 'Elective 1', 3, 1, 3],
+            ['CC104', 'Computer Programming 2 (Intermediate Programming)', 2, 1, 3],
+            ['HCI101', 'Human Computer Interaction', 2, 1, 3],
+            ['PE2', 'Rhythmic Activities', 2, 0, 2],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('ACT', '1', '2nd', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['ITE102', 'Elective 2', 2, 1, 3],
+            ['ITE103', 'Elective 3', 2, 1, 3],
+            ['GE109', 'Rizal Life and Works', 3, 0, 3],
+            ['WMST101', 'Web and Mobile Systems Technologies', 2, 1, 3],
+            ['CC105', 'Fundamentals of Information Management and Database Systems', 2, 1, 3],
+            ['PATHFIT 3', 'Dance, Outdoor and Adventures Activities', 2, 0, 2],
+            ['SDM101', 'Project Planning and Management', 3, 0, 3],
+            ['NSTP1', 'National Service Training Program 1', 3, 0, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('ACT', '2', '1st', $code, $name, $lec, $lab, $units);
+        }
+
+        foreach ([
+            ['WMST102', 'Advance Mobile and System Technologies', 2, 1, 3],
+            ['SAD', 'System Analysis and Design', 3, 0, 3],
+            ['PATHFIT 4', 'Team Sports', 2, 0, 2],
+            ['PRACT101', 'Practicum', 6, 0, 6],
+            ['NSTP2', 'National Service Training Program 2', 3, 0, 3],
+        ] as [$code, $name, $lec, $lab, $units]) {
+            $add('ACT', '2', '2nd', $code, $name, $lec, $lab, $units);
+        }
+
+        return $rows;
     }
 }

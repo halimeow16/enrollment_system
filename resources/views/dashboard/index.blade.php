@@ -124,7 +124,7 @@
                 </div>
             </div>
 
-            <div class="col-span-12 lg:col-span-8 rounded-3xl border border-blue-300/15 bg-gradient-to-br from-[#111c34]/95 via-[#0d1b33]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+            <div class="col-span-12 lg:col-span-8 max-h-[420px] rounded-3xl border border-blue-300/15 bg-gradient-to-br from-[#111c34]/95 via-[#0d1b33]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                     <div>
                         <h2 class="font-extrabold text-white">Enrollment Analytics</h2>
@@ -150,12 +150,12 @@
         </div>
 
         <div class="grid grid-cols-12 gap-5">
-            <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+            <div class="col-span-12 max-h-[430px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30 lg:col-span-4 lg:h-[430px]">
                 <div class="flex items-center justify-between mb-5">
                     <h2 class="font-extrabold text-white">Enrollment by Course</h2>
                     <span class="text-xs font-medium text-slate-300">Current data</span>
                 </div>
-                <div class="space-y-4">
+                <div class="max-h-[340px] space-y-4 overflow-y-auto pr-2">
                     @forelse($courseStats as $course)
                         @php
                             $total = $courseStats->sum('total') ?: 1;
@@ -178,7 +178,7 @@
                 </div>
             </div>
 
-            <div class="col-span-12 lg:col-span-8 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
+            <div class="col-span-12 max-h-[430px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30 lg:col-span-8 lg:h-[430px]">
                 <div class="px-5 py-4 flex items-center justify-between border-b border-white/10">
                     <h2 class="font-extrabold text-white">Recent Enrollments</h2>
                     <button type="button" @click="switchTab('enrollments')" class="text-xs text-blue-200 font-bold hover:text-white">
@@ -191,7 +191,7 @@
     </section>
 
     {{-- All enrollments --}}
-    <section x-show="activeTab === 'enrollments'" x-cloak class="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
+    <section x-show="activeTab === 'enrollments'" x-cloak class="max-h-[calc(100vh-170px)] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
         <div class="px-5 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/10">
             <div>
                 <h2 class="font-extrabold text-white">All Enrollments</h2>
