@@ -18,16 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     {
                         label: 'Enrolled',
                         data: enrolled,
-                        backgroundColor: '#1a52f4',
-                        borderRadius: 8,
+                        backgroundColor: '#2563eb',
+                        borderRadius: 10,
                         borderSkipped: false,
                         barPercentage: 0.55,
                     },
                     {
                         label: 'Pending',
                         data: pending,
-                        backgroundColor: '#e2e8f0',
-                        borderRadius: 8,
+                        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                        borderRadius: 10,
                         borderSkipped: false,
                         barPercentage: 0.55,
                     },
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     legend: {
                         position: 'top',
                         align: 'end',
-                        labels: { boxWidth: 10, boxHeight: 10, borderRadius: 5, useBorderRadius: true, font: { size: 11 } },
+                        labels: { boxWidth: 10, boxHeight: 10, borderRadius: 5, useBorderRadius: true, font: { size: 11 }, color: '#cbd5e1' },
                     },
                     tooltip: {
                         backgroundColor: '#1e293b',
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 scales: {
                     x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
-                    y: { grid: { color: '#f1f5f9' }, border: { dash: [4, 4] }, ticks: { font: { size: 11 }, color: '#94a3b8' }, beginAtZero: true },
+                    y: { grid: { color: 'rgba(148, 163, 184, 0.16)' }, border: { dash: [4, 4], color: 'rgba(148, 163, 184, 0.25)' }, ticks: { font: { size: 11 }, color: '#94a3b8' }, beginAtZero: true },
                 },
             },
         });

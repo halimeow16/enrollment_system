@@ -43,31 +43,43 @@
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
 
+@php
+    $subjectCatalog = $subjects->map(function ($subject) {
+        return [
+            'id' => $subject->id,
+            'code' => $subject->code,
+            'name' => $subject->name,
+            'course_code' => $subject->course_code,
+            'year_level' => $subject->year_level,
+            'semester' => $subject->semester,
+            'type' => $subject->type,
+            'lecture_units' => (float) $subject->lecture_units,
+            'laboratory_units' => (float) $subject->laboratory_units,
+            'total_units' => (float) $subject->total_units,
+            'schedules' => $subject->schedules->map(function ($schedule) {
+                return [
+                    'day_id' => $schedule->day_id,
+                    'time_slot_id' => $schedule->time_slot_id,
+                    'day' => $schedule->day->name,
+                    'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+                    'room' => $schedule->room->name,
+                ];
+            })->values(),
+        ];
+    })->values();
+
+    $departmentHeadMap = $departmentHeads->map(function ($head) {
+        return [
+            'name' => $head->name,
+            'title' => $head->title,
+        ];
+    });
+@endphp
+
 <script>
     window.previewUrl = "{{ route('enrollment.preview') }}";
-    window.subjectCatalog = @json($subjects->map(fn($subject) => [
-        'id' => $subject->id,
-        'code' => $subject->code,
-        'name' => $subject->name,
-        'course_code' => $subject->course_code,
-        'year_level' => $subject->year_level,
-        'semester' => $subject->semester,
-        'type' => $subject->type,
-        'lecture_units' => (float) $subject->lecture_units,
-        'laboratory_units' => (float) $subject->laboratory_units,
-        'total_units' => (float) $subject->total_units,
-        'schedules' => $subject->schedules->map(fn($schedule) => [
-            'day_id' => $schedule->day_id,
-            'time_slot_id' => $schedule->time_slot_id,
-            'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
-            'room' => $schedule->room->name,
-        ])->values(),
-    ])->values());
-    window.departmentHeads = @json($departmentHeads->map(fn($head) => [
-        'name' => $head->name,
-        'title' => $head->title,
-    ]));
+    window.subjectCatalog = @json($subjectCatalog);
+    window.departmentHeads = @json($departmentHeadMap);
 </script>
 
 @vite(['resources/js/app.js'])

@@ -1,23 +1,23 @@
 <div class="space-y-5">
     <div class="grid grid-cols-12 gap-5">
-        <div class="col-span-12 xl:col-span-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="col-span-12 xl:col-span-5 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
             <div class="mb-4">
-                <h2 class="font-bold text-slate-900">Add Subject</h2>
-                <p class="mt-1 text-xs text-slate-500">Subjects are assigned by course, year level, and semester.</p>
+                <h2 class="font-extrabold text-white">Add Subject</h2>
+                <p class="mt-1 text-xs text-slate-300">Subjects are assigned by course, year level, and semester.</p>
             </div>
 
             <form action="{{ route('academic.subjects.store') }}" method="POST" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 @csrf
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Code</label>
+                    <label class="text-xs font-semibold text-slate-300">Code</label>
                     <input name="code" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Subject Name</label>
+                    <label class="text-xs font-semibold text-slate-300">Subject Name</label>
                     <input name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Course</label>
+                    <label class="text-xs font-semibold text-slate-300">Course</label>
                     <select name="course_code" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
                             <option value="{{ $courseCode }}">{{ $courseCode }}</option>
@@ -25,7 +25,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Year Level</label>
+                    <label class="text-xs font-semibold text-slate-300">Year Level</label>
                     <select name="year_level" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         @foreach(['1', '2', '3', '4'] as $year)
                             <option value="{{ $year }}">{{ $year }} Year</option>
@@ -33,7 +33,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Semester</label>
+                    <label class="text-xs font-semibold text-slate-300">Semester</label>
                     <select name="semester" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="1st">1st Semester</option>
                         <option value="2nd">2nd Semester</option>
@@ -41,7 +41,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Type</label>
+                    <label class="text-xs font-semibold text-slate-300">Type</label>
                     <select name="type" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="LEC">Lecture</option>
                         <option value="LAB">Laboratory</option>
@@ -49,15 +49,15 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Lecture Units</label>
+                    <label class="text-xs font-semibold text-slate-300">Lecture Units</label>
                     <input type="number" step="0.1" min="0" name="lecture_units" value="3" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Lab Units</label>
+                    <label class="text-xs font-semibold text-slate-300">Lab Units</label>
                     <input type="number" step="0.1" min="0" name="laboratory_units" value="0" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="text-xs font-semibold text-slate-600">Description</label>
+                    <label class="text-xs font-semibold text-slate-300">Description</label>
                     <input name="description" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 </div>
                 <div class="sm:col-span-2">
@@ -69,17 +69,17 @@
             </form>
         </div>
 
-        <div class="col-span-12 xl:col-span-7 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="col-span-12 xl:col-span-7 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
             <div class="mb-4 flex items-center justify-between">
                 <div>
-                    <h2 class="font-bold text-slate-900">Subjects</h2>
-                    <p class="mt-1 text-xs text-slate-500">{{ $subjects->count() }} configured subjects.</p>
+                    <h2 class="font-extrabold text-white">Subjects</h2>
+                    <p class="mt-1 text-xs text-slate-300">{{ $subjects->count() }} configured subjects.</p>
                 </div>
             </div>
 
-            <div class="max-h-[520px] overflow-auto rounded-lg border border-slate-100">
+            <div class="max-h-[520px] overflow-auto rounded-2xl border border-white/10">
                 <table class="w-full text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                    <thead class="bg-white/5 text-xs uppercase text-slate-300">
                         <tr>
                             <th class="px-3 py-2 text-left">Subject</th>
                             <th class="px-3 py-2 text-left">Group</th>
@@ -88,31 +88,31 @@
                             <th class="px-3 py-2 text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-white/10">
                         @forelse($subjects as $subject)
                             <tr>
                                 <td class="px-3 py-3">
-                                    <p class="font-bold text-slate-900">{{ $subject->code }}</p>
-                                    <p class="text-xs text-slate-500">{{ $subject->name }}</p>
+                                    <p class="font-bold text-white">{{ $subject->code }}</p>
+                                    <p class="text-xs text-slate-400">{{ $subject->name }}</p>
                                 </td>
-                                <td class="px-3 py-3 text-xs text-slate-600">
+                                <td class="px-3 py-3 text-xs text-slate-300">
                                     {{ $subject->course_code }} / Year {{ $subject->year_level }} / {{ $subject->semester }}
-                                    <p class="mt-1 font-semibold text-slate-900">{{ $subject->type }}</p>
+                                    <p class="mt-1 font-semibold text-blue-100">{{ $subject->type }}</p>
                                 </td>
-                                <td class="px-3 py-3 text-xs text-slate-600">
+                                <td class="px-3 py-3 text-xs text-slate-300">
                                     {{ $subject->total_units }} total
-                                    <p class="text-slate-400">{{ $subject->lecture_units }} LEC / {{ $subject->laboratory_units }} LAB</p>
+                                    <p class="text-slate-500">{{ $subject->lecture_units }} LEC / {{ $subject->laboratory_units }} LAB</p>
                                 </td>
-                                <td class="px-3 py-3 text-xs text-slate-600">
+                                <td class="px-3 py-3 text-xs text-slate-300">
                                     @forelse($subject->schedules as $schedule)
                                         <p>{{ $schedule->day->name }} {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . '-' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
                                     @empty
-                                        <span class="text-slate-400">No schedule</span>
+                                        <span class="text-slate-500">No schedule</span>
                                     @endforelse
                                 </td>
                                 <td class="px-3 py-3 text-right">
                                     <details class="inline-block text-left">
-                                        <summary class="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">Edit</summary>
+                                        <summary class="cursor-pointer rounded-2xl border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white">Edit</summary>
                                         <div class="absolute right-10 z-20 mt-2 w-[520px] rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
                                             <form action="{{ route('academic.subjects.update', $subject) }}" method="POST" class="grid grid-cols-2 gap-3">
                                                 @csrf
@@ -157,7 +157,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-3 py-10 text-center text-sm text-slate-500">No subjects configured yet.</td>
+                                <td colspan="5" class="px-3 py-10 text-center text-sm text-slate-300">No subjects configured yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -167,9 +167,9 @@
     </div>
 
     <div class="grid grid-cols-12 gap-5">
-        <div class="col-span-12 lg:col-span-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="font-bold text-slate-900">Schedule Options</h2>
-            <p class="mt-1 text-xs text-slate-500">Add the day, time, and room choices used in subject schedules.</p>
+        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+            <h2 class="font-extrabold text-white">Schedule Options</h2>
+            <p class="mt-1 text-xs text-slate-300">Add the day, time, and room choices used in subject schedules.</p>
 
             <form action="{{ route('academic.days.store') }}" method="POST" class="mt-4 flex gap-2">
                 @csrf
@@ -194,9 +194,9 @@
             </form>
         </div>
 
-        <div class="col-span-12 lg:col-span-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="font-bold text-slate-900">Assign Schedule</h2>
-            <p class="mt-1 text-xs text-slate-500">Saving is blocked when a room already has the selected day and time.</p>
+        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+            <h2 class="font-extrabold text-white">Assign Schedule</h2>
+            <p class="mt-1 text-xs text-slate-300">Saving is blocked when a room already has the selected day and time.</p>
             <form action="{{ route('academic.schedules.store') }}" method="POST" class="mt-4 space-y-3">
                 @csrf
                 <select name="subject_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -227,9 +227,9 @@
             </form>
         </div>
 
-        <div class="col-span-12 lg:col-span-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="font-bold text-slate-900">Department Heads</h2>
-            <p class="mt-1 text-xs text-slate-500">The active name auto-fills in enrollment forms.</p>
+        <div class="col-span-12 lg:col-span-4 rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+            <h2 class="font-extrabold text-white">Department Heads</h2>
+            <p class="mt-1 text-xs text-slate-300">The active name auto-fills in enrollment forms.</p>
             <form action="{{ route('academic.department-heads.store') }}" method="POST" class="mt-4 space-y-3">
                 @csrf
                 <select name="course_code" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -243,24 +243,24 @@
             </form>
             <div class="mt-4 space-y-2">
                 @forelse($departmentHeads as $head)
-                    <div class="rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                        <p class="font-bold text-slate-900">{{ $head->course_code }} - {{ $head->name }}</p>
-                        <p class="text-slate-500">{{ $head->title ?? 'Department Head' }}</p>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
+                        <p class="font-bold text-white">{{ $head->course_code }} - {{ $head->name }}</p>
+                        <p class="text-slate-400">{{ $head->title ?? 'Department Head' }}</p>
                     </div>
                 @empty
-                    <p class="text-sm text-slate-500">No active department heads yet.</p>
+                    <p class="text-sm text-slate-300">No active department heads yet.</p>
                 @endforelse
             </div>
         </div>
     </div>
 
-    <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 class="font-bold text-slate-900">Assigned Schedules</h2>
+    <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-5 shadow-2xl shadow-black/30">
+        <h2 class="font-extrabold text-white">Assigned Schedules</h2>
         <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             @forelse($subjectSchedules as $schedule)
-                <div class="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
-                    <p class="font-bold text-slate-900">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
-                    <p class="mt-1 text-xs text-slate-600">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
+                    <p class="font-bold text-white">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
+                    <p class="mt-1 text-xs text-slate-300">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
                     <form action="{{ route('academic.schedules.destroy', $schedule) }}" method="POST" class="mt-2">
                         @csrf
                         @method('DELETE')
@@ -268,7 +268,7 @@
                     </form>
                 </div>
             @empty
-                <p class="text-sm text-slate-500">No schedules assigned yet.</p>
+                <p class="text-sm text-slate-300">No schedules assigned yet.</p>
             @endforelse
         </div>
     </div>
