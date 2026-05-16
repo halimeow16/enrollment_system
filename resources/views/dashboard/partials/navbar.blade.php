@@ -6,7 +6,7 @@
 
             <div class="flex items-center gap-3">
                 <div class="rounded-2xl px-4 py-2 shadow-lg">
-                    <img src="{{ asset('images/logo.png') }}" alt="COMTEQ" class="h-24 w-auto">
+                    <img src="{{ asset('images/logo.png') }}" alt="COMTEQ" class="h-20 w-auto">
                 </div>
             </div>
 
