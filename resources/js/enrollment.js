@@ -12,6 +12,8 @@ let selectedCourseName = "BS Information Technology";
 
 function populateCourses() {
     const container = document.getElementById('courseGrid');
+    if (!container) return;
+
     container.innerHTML = '';
 
     courses.forEach(course => {
@@ -35,12 +37,20 @@ function selectCourse(el, code, name) {
     selectedCourseCode = code;
     selectedCourseName = name;
 
-    document.getElementById('course_code').value = code;
-    document.getElementById('course_name').value = name;
+    const courseCode = document.getElementById('course_code');
+    const courseName = document.getElementById('course_name');
+
+    if (courseCode) courseCode.value = code;
+    if (courseName) courseName.value = name;
+
+    updateDepartmentHead();
+    renderSubjectList();
 }
 
 function generatePreview() {
     const form = document.getElementById('enrollmentForm');
+    if (!form) return;
+
     const formData = new FormData(form);
 
     document.getElementById('formPreview').innerHTML = `
@@ -90,17 +100,108 @@ function generatePreview() {
 }
 
 function closeModal() {
-    document.getElementById('previewModal').classList.add('hidden');
+    document.getElementById('previewModal')?.classList.add('hidden');
 }
 
-function closeModal() {
-    document.getElementById('previewModal').classList.add('hidden');
-}
+window.generatePreview = generatePreview;
+window.closeModal = closeModal;
 
 window.onload = populateCourses;
 
+function updateDepartmentHead() {
+    const input = document.getElementById('department_head_name');
+    if (!input) return;
+
+    input.value = window.departmentHeads?.[selectedCourseCode]?.name ?? '';
+}
+
+function renderSubjectList() {
+    const container = document.getElementById('subjectList');
+    if (!container) return;
+
+    const yearLevel = document.getElementById('year_level')?.value;
+    const semester = document.getElementById('semester')?.value;
+    const subjects = (window.subjectCatalog ?? []).filter(subject =>
+        subject.course_code === selectedCourseCode &&
+        subject.year_level === yearLevel &&
+        subject.semester === semester
+    );
+
+    if (!yearLevel || !semester) {
+        container.innerHTML = '<p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>';
+        updateSubjectTotals();
+        return;
+    }
+
+    if (subjects.length === 0) {
+        container.innerHTML = '<p class="text-sm text-slate-500">No subjects configured for this program, year level, and semester.</p>';
+        updateSubjectTotals();
+        return;
+    }
+
+    container.innerHTML = subjects.map(subject => {
+        const schedule = subject.schedules.length
+            ? subject.schedules.map(item => `${item.day} ${item.time} / ${item.room}`).join('<br>')
+            : 'No schedule assigned';
+
+        return `
+            <label class="mb-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 last:mb-0">
+                <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox">
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-bold text-slate-800">${subject.code} - ${subject.name}</span>
+                    <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units.toFixed(1)} units</span>
+                    <span class="mt-1 block text-xs text-slate-500">${schedule}</span>
+                </span>
+            </label>
+        `;
+    }).join('');
+
+    document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSubjectTotals);
+    });
+
+    updateSubjectTotals();
+}
+
+function updateSubjectTotals() {
+    const totalInput = document.getElementById('total_units');
+    const conflictText = document.getElementById('subjectConflictText');
+    const selectedIds = Array.from(document.querySelectorAll('.subject-checkbox:checked')).map(input => Number(input.value));
+    const subjects = (window.subjectCatalog ?? []).filter(subject => selectedIds.includes(subject.id));
+
+    const totalUnits = subjects.reduce((total, subject) => total + Number(subject.total_units || 0), 0);
+    if (totalInput) totalInput.value = totalUnits.toFixed(1);
+
+    const conflicts = detectSubjectConflicts(subjects);
+    if (conflictText) {
+        conflictText.textContent = conflicts.length ? conflicts[0] : '';
+    }
+}
+
+function detectSubjectConflicts(subjects) {
+    const seen = new Map();
+    const conflicts = [];
+
+    subjects.forEach(subject => {
+        subject.schedules.forEach(schedule => {
+            const key = `${schedule.day_id}:${schedule.time_slot_id}`;
+
+            if (seen.has(key)) {
+                conflicts.push(`${seen.get(key).code} conflicts with ${subject.code} on ${schedule.day} at ${schedule.time}.`);
+                return;
+            }
+
+            seen.set(key, subject);
+        });
+    });
+
+    return conflicts;
+}
+
 async function loadProvinces() {
     const provinceSelect = document.getElementById('province');
+    if (!provinceSelect) return;
+
     provinceSelect.innerHTML = '<option value="">Select Province</option>';
 
     try {
@@ -124,6 +225,7 @@ async function loadProvinces() {
 async function loadCities(provinceCode) {
     const citySelect = document.getElementById('city');
     const barangaySelect = document.getElementById('barangay');
+    if (!citySelect || !barangaySelect) return;
 
     citySelect.innerHTML = '<option value="">Select City/Town</option>';
     citySelect.disabled = true;
@@ -156,6 +258,8 @@ async function loadCities(provinceCode) {
 
 async function loadBarangays(cityCode) {
     const barangaySelect = document.getElementById('barangay');
+    if (!barangaySelect) return;
+
     barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
     barangaySelect.disabled = true;
 
@@ -201,12 +305,17 @@ function getSelectedAddress() {
 document.addEventListener('DOMContentLoaded', function () {
     loadProvinces();
 
-    document.getElementById('province').addEventListener('change', function () {
+    const provinceSelect = document.getElementById('province');
+    const citySelect = document.getElementById('city');
+
+    if (!provinceSelect || !citySelect) return;
+
+    provinceSelect.addEventListener('change', function () {
         const selectedOption = this.options[this.selectedIndex];
         loadCities(selectedOption.dataset.code); 
     });
 
-    document.getElementById('city').addEventListener('change', function () {
+    citySelect.addEventListener('change', function () {
         const selectedOption = this.options[this.selectedIndex];
         loadBarangays(selectedOption.dataset.code); 
     });
@@ -216,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function calculateAge() {
     const dobInput = document.getElementById('date_of_birth');
     const ageInput = document.getElementById('age');
+    if (!dobInput || !ageInput) return;
 
     if (!dobInput.value) {
         ageInput.value = '';
@@ -237,6 +347,8 @@ function calculateAge() {
 
 function setMaxDate() {
     const dobInput = document.getElementById('date_of_birth');
+    if (!dobInput) return;
+
     const today = new Date();
     
     const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
@@ -247,8 +359,15 @@ function setMaxDate() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setMaxDate();
+    updateDepartmentHead();
+    renderSubjectList();
+
+    document.getElementById('year_level')?.addEventListener('change', renderSubjectList);
+    document.getElementById('semester')?.addEventListener('change', renderSubjectList);
     
     const dobInput = document.getElementById('date_of_birth');
+    if (!dobInput) return;
+
     dobInput.addEventListener('change', calculateAge);
     
     if (dobInput.value) {

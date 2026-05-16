@@ -5,12 +5,27 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use App\Models\Enrollment;
+use App\Models\DepartmentHead;
+use App\Models\Subject;
+use Illuminate\Support\Facades\DB;
 
 class EnrollmentController extends Controller
 {
     public function create()
     {
-        return view('enrollment.create');
+        $subjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
+            ->where('is_active', true)
+            ->orderBy('course_code')
+            ->orderBy('year_level')
+            ->orderBy('semester')
+            ->orderBy('code')
+            ->get();
+
+        $departmentHeads = DepartmentHead::where('is_active', true)
+            ->get()
+            ->keyBy('course_code');
+
+        return view('enrollment.create', compact('subjects', 'departmentHeads'));
     }
 
     public function store(Request $request)
@@ -45,11 +60,44 @@ class EnrollmentController extends Controller
             'course_name'      => 'nullable|string',
             'year_level'       => 'nullable|string',
             'semester'         => 'nullable|string',
+            'department_head_name' => 'nullable|string|max:120',
+            'subject_ids'      => 'nullable|array',
+            'subject_ids.*'    => 'integer|exists:subjects,id',
             'credentials'      => 'nullable|array',
             'credentials.*'    => 'string',
         ]);
 
-        $enrollment = Enrollment::create($validated);
+        $selectedSubjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
+            ->whereIn('id', $validated['subject_ids'] ?? [])
+            ->get();
+
+        $conflicts = $this->detectScheduleConflicts($selectedSubjects);
+
+        if (! empty($conflicts)) {
+            return back()
+                ->withErrors(['subject_ids' => 'Subject schedule conflict: ' . implode(' ', $conflicts)])
+                ->withInput();
+        }
+
+        $validated['department_head_name'] = DepartmentHead::where('course_code', $validated['course_code'] ?? null)
+            ->where('is_active', true)
+            ->value('name') ?? $validated['department_head_name'] ?? null;
+
+        unset($validated['subject_ids']);
+
+        $enrollment = DB::transaction(function () use ($validated, $selectedSubjects) {
+            $enrollment = Enrollment::create($validated);
+
+            foreach ($selectedSubjects as $subject) {
+                $enrollment->subjects()->attach($subject->id, [
+                    'lecture_units' => $subject->lecture_units,
+                    'laboratory_units' => $subject->laboratory_units,
+                    'total_units' => $subject->total_units,
+                ]);
+            }
+
+            return $enrollment;
+        });
 
         $pdfContent = $this->fillExistingPDF($enrollment);
 
@@ -63,6 +111,9 @@ class EnrollmentController extends Controller
     public function preview(Request $request)
     {
         $data = $request->all();
+        $data['department_head_name'] = DepartmentHead::where('course_code', $data['course_code'] ?? null)
+            ->where('is_active', true)
+            ->value('name') ?? $data['department_head_name'] ?? null;
         $pdfContent = $this->fillExistingPDF((object)$data);
 
         return response($pdfContent, 200)
@@ -157,14 +208,44 @@ class EnrollmentController extends Controller
 
         $this->checkCredentialBoxes($pdf, $data->credentials ?? []);
 
+        if (! empty($data->department_head_name)) {
+            $pdf->SetFont('Helvetica', '', 10);
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetXY(235, 334);
+            $pdf->Write(0, 'Dept. Head: ' . $data->department_head_name);
+        }
+
         return $pdf->Output('', 'S');
+    }
+
+    private function detectScheduleConflicts($subjects): array
+    {
+        $seen = [];
+        $conflicts = [];
+
+        foreach ($subjects as $subject) {
+            foreach ($subject->schedules as $schedule) {
+                $key = $schedule->day_id . ':' . $schedule->time_slot_id;
+
+                if (isset($seen[$key])) {
+                    $conflicts[] = $seen[$key]->code . ' conflicts with ' . $subject->code . ' on ' .
+                        $schedule->day->name . ' at ' .
+                        ($schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . '-' . $schedule->timeSlot->end_time)) . '.';
+                    continue;
+                }
+
+                $seen[$key] = $subject;
+            }
+        }
+
+        return $conflicts;
     }
 
     private function checkCourseBox($pdf, $courseCode)
     {
         $pdf->SetFont('dejavusans', 'B', 32);
         $pdf->SetTextColor(0, 100, 0);
-        $check = '✓';
+        $check = html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8');
 
         switch (strtoupper(trim($courseCode))) {
             case 'BSIT':  $pdf->SetXY(77, 71);  $pdf->Write(0, $check); break;
@@ -180,7 +261,7 @@ class EnrollmentController extends Controller
     {
         $pdf->SetFont('dejavusans', 'B', 32);
         $pdf->SetTextColor(0, 100, 0);
-        $check = '✓';
+        $check = html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8');
 
         switch (trim($yearLevel)) {
             case '1': $pdf->SetXY(131, 99); $pdf->Write(0, $check); break;
@@ -194,7 +275,7 @@ class EnrollmentController extends Controller
     {
         $pdf->SetFont('dejavusans', 'B', 32);
         $pdf->SetTextColor(0, 100, 0);
-        $check = '✓';
+        $check = html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8');
 
         switch (strtolower(trim($semester))) {
             case '1st':    $pdf->SetXY(262, 99); $pdf->Write(0, $check); break;
@@ -207,7 +288,7 @@ class EnrollmentController extends Controller
         $pdf->SetFont('dejavusans', 'B', 28);
         $pdf->SetTextColor(0, 100, 0);
 
-        $check = '✓';
+        $check = html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8');
 
         if (!is_array($credentials)) {
             return;

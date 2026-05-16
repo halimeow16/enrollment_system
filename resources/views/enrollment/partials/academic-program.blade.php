@@ -12,7 +12,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Year Level</label>
-            <select name="year_level" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <select name="year_level" id="year_level" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="" disabled selected hidden>Select Year Level</option>
                 <option value="1">1st Year</option>
                 <option value="2">2nd Year</option>
@@ -22,12 +22,36 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Semester</label>
-            <select name="semester" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <select name="semester" id="semester" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="" disabled selected hidden>Select Semester</option>
                 <option value="1st">1st Semester</option>
                 <option value="2nd">2nd Semester</option>
                 <option value="Summer">Summer</option>
             </select>
+        </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Department Head</label>
+            <input type="text" name="department_head_name" id="department_head_name" readonly
+                   class="form-input w-full px-5 py-3.5 bg-slate-100 border border-slate-200 rounded-2xl text-slate-600"
+                   placeholder="Auto-filled after choosing a program">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Total Units</label>
+            <input type="text" id="total_units" readonly value="0.0"
+                   class="form-input w-full px-5 py-3.5 bg-slate-100 border border-slate-200 rounded-2xl text-slate-600">
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-medium text-slate-600">Subjects</label>
+            <span id="subjectConflictText" class="text-xs font-semibold text-red-600"></span>
+        </div>
+        <div id="subjectList" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>
         </div>
     </div>
 </div>

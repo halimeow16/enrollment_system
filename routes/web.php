@@ -2,21 +2,50 @@
 
 use Illuminate\Support\Facades\Route;
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AcademicConfigurationController;
 
 Route::get('/', function () {
-    return view('enrollment.create');
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : view('auth.login');
 });
 
-Route::get('/enrollment', [EnrollmentController::class, 'create'])
-     ->name('enrollment.create');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+});
 
-Route::post('/enrollment', [EnrollmentController::class, 'store'])
-     ->name('enrollment.store');
-     
-Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
-     ->name('enrollment.preview');
-     
-Route::get('/dashboard', [DashboardController::class, 'index'])
-     ->name('dashboard');
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    Route::middleware('role:admin,registrar')->group(function () {
+        Route::get('/enrollment', [EnrollmentController::class, 'create'])
+            ->name('enrollment.create');
+
+        Route::post('/enrollment', [EnrollmentController::class, 'store'])
+            ->name('enrollment.store');
+
+        Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
+            ->name('enrollment.preview');
+    });
+
+    Route::middleware('role:admin')->prefix('academic-configuration')->name('academic.')->group(function () {
+        Route::post('/subjects', [AcademicConfigurationController::class, 'storeSubject'])->name('subjects.store');
+        Route::put('/subjects/{subject}', [AcademicConfigurationController::class, 'updateSubject'])->name('subjects.update');
+        Route::delete('/subjects/{subject}', [AcademicConfigurationController::class, 'destroySubject'])->name('subjects.destroy');
+        Route::post('/days', [AcademicConfigurationController::class, 'storeDay'])->name('days.store');
+        Route::post('/rooms', [AcademicConfigurationController::class, 'storeRoom'])->name('rooms.store');
+        Route::post('/time-slots', [AcademicConfigurationController::class, 'storeTimeSlot'])->name('time-slots.store');
+        Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
+        Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
+        Route::post('/department-heads', [AcademicConfigurationController::class, 'storeDepartmentHead'])->name('department-heads.store');
+    });
+});

@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Enrollment;
+use App\Models\Day;
+use App\Models\DepartmentHead;
+use App\Models\Room;
+use App\Models\Subject;
+use App\Models\SubjectSchedule;
+use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // ── Stat Cards ────────────────────────────────────────────────
+        // Stat cards
         $stats = [
             'total_enrolled' => Enrollment::where('enrollment_status', 'enrolled')->count(),
             'pending'        => Enrollment::where('enrollment_status', 'pending')->count(),
@@ -20,7 +26,7 @@ class DashboardController extends Controller
             'subjects'       => DB::table('subjects')->where('is_active', true)->count(),
         ];
 
-        // ── Course Leaderboard ────────────────────────────────────────
+        // Course leaderboard
         $courseStats = DB::table('enrollments')
             ->select('course_code', DB::raw('COUNT(*) as total'))
             ->whereNotNull('course_code')
@@ -29,7 +35,7 @@ class DashboardController extends Controller
             ->limit(6)
             ->get();
 
-        // ── Chart: Per Semester ───────────────────────────────────────
+        // Chart: per semester
         $semRows = DB::table('enrollments')
             ->select('school_year', 'semester',
                 DB::raw("SUM(enrollment_status = 'enrolled') as enrolled"),
@@ -44,7 +50,7 @@ class DashboardController extends Controller
         $semEnrolled = $semRows->pluck('enrolled')->map(fn($v) => (int) $v)->toArray();
         $semPending  = $semRows->pluck('pending')->map(fn($v) => (int) $v)->toArray();
 
-        // ── Chart: Per School Year ────────────────────────────────────
+        // Chart: per school year
         $yearRows = DB::table('enrollments')
             ->select('school_year',
                 DB::raw("SUM(enrollment_status = 'enrolled') as enrolled"),
@@ -58,7 +64,7 @@ class DashboardController extends Controller
         $yearEnrolled = $yearRows->pluck('enrolled')->map(fn($v) => (int) $v)->toArray();
         $yearPending  = $yearRows->pluck('pending')->map(fn($v) => (int) $v)->toArray();
 
-        // ── Fallback placeholders when DB is empty ────────────────────
+        // Fallback placeholders when DB is empty
         if (empty($semLabels)) {
             $semLabels   = ['1st Sem', '2nd Sem', 'Summer'];
             $semEnrolled = [0, 0, 0];
@@ -75,9 +81,37 @@ class DashboardController extends Controller
             'year'     => ['labels' => $yearLabels, 'enrolled' => $yearEnrolled, 'pending' => $yearPending],
         ];
 
-        // ── Recent Enrollments ────────────────────────────────────────
+        // Recent enrollments
         $recentEnrollments = Enrollment::orderByDesc('created_at')->limit(8)->get();
+        $allEnrollments = Enrollment::orderByDesc('created_at')->get();
+        $subjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
+            ->orderBy('course_code')
+            ->orderBy('year_level')
+            ->orderBy('semester')
+            ->orderBy('code')
+            ->get();
+        $days = Day::orderBy('sort_order')->orderBy('name')->get();
+        $rooms = Room::orderBy('name')->get();
+        $timeSlots = TimeSlot::orderBy('start_time')->get();
+        $subjectSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->latest()
+            ->get();
+        $departmentHeads = DepartmentHead::where('is_active', true)
+            ->orderBy('course_code')
+            ->get();
 
-        return view('dashboard.index', compact('stats', 'courseStats', 'chartData', 'recentEnrollments'));
+        return view('dashboard.index', compact(
+            'stats',
+            'courseStats',
+            'chartData',
+            'recentEnrollments',
+            'allEnrollments',
+            'subjects',
+            'days',
+            'rooms',
+            'timeSlots',
+            'subjectSchedules',
+            'departmentHeads'
+        ));
     }
 }

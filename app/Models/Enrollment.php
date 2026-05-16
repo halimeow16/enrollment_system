@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Enrollment extends Model
 {
@@ -19,13 +20,22 @@ class Enrollment extends Model
         'father_name', 'father_address', 'father_cpNumber',
         'mother_name', 'mother_address', 'mother_cpNumber',
         'course_code', 'course_name', 'year_level', 'semester',
-        'credentials',                    // ← Added
+        'department_head_name',
+        'enrollment_status',
+        'credentials',
     ];
 
     protected $casts = [
         'date_filed'    => 'date',
         'date_of_birth' => 'date',
         'age'           => 'integer',
-        'credentials'   => 'array',       // ← Important
+        'credentials'   => 'array',
     ];
+
+    public function subjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'enrollment_subjects')
+            ->withPivot(['lecture_units', 'laboratory_units', 'total_units'])
+            ->withTimestamps();
+    }
 }
