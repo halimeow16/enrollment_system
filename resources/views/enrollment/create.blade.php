@@ -74,6 +74,7 @@
             'title' => $head->title,
         ];
     });
+
 @endphp
 
 <script>

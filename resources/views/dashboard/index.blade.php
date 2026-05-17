@@ -81,7 +81,9 @@
     <section x-show="activeTab === 'overview'" x-cloak class="space-y-5">
         <div class="grid grid-cols-12 gap-5">
             <div class="col-span-12 lg:col-span-4 grid gap-4">
-                <div class="rounded-3xl border border-blue-400/20 bg-gradient-to-br from-[#143b8f]/95 via-[#10295d]/95 to-[#0b172f]/95 p-5 shadow-2xl shadow-blue-950/30">
+                <button type="button"
+                        @click="openEnrollmentsWithStatus('enrolled')"
+                        class="w-full rounded-3xl border border-blue-400/20 bg-gradient-to-br from-[#143b8f]/95 via-[#10295d]/95 to-[#0b172f]/95 p-5 text-left shadow-2xl shadow-blue-950/30 transition hover:-translate-y-0.5 hover:border-blue-200/40">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-xs font-bold text-blue-100/80 uppercase tracking-wide">Total Enrolled</p>
@@ -95,9 +97,11 @@
                         <i data-lucide="trending-up" class="w-3 h-3"></i>
                         +{{ $stats['enrolled_today'] }} today
                     </p>
-                </div>
+                </button>
 
-                <div class="rounded-3xl border border-amber-300/20 bg-gradient-to-br from-[#4a2d08]/95 via-[#23304c]/95 to-[#0b172f]/95 p-5 shadow-2xl shadow-amber-950/20">
+                <button type="button"
+                        @click="openEnrollmentsWithStatus('pending')"
+                        class="w-full rounded-3xl border border-amber-300/20 bg-gradient-to-br from-[#4a2d08]/95 via-[#23304c]/95 to-[#0b172f]/95 p-5 text-left shadow-2xl shadow-amber-950/20 transition hover:-translate-y-0.5 hover:border-amber-200/40">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-xs font-bold text-amber-100/80 uppercase tracking-wide">Pending Review</p>
@@ -108,7 +112,7 @@
                         </span>
                     </div>
                     <p class="mt-3 text-xs font-medium text-amber-100/70">Applications waiting for registrar action.</p>
-                </div>
+                </button>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="rounded-3xl border border-blue-300/20 bg-gradient-to-br from-[#0f43b0]/95 to-[#071224]/95 p-5 shadow-2xl shadow-blue-950/20">
@@ -262,6 +266,11 @@
             openFormFrame() {
                 this.previousTab = this.activeTab === 'form' ? this.previousTab : this.activeTab;
                 this.activeTab = 'form';
+            },
+            openEnrollmentsWithStatus(status) {
+                this.search = '';
+                this.statusFilter = status;
+                this.switchTab('enrollments');
             },
             matchesSearch(rowText) {
                 return !this.search || rowText.toLowerCase().includes(this.search.toLowerCase());

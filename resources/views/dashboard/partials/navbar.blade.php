@@ -18,7 +18,7 @@
                     ];
 
                     if (auth()->user()?->user_type === 'admin') {
-                        $navItems[] = ['tab' => 'configuration', 'label' => 'Configuration', 'icon' => 'sliders-horizontal'];
+                        $navItems[] = ['tab' => 'configuration', 'label' => 'Configurations', 'icon' => 'sliders-horizontal'];
                     }
                 @endphp
 

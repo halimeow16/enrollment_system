@@ -40,7 +40,7 @@
                 <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, rooms, and department heads in one workspace.</p>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <div class="grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
                 <button type="button"
                         @click="section = 'subjects'"
                         :class="section === 'subjects' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -58,6 +58,12 @@
                         :class="section === 'heads' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
                         class="rounded-xl px-3 py-2 text-xs font-bold transition">
                     Dept. Heads
+                </button>
+                <button type="button"
+                        @click="section = 'templates'"
+                        :class="section === 'templates' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                    Templates
                 </button>
             </div>
         </div>
@@ -421,6 +427,15 @@
                     @empty
                         <p class="text-sm text-slate-300">No active department heads yet.</p>
                     @endforelse
+                </div>
+            </div>
+        </section>
+
+        <section x-show="section === 'templates'" x-cloak>
+            <div class="flex h-[484px] items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                <div>
+                    <h3 class="font-extrabold text-white">Templates</h3>
+                    <p class="mt-2 text-sm text-slate-300">No template settings yet.</p>
                 </div>
             </div>
         </section>

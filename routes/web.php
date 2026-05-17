@@ -27,6 +27,9 @@ Route::middleware('auth')->group(function () {
         ->name('dashboard');
 
     Route::middleware('role:admin,registrar')->group(function () {
+        Route::patch('/enrollments/{enrollment}/status', [DashboardController::class, 'updateEnrollmentStatus'])
+            ->name('enrollments.status.update');
+
         Route::get('/enrollment', [EnrollmentController::class, 'create'])
             ->name('enrollment.create');
 

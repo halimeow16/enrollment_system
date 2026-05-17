@@ -9,6 +9,8 @@ use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
 use App\Models\TimeSlot;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -113,5 +115,16 @@ class DashboardController extends Controller
             'subjectSchedules',
             'departmentHeads'
         ));
+    }
+
+    public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enrollment_status' => ['required', 'in:pending,enrolled,cancelled'],
+        ]);
+
+        $enrollment->update($validated);
+
+        return back()->with('success', 'Enrollment status updated.');
     }
 }

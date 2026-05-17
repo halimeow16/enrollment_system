@@ -131,7 +131,14 @@ class AcademicConfigurationController extends Controller
     private function validateSubject(Request $request, ?Subject $subject = null): array
     {
         return $request->validate([
-            'code' => ['required', 'string', 'max:30', Rule::unique('subjects', 'code')->ignore($subject?->id)],
+            'code' => [
+                'required',
+                'string',
+                'max:30',
+                Rule::unique('subjects', 'code')
+                    ->where(fn ($query) => $query->where('course_code', $request->input('course_code')))
+                    ->ignore($subject?->id),
+            ],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:255'],
             'course_code' => ['required', 'string', 'max:30'],
