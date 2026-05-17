@@ -48,7 +48,6 @@
     <div class="mt-8">
         <div class="flex items-center justify-between mb-3">
             <label class="block text-sm font-medium text-slate-600">Subjects</label>
-            <span id="subjectConflictText" class="text-xs font-semibold text-red-600"></span>
         </div>
         <div id="subjectList" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>

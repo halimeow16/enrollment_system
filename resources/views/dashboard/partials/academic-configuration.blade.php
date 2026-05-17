@@ -793,18 +793,27 @@
                         <div class="mt-2">
                             <p class="text-sm font-bold text-white" x-text="template.name"></p>
                             <p class="mt-1 break-all text-xs text-slate-400" x-text="template.original_filename"></p>
-                            <p class="mt-2 text-xs text-slate-300">
-                                <span x-text="template.page_width"></span> x <span x-text="template.page_height"></span> PDF units
-                            </p>
                         </div>
                     </template>
                     <p x-show="!template" class="mt-2 text-xs text-slate-400">No PDF uploaded yet.</p>
                 </div>
 
                 <div class="mt-4">
-                    <div class="mb-2 flex items-center justify-between">
+                    <div class="mb-2 flex items-center justify-between gap-3">
                         <h4 class="text-sm font-extrabold text-white">Fields</h4>
-                        <span class="text-xs text-slate-400" x-text="`${mappedFields().length}/${fields.length}`"></span>
+                        <div class="flex items-center gap-2">
+                            <label class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                                Size
+                                <input type="number"
+                                       min="4"
+                                       max="40"
+                                       step="0.5"
+                                       :value="selectedTextSize()"
+                                       @input="updateSelectedTextSize($event.target.value)"
+                                       class="h-8 w-16 rounded-lg border border-slate-200 px-2 text-xs">
+                            </label>
+                            <span class="text-xs text-slate-400" x-text="`${mappedFields().length}/${fields.length}`"></span>
+                        </div>
                     </div>
                     <div class="max-h-[300px] space-y-2 overflow-y-auto pr-1">
                         <template x-for="field in fields" :key="field.key">
@@ -822,19 +831,30 @@
                 </div>
             </aside>
 
-            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6">
+            <div @keydown.escape.window="isFullscreen = false"
+                 :class="isFullscreen ? 'fixed inset-4 z-[80] flex flex-col rounded-3xl border border-white/10 bg-[#071224]/95 p-5 shadow-2xl shadow-black/60 backdrop-blur' : 'col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6'"
+                 class="transition">
                 <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h3 class="font-extrabold text-white">PDF Mapper</h3>
-                        <p class="mt-1 text-xs text-slate-300">Select a field, then click or drag it onto the form.</p>
+                        <p class="mt-1 text-xs text-slate-300">Select a field, then click it onto the form.</p>
                     </div>
-                    <button type="button"
-                            @click="saveMappings().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
-                            :disabled="!template || saving"
-                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
-                        <i data-lucide="save" class="h-4 w-4"></i>
-                        <span x-text="saving ? 'Saving...' : 'Save Mapping'"></span>
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button"
+                                @click="toggleFullscreen()"
+                                :disabled="!template"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50">
+                            <i :data-lucide="isFullscreen ? 'minimize-2' : 'maximize-2'" class="h-4 w-4"></i>
+                            <span x-text="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"></span>
+                        </button>
+                        <button type="button"
+                                @click="saveMappings().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
+                                :disabled="!template || saving"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
+                            <i data-lucide="save" class="h-4 w-4"></i>
+                            <span x-text="saving ? 'Saving...' : 'Save Mapping'"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <div x-show="!template" class="flex h-[560px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 text-center">
@@ -845,23 +865,70 @@
                     </div>
                 </div>
 
-                <div x-show="template" class="h-[560px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                    <div x-show="loadingPdf" class="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200">
-                        Rendering PDF...
-                    </div>
-                    <div x-ref="canvasWrap"
-                         @click="placeSelected($event)"
-                         class="relative mx-auto w-max cursor-crosshair overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/30">
-                        <canvas x-ref="pdfCanvas"></canvas>
-                        <template x-for="mapping in mappedFields()" :key="mapping.key">
-                            <button type="button"
-                                    @pointerdown.stop="startDrag($event, mapping.key)"
-                                    :style="markerStyle(mapping)"
-                                    :class="mapping.type === 'check' ? 'border-emerald-300/50 bg-emerald-500/90' : 'border-blue-200/60 bg-[#1552d4]/95'"
-                                    class="absolute z-10 -translate-x-1 -translate-y-1 rounded-lg border px-2 py-1 text-[10px] font-extrabold text-white shadow-lg">
-                                <span x-text="mapping.label"></span>
-                            </button>
-                        </template>
+                <div x-show="template"
+                     :class="isFullscreen ? 'grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4 overflow-hidden border-0 bg-transparent p-0' : 'h-[560px] overflow-auto border border-white/10 bg-slate-950/50 p-4'"
+                     class="rounded-2xl">
+                    <aside x-show="isFullscreen" class="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <h4 class="text-sm font-extrabold text-white">Fields</h4>
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                                    Size
+                                    <input type="number"
+                                           min="4"
+                                           max="40"
+                                           step="0.5"
+                                           :value="selectedTextSize()"
+                                           @input="updateSelectedTextSize($event.target.value)"
+                                           class="h-8 w-16 rounded-lg border border-slate-200 px-2 text-xs">
+                                </label>
+                                <span class="text-xs text-slate-400" x-text="`${mappedFields().length}/${fields.length}`"></span>
+                            </div>
+                        </div>
+                        <div class="h-[calc(100%-2rem)] space-y-2 overflow-y-auto pr-1">
+                            <template x-for="field in fields" :key="`fullscreen-field-${field.key}`">
+                                <button type="button"
+                                        @click="selectedField = field.key"
+                                        :class="selectedField === field.key ? 'border-blue-300/40 bg-blue-500/20 text-blue-50' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'"
+                                        class="flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold transition">
+                                    <span x-text="field.label"></span>
+                                    <span :class="mappings[field.key] ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-slate-400'"
+                                          class="rounded-full px-2 py-0.5 text-[10px]"
+                                          x-text="mappings[field.key] ? 'Mapped' : field.type"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </aside>
+
+                    <div :class="isFullscreen ? 'min-h-0 overflow-auto' : 'overflow-visible'"
+                         class="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                        <div x-show="loadingPdf" class="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200">
+                            Rendering PDF...
+                        </div>
+                        <div x-ref="canvasWrap"
+                             @click="placeSelected($event)"
+                             class="relative mx-auto w-max cursor-crosshair overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/30">
+                            <canvas x-ref="pdfCanvas"></canvas>
+                            <template x-for="mapping in mappedFields()" :key="mapping.key">
+                                <button type="button"
+                                        @pointerdown.stop="startDrag($event, mapping.key)"
+                                        :style="markerStyle(mapping)"
+                                        :class="mapping.type === 'check' ? 'text-emerald-700' : 'text-[#1552d4]'"
+                                        class="absolute z-10 -translate-x-0 -translate-y-0 whitespace-nowrap border-0 bg-transparent p-0 font-bold shadow-none outline-none">
+                                    <span x-show="mapping.type !== 'check'" x-text="mapping.label"></span>
+                                    <svg x-show="mapping.type === 'check'"
+                                         viewBox="0 0 24 24"
+                                         fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="3"
+                                         stroke-linecap="round"
+                                         stroke-linejoin="round"
+                                         class="h-[1em] w-[1em]">
+                                        <path d="M20 6 9 17l-5-5"></path>
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -473,6 +473,10 @@
                     mappings: {},
                     loadingPdf: false,
                     saving: false,
+                    isFullscreen: false,
+                    isDraggingMarker: false,
+                    suppressNextPlacement: false,
+                    globalTextSize: 10,
                     canvasWidth: 0,
                     canvasHeight: 0,
                     renderToken: 0,
@@ -556,6 +560,9 @@
                     fieldType(key) {
                         return this.fields.find((field) => field.key === key)?.type || 'text';
                     },
+                    selectedTextSize() {
+                        return this.mappings[this.selectedField]?.font_size || this.globalTextSize;
+                    },
                     mappedFields() {
                         return Object.values(this.mappings);
                     },
@@ -563,6 +570,7 @@
                         return this.fields.filter((field) => !this.mappings[field.key]);
                     },
                     placeSelected(event) {
+                        if (this.isDraggingMarker || this.suppressNextPlacement) return;
                         if (!this.selectedField || !this.template) return;
 
                         const rect = this.$refs.canvasWrap.getBoundingClientRect();
@@ -571,14 +579,27 @@
                     startDrag(event, key) {
                         event.preventDefault();
                         this.selectedField = key;
+                        this.isDraggingMarker = true;
+                        this.suppressNextPlacement = true;
+                        const markerRect = event.currentTarget.getBoundingClientRect();
+                        const grabOffsetX = event.clientX - markerRect.left;
+                        const grabOffsetY = event.clientY - markerRect.top;
 
                         const move = (moveEvent) => {
                             const rect = this.$refs.canvasWrap.getBoundingClientRect();
-                            this.setMapping(key, moveEvent.clientX - rect.left, moveEvent.clientY - rect.top);
+                            this.setMapping(
+                                key,
+                                moveEvent.clientX - rect.left - grabOffsetX,
+                                moveEvent.clientY - rect.top - grabOffsetY
+                            );
                         };
                         const stop = () => {
                             window.removeEventListener('pointermove', move);
                             window.removeEventListener('pointerup', stop);
+                            this.isDraggingMarker = false;
+                            setTimeout(() => {
+                                this.suppressNextPlacement = false;
+                            }, 0);
                         };
 
                         window.addEventListener('pointermove', move);
@@ -597,7 +618,7 @@
                             type: field?.type || 'text',
                             x: Number(((clampedX / this.canvasWidth) * this.template.page_width).toFixed(2)),
                             y: Number(((clampedY / this.canvasHeight) * this.template.page_height).toFixed(2)),
-                            font_size: this.mappings[key]?.font_size || (field?.type === 'check' ? 14 : 10),
+                            font_size: this.selectedTextSize(),
                         };
                     },
                     markerStyle(mapping) {
@@ -606,12 +627,36 @@
                         const left = (mapping.x / this.template.page_width) * this.canvasWidth;
                         const top = (mapping.y / this.template.page_height) * this.canvasHeight;
 
-                        return `left: ${left}px; top: ${top}px;`;
+                        const scale = this.canvasWidth / this.template.page_width;
+                        const pointsToPageUnits = 25.4 / 72;
+                        const fontSize = Math.max(1, Number(mapping.font_size || this.globalTextSize) * pointsToPageUnits * scale);
+
+                        return `left: ${left}px; top: ${top}px; font-size: ${fontSize}px; line-height: 1;`;
                     },
                     removeMapping(key) {
                         this.mappings = Object.fromEntries(
                             Object.entries(this.mappings).filter(([mappingKey]) => mappingKey !== key)
                         );
+                    },
+                    toggleFullscreen() {
+                        this.isFullscreen = !this.isFullscreen;
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    },
+                    updateSelectedTextSize(value) {
+                        const size = Math.max(4, Math.min(40, Number(value || 10)));
+                        this.globalTextSize = size;
+
+                        if (!this.selectedField || !this.mappings[this.selectedField]) {
+                            return;
+                        }
+
+                        this.mappings = {
+                            ...this.mappings,
+                            [this.selectedField]: {
+                                ...this.mappings[this.selectedField],
+                                font_size: size,
+                            },
+                        };
                     },
                     async saveMappings() {
                         if (!this.template?.save_url) return;
