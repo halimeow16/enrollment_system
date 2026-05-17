@@ -30,7 +30,7 @@
     }
 </style>
 
-<div x-data="{ section: 'subjects', course: '', year: '', semester: '', editingSubject: null }"
+<div x-data="{ section: 'subjects', course: '', year: '', semester: '', editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -77,7 +77,12 @@
                     <p class="mt-1 text-xs text-slate-300">Set the course, year, semester, type, and units.</p>
                 </div>
 
-                <form action="{{ route('academic.subjects.store') }}" method="POST" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <form action="{{ route('academic.subjects.store') }}"
+                      method="POST"
+                      @submit.prevent="submitSubjectForm($event.target)
+                          .then((subject) => { addLiveSubject(subject); subjectCount++; $event.target.reset(); showToast('success', 'Subject added', 'Subject was saved and added to the list.'); })
+                          .catch(() => showToast('error', 'Save failed', 'Unable to add subject. Please check the fields.'))"
+                      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     @csrf
                     <div>
                         <label class="text-xs font-semibold text-slate-300">Code</label>
@@ -144,7 +149,7 @@
                 <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h3 class="font-extrabold text-white">Subjects</h3>
-                        <p class="mt-1 text-xs text-slate-300">{{ $subjects->count() }} configured subjects.</p>
+                        <p class="mt-1 text-xs text-slate-300"><span x-text="subjectCount"></span> configured subjects.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
@@ -195,19 +200,167 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/10">
-                            @forelse($subjects as $subject)
-                                <tr x-show="(!course || course === @js($subject->course_code)) && (!year || year === @js($subject->year_level)) && (!semester || semester === @js($subject->semester))">
+                            <template x-for="subject in addedSubjects" :key="subject.id">
+                                <tr x-show="(!course || course === subject.course_code) && (!year || year === subject.year_level) && (!semester || semester === subject.semester)">
                                     <td class="px-3 py-3">
-                                        <p class="font-bold text-white">{{ $subject->code }}</p>
-                                        <p class="text-xs text-slate-400">{{ $subject->name }}</p>
+                                        <p class="font-bold text-white" x-text="subject.code"></p>
+                                        <p class="text-xs text-slate-400" x-text="subject.name"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
-                                        {{ $subject->course_code }} / Year {{ $subject->year_level }} / {{ $subject->semester }}
-                                        <p class="mt-1 font-semibold text-blue-100">{{ $subject->type }}</p>
+                                        <span x-text="`${subject.course_code} / Year ${subject.year_level} / ${subject.semester}`"></span>
+                                        <p class="mt-1 font-semibold text-blue-100" x-text="subject.type"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
-                                        {{ $subject->total_units }} total
-                                        <p class="text-slate-500">{{ $subject->lecture_units }} LEC / {{ $subject->laboratory_units }} LAB</p>
+                                        <span x-text="`${Number(subject.total_units || 0).toFixed(1)} total`"></span>
+                                        <p class="text-slate-500" x-text="`${Number(subject.lecture_units || 0).toFixed(1)} LEC / ${Number(subject.laboratory_units || 0).toFixed(1)} LAB`"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-xs text-slate-300">
+                                        <span class="text-slate-500">No schedule</span>
+                                    </td>
+                                    <td class="px-3 py-3 text-right">
+                                        <button type="button"
+                                                @click="editingSubject = subject.id; $nextTick(() => window.lucide?.createIcons())"
+                                                class="inline-flex items-center gap-1.5 rounded-2xl border border-blue-300/20 bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-100 transition hover:border-blue-200/40 hover:bg-blue-500/25">
+                                            <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                            Edit
+                                        </button>
+
+                                        <div x-show="editingSubject === subject.id"
+                                             x-cloak
+                                             x-transition.opacity
+                                             @keydown.escape.window="editingSubject = null"
+                                             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+                                            <div @click.outside="editingSubject = null"
+                                                 x-transition.scale.origin.center
+                                                 class="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#111c34] p-5 text-left shadow-2xl shadow-black/50">
+                                                <div class="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+                                                    <div>
+                                                        <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Edit Subject</p>
+                                                        <p class="mt-1 text-lg font-extrabold text-white" x-text="subject.code"></p>
+                                                        <p class="mt-0.5 text-xs text-slate-400" x-text="subject.name"></p>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300" x-text="subject.course_code"></span>
+                                                        <button type="button"
+                                                                @click="editingSubject = null"
+                                                                class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white">
+                                                            <i data-lucide="x" class="h-4 w-4"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <form :action="`{{ url('/academic-configuration/subjects') }}/${subject.id}`"
+                                                      method="POST"
+                                                      @submit.prevent="submitSubjectForm($event.target)
+                                                          .then((updatedSubject) => { Object.assign(subject, updatedSubject); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
+                                                          .catch(() => showToast('error', 'Update failed', 'Unable to update subject. Please check the fields.'))"
+                                                      class="grid grid-cols-2 gap-3">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input name="code" :value="subject.code" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input name="name" :value="subject.name" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <select name="course_code" :value="subject.course_code" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
+                                                            <option value="{{ $courseCode }}">{{ $courseCode }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <select name="year_level" :value="subject.year_level" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                        @foreach(['1', '2', '3', '4'] as $yearOption)
+                                                            <option value="{{ $yearOption }}">Year {{ $yearOption }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <select name="semester" :value="subject.semester" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                        @foreach(['1st', '2nd', 'Summer'] as $semesterOption)
+                                                            <option value="{{ $semesterOption }}">{{ $semesterOption }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <select name="type" :value="subject.type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                        @foreach(['LEC', 'LAB', 'BOTH'] as $type)
+                                                            <option value="{{ $type }}">{{ $type }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <input type="number" step="0.1" min="0" name="lecture_units" :value="subject.lecture_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input type="number" step="0.1" min="0" name="laboratory_units" :value="subject.laboratory_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input name="description" :value="subject.description" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <div class="col-span-2 flex justify-between gap-2">
+                                                        <button type="button"
+                                                                @click="confirmingSubjectRemoval = subject.id"
+                                                                class="rounded-lg border border-red-300/20 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">
+                                                            Remove subject
+                                                        </button>
+                                                        <div class="flex gap-2">
+                                                        <button type="button"
+                                                                @click="editingSubject = null"
+                                                                class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                                            Cancel
+                                                        </button>
+                                                        <button class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Update Subject</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                                <form :action="`{{ url('/academic-configuration/subjects') }}/${subject.id}`"
+                                                      method="POST"
+                                                      x-show="confirmingSubjectRemoval === subject.id"
+                                                      x-transition
+                                                      class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
+                                                      @submit.prevent="deleteSubject($event.target)
+                                                          .then(() => { addedSubjects = addedSubjects.filter((item) => item.id !== subject.id); subjectCount = Math.max(0, subjectCount - 1); editingSubject = null; confirmingSubjectRemoval = null; showToast('success', 'Subject removed', 'Subject was removed.'); })
+                                                          .catch(() => showToast('error', 'Remove failed', 'Unable to remove subject. Please try again.'))">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <p class="text-xs font-semibold text-red-100">Remove this subject? This cannot be undone.</p>
+                                                    <div class="mt-3 flex justify-end gap-2">
+                                                        <button type="button"
+                                                                @click="confirmingSubjectRemoval = null"
+                                                                class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                                            Cancel
+                                                        </button>
+                                                        <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                                            Confirm
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            @forelse($subjects as $subject)
+                                <tr x-data="{
+                                        code: @js($subject->code),
+                                        name: @js($subject->name),
+                                        courseCode: @js($subject->course_code),
+                                        yearLevel: @js($subject->year_level),
+                                        semesterValue: @js($subject->semester),
+                                        typeValue: @js($subject->type),
+                                        lectureUnits: @js((float) $subject->lecture_units),
+                                        laboratoryUnits: @js((float) $subject->laboratory_units),
+                                        totalUnits: @js((float) $subject->total_units),
+                                        removed: false,
+                                        applySubject(subject) {
+                                            this.code = subject.code;
+                                            this.name = subject.name;
+                                            this.courseCode = subject.course_code;
+                                            this.yearLevel = subject.year_level;
+                                            this.semesterValue = subject.semester;
+                                            this.typeValue = subject.type;
+                                            this.lectureUnits = Number(subject.lecture_units || 0);
+                                            this.laboratoryUnits = Number(subject.laboratory_units || 0);
+                                            this.totalUnits = Number(subject.total_units || 0);
+                                        }
+                                    }"
+                                    x-show="!removed && (!course || course === courseCode) && (!year || year === yearLevel) && (!semester || semester === semesterValue)">
+                                    <td class="px-3 py-3">
+                                        <p class="font-bold text-white" x-text="code"></p>
+                                        <p class="text-xs text-slate-400" x-text="name"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-xs text-slate-300">
+                                        <span x-text="`${courseCode} / Year ${yearLevel} / ${semesterValue}`"></span>
+                                        <p class="mt-1 font-semibold text-blue-100" x-text="typeValue"></p>
+                                    </td>
+                                    <td class="px-3 py-3 text-xs text-slate-300">
+                                        <span x-text="`${totalUnits.toFixed(1)} total`"></span>
+                                        <p class="text-slate-500" x-text="`${lectureUnits.toFixed(1)} LEC / ${laboratoryUnits.toFixed(1)} LAB`"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
                                         @forelse($subject->schedules as $schedule)
@@ -235,12 +388,12 @@
                                                 <div class="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
                                                     <div>
                                                         <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Edit Subject</p>
-                                                        <p class="mt-1 text-lg font-extrabold text-white">{{ $subject->code }}</p>
-                                                        <p class="mt-0.5 text-xs text-slate-400">{{ $subject->name }}</p>
+                                                        <p class="mt-1 text-lg font-extrabold text-white" x-text="code"></p>
+                                                        <p class="mt-0.5 text-xs text-slate-400" x-text="name"></p>
                                                     </div>
                                                     <div class="flex items-center gap-2">
                                                         <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300">
-                                                            {{ $subject->course_code }}
+                                                            <span x-text="courseCode"></span>
                                                         </span>
                                                         <button type="button"
                                                                 @click="editingSubject = null"
@@ -250,7 +403,12 @@
                                                     </div>
                                                 </div>
 
-                                                <form action="{{ route('academic.subjects.update', $subject) }}" method="POST" class="grid grid-cols-2 gap-3">
+                                                <form action="{{ route('academic.subjects.update', $subject) }}"
+                                                      method="POST"
+                                                      @submit.prevent="submitSubjectForm($event.target)
+                                                          .then((subject) => { applySubject(subject); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
+                                                          .catch(() => showToast('error', 'Update failed', 'Unable to update subject. Please check the fields.'))"
+                                                      class="grid grid-cols-2 gap-3">
                                                     @csrf
                                                     @method('PUT')
                                                     <input name="code" value="{{ $subject->code }}" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -278,19 +436,43 @@
                                                     <input type="number" step="0.1" min="0" name="lecture_units" value="{{ $subject->lecture_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <input type="number" step="0.1" min="0" name="laboratory_units" value="{{ $subject->laboratory_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <input name="description" value="{{ $subject->description }}" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <div class="col-span-2 flex justify-end gap-2">
+                                                    <div class="col-span-2 flex justify-between gap-2">
+                                                        <button type="button"
+                                                                @click="confirmingSubjectRemoval = {{ $subject->id }}"
+                                                                class="rounded-lg border border-red-300/20 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">
+                                                            Remove subject
+                                                        </button>
+                                                        <div class="flex gap-2">
                                                         <button type="button"
                                                                 @click="editingSubject = null"
                                                                 class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
                                                             Cancel
                                                         </button>
                                                         <button class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Update Subject</button>
+                                                        </div>
                                                     </div>
                                                 </form>
-                                                <form action="{{ route('academic.subjects.destroy', $subject) }}" method="POST" class="mt-3 text-right">
+                                                <form action="{{ route('academic.subjects.destroy', $subject) }}"
+                                                      method="POST"
+                                                      x-show="confirmingSubjectRemoval === {{ $subject->id }}"
+                                                      x-transition
+                                                      class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
+                                                      @submit.prevent="deleteSubject($event.target)
+                                                          .then(() => { removed = true; subjectCount = Math.max(0, subjectCount - 1); editingSubject = null; confirmingSubjectRemoval = null; showToast('success', 'Subject removed', 'Subject was removed.'); })
+                                                          .catch(() => showToast('error', 'Remove failed', 'Unable to remove subject. Please try again.'))">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button class="rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">Remove subject</button>
+                                                    <p class="text-xs font-semibold text-red-100">Remove this subject? This cannot be undone.</p>
+                                                    <div class="mt-3 flex justify-end gap-2">
+                                                        <button type="button"
+                                                                @click="confirmingSubjectRemoval = null"
+                                                                class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                                            Cancel
+                                                        </button>
+                                                        <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                                            Confirm
+                                                        </button>
+                                                    </div>
                                                 </form>
                                             </div>
                                         </div>
@@ -312,13 +494,23 @@
                 <h3 class="font-extrabold text-white">Schedule Options</h3>
                 <p class="mt-1 text-xs text-slate-300">Add the day, time, and room choices used in subject schedules.</p>
 
-                <form action="{{ route('academic.days.store') }}" method="POST" class="mt-4 flex gap-2">
+                <form action="{{ route('academic.days.store') }}"
+                      method="POST"
+                      class="mt-4 flex gap-2"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { addedDays.push(data.day); $event.target.reset(); showToast('success', 'Day saved', 'Schedule day was saved.'); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input name="name" placeholder="Day, e.g. Monday" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <button class="rounded-lg bg-[#1552d4] px-3 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Add</button>
                 </form>
 
-                <form action="{{ route('academic.time-slots.store') }}" method="POST" class="mt-3 grid grid-cols-2 gap-2">
+                <form action="{{ route('academic.time-slots.store') }}"
+                      method="POST"
+                      class="mt-3 grid grid-cols-2 gap-2"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { addedTimeSlots.push(data.time_slot); $event.target.reset(); showToast('success', 'Time saved', 'Time slot was saved.'); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -326,7 +518,12 @@
                     <button class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Add Time Slot</button>
                 </form>
 
-                <form action="{{ route('academic.rooms.store') }}" method="POST" class="mt-3 grid grid-cols-2 gap-2">
+                <form action="{{ route('academic.rooms.store') }}"
+                      method="POST"
+                      class="mt-3 grid grid-cols-2 gap-2"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { addedRooms.push(data.room); $event.target.reset(); showToast('success', 'Room saved', 'Room was saved.'); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input name="name" placeholder="Room" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input name="building" placeholder="Building" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -339,31 +536,48 @@
                 <h3 class="font-extrabold text-white">Assign Schedule</h3>
                 <p class="mt-1 text-xs text-slate-300">Saving is blocked when a room already has the selected day and time.</p>
 
-                <form action="{{ route('academic.schedules.store') }}" method="POST" class="mt-4 space-y-3">
+                <form action="{{ route('academic.schedules.store') }}"
+                      method="POST"
+                      class="mt-4 space-y-3"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { addedSchedules.unshift(data.schedule); scheduleCount++; $event.target.reset(); showToast('success', 'Schedule assigned', 'Subject schedule was saved.'); })
+                          .catch((error) => showToast('error', 'Schedule failed', error.message))">
                     @csrf
                     <select name="subject_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="">Select subject</option>
                         @foreach($subjects as $subject)
                             <option value="{{ $subject->id }}">{{ $subject->code }} - {{ $subject->name }}</option>
                         @endforeach
+                        <template x-for="subject in addedSubjects" :key="`subject-option-${subject.id}`">
+                            <option :value="subject.id" x-text="`${subject.code} - ${subject.name}`"></option>
+                        </template>
                     </select>
                     <select name="day_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="">Select day</option>
                         @foreach($days as $day)
                             <option value="{{ $day->id }}">{{ $day->name }}</option>
                         @endforeach
+                        <template x-for="day in addedDays" :key="`day-option-${day.id}`">
+                            <option :value="day.id" x-text="day.name"></option>
+                        </template>
                     </select>
                     <select name="time_slot_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="">Select time</option>
                         @foreach($timeSlots as $slot)
                             <option value="{{ $slot->id }}">{{ $slot->label ?? ($slot->start_time . ' - ' . $slot->end_time) }}</option>
                         @endforeach
+                        <template x-for="slot in addedTimeSlots" :key="`slot-option-${slot.id}`">
+                            <option :value="slot.id" x-text="slot.label"></option>
+                        </template>
                     </select>
                     <select name="room_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="">Select room</option>
                         @foreach($rooms as $room)
                             <option value="{{ $room->id }}">{{ $room->name }}</option>
                         @endforeach
+                        <template x-for="room in addedRooms" :key="`room-option-${room.id}`">
+                            <option :value="room.id" x-text="room.name"></option>
+                        </template>
                     </select>
                     <button class="w-full rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white">Assign Schedule</button>
                 </form>
@@ -371,21 +585,76 @@
 
             <div class="col-span-12 h-[430px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-4">
                 <h3 class="font-extrabold text-white">Assigned Schedules</h3>
-                <p class="mt-1 text-xs text-slate-300">{{ $subjectSchedules->count() }} current schedule entries.</p>
+                <p class="mt-1 text-xs text-slate-300"><span x-text="scheduleCount"></span> current schedule entries.</p>
 
                 <div class="mt-4 h-[390px] space-y-2 overflow-y-auto pr-1">
-                    @forelse($subjectSchedules as $schedule)
+                    <template x-for="schedule in addedSchedules" :key="`schedule-${schedule.id}`">
                         <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
-                            <p class="font-bold text-white">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
-                            <p class="mt-1 text-xs text-slate-300">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
-                            <form action="{{ route('academic.schedules.destroy', $schedule) }}" method="POST" class="mt-2">
+                            <p class="font-bold text-white" x-text="`${schedule.subject.code} - ${schedule.subject.name}`"></p>
+                            <p class="mt-1 text-xs text-slate-300" x-text="`${schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
+                            <button type="button"
+                                    @click="confirmingScheduleRemoval = schedule.id"
+                                    class="mt-2 text-xs font-bold text-red-300 hover:text-red-100">
+                                Remove schedule
+                            </button>
+                            <form :action="`{{ url('/academic-configuration/schedules') }}/${schedule.id}`"
+                                  method="POST"
+                                  x-show="confirmingScheduleRemoval === schedule.id"
+                                  x-transition
+                                  class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
+                                  @submit.prevent="deleteAcademicItem($event.target)
+                                      .then(() => { addedSchedules = addedSchedules.filter((item) => item.id !== schedule.id); scheduleCount = Math.max(0, scheduleCount - 1); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
+                                      .catch(() => showToast('error', 'Remove failed', 'Unable to remove schedule.'))">
                                 @csrf
                                 @method('DELETE')
-                                <button class="text-xs font-bold text-red-300 hover:text-red-100">Remove schedule</button>
+                                <p class="text-xs font-semibold text-red-100">Remove this schedule?</p>
+                                <div class="mt-3 flex justify-end gap-2">
+                                    <button type="button"
+                                            @click="confirmingScheduleRemoval = null"
+                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                        Cancel
+                                    </button>
+                                    <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                        Confirm
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+                    @forelse($subjectSchedules as $schedule)
+                        <div x-data="{ removed: false }" x-show="!removed" class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
+                            <p class="font-bold text-white">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
+                            <p class="mt-1 text-xs text-slate-300">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
+                            <button type="button"
+                                    @click="confirmingScheduleRemoval = {{ $schedule->id }}"
+                                    class="mt-2 text-xs font-bold text-red-300 hover:text-red-100">
+                                Remove schedule
+                            </button>
+                            <form action="{{ route('academic.schedules.destroy', $schedule) }}"
+                                  method="POST"
+                                  x-show="confirmingScheduleRemoval === {{ $schedule->id }}"
+                                  x-transition
+                                  class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
+                                  @submit.prevent="deleteAcademicItem($event.target)
+                                      .then(() => { removed = true; scheduleCount = Math.max(0, scheduleCount - 1); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
+                                      .catch(() => showToast('error', 'Remove failed', 'Unable to remove schedule.'))">
+                                @csrf
+                                @method('DELETE')
+                                <p class="text-xs font-semibold text-red-100">Remove this schedule?</p>
+                                <div class="mt-3 flex justify-end gap-2">
+                                    <button type="button"
+                                            @click="confirmingScheduleRemoval = null"
+                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                        Cancel
+                                    </button>
+                                    <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                        Confirm
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     @empty
-                        <p class="text-sm text-slate-300">No schedules assigned yet.</p>
+                        <p x-show="addedSchedules.length === 0" class="text-sm text-slate-300">No schedules assigned yet.</p>
                     @endforelse
                 </div>
             </div>
@@ -396,7 +665,12 @@
                 <h3 class="font-extrabold text-white">Department Head</h3>
                 <p class="mt-1 text-xs text-slate-300">The active name auto-fills in enrollment forms and outputs.</p>
 
-                <form action="{{ route('academic.department-heads.store') }}" method="POST" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <form action="{{ route('academic.department-heads.store') }}"
+                      method="POST"
+                      class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { addDepartmentHead(data.department_head); $event.target.reset(); showToast('success', 'Department head saved', 'Department head was updated.'); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <select name="course_code" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
@@ -413,19 +687,27 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="font-extrabold text-white">Active Department Heads</h3>
-                        <p class="mt-1 text-xs text-slate-300">{{ $departmentHeads->count() }} configured active records.</p>
+                        <p class="mt-1 text-xs text-slate-300"><span x-text="departmentHeadCount"></span> configured active records.</p>
                     </div>
                 </div>
 
                 <div class="mt-4 grid max-h-[430px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-                    @forelse($departmentHeads as $head)
+                    <template x-for="head in addedDepartmentHeads" :key="`head-${head.course_code}`">
                         <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs">
+                            <p class="font-bold text-white" x-text="head.course_code"></p>
+                            <p class="mt-1 text-sm font-semibold text-blue-100" x-text="head.name"></p>
+                            <p class="text-slate-400" x-text="head.title || 'Department Head'"></p>
+                        </div>
+                    </template>
+                    @forelse($departmentHeads as $head)
+                        <div x-show="!addedDepartmentHeads.some((item) => item.course_code === @js($head->course_code))"
+                             class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs">
                             <p class="font-bold text-white">{{ $head->course_code }}</p>
                             <p class="mt-1 text-sm font-semibold text-blue-100">{{ $head->name }}</p>
                             <p class="text-slate-400">{{ $head->title ?? 'Department Head' }}</p>
                         </div>
                     @empty
-                        <p class="text-sm text-slate-300">No active department heads yet.</p>
+                        <p x-show="addedDepartmentHeads.length === 0" class="text-sm text-slate-300">No active department heads yet.</p>
                     @endforelse
                 </div>
             </div>

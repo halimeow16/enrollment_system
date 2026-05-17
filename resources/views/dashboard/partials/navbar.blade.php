@@ -15,6 +15,7 @@
                     $navItems = [
                         ['tab' => 'overview', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                         ['tab' => 'enrollments', 'label' => 'Enrollments', 'icon' => 'users'],
+                        ['tab' => 'id-generation', 'label' => 'Generate IDs', 'icon' => 'badge'],
                     ];
 
                     if (auth()->user()?->user_type === 'admin') {

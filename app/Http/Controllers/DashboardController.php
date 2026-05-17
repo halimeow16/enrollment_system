@@ -9,6 +9,7 @@ use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
 use App\Models\TimeSlot;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -117,13 +118,20 @@ class DashboardController extends Controller
         ));
     }
 
-    public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse
+    public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'enrollment_status' => ['required', 'in:pending,enrolled,cancelled'],
         ]);
 
         $enrollment->update($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Enrollment status updated.',
+                'status' => $enrollment->enrollment_status,
+            ]);
+        }
 
         return back()->with('success', 'Enrollment status updated.');
     }

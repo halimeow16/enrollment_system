@@ -49,7 +49,7 @@
                 <div class="relative z-10">
                     <img src="{{ asset('images/logo.png') }}"
                          alt="COMTEQ"
-                         class="h-24 w-auto">
+                         class="h-42 w-auto">
                 </div>
 
                 <div class="relative z-10 max-w-lg">
@@ -58,15 +58,12 @@
                     </p>
 
                     <h1 class="text-5xl font-extrabold leading-tight">
-                        Halimaw Halimaw
-                        <span class="text-blue-400">Halimaw</span>
-                        Halimaw
+                        Process and Approve
+                        <span class="text-blue-400">Enrollments</span>
                     </h1>
 
                     <p class="mt-6 text-base leading-8 text-slate-300">
-                        Halimaw Halimaw Halimaw, Halimaw Halimaw Halimaw,
-                        Halimaw Halimaw, and Halimaw Halimaw in Halimaw Halimaw Halimaw
-                        designed for Halimaw Halimaw and Halimaw.
+                        Authorized personnel portal for the COMTEQ Enrollment Management System.
                     </p>
                 </div>
 
@@ -74,23 +71,23 @@
                 <div class="relative z-10 grid grid-cols-3 gap-4">
 
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <h3 class="text-2xl font-bold">24/7</h3>
+                        <h3 class="text-2xl font-bold">Local</h3>
                         <p class="mt-1 text-xs text-slate-300">
-                            Access Anywhere
+                            Campus Network
                         </p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                        <h3 class="text-2xl font-bold">100%</h3>
+                        <h3 class="text-2xl font-bold">Instant</h3>
                         <p class="mt-1 text-xs text-slate-300">
-                            Secure Records
+                            Live Updates
                         </p>
                     </div>
 
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
                         <h3 class="text-2xl font-bold">Fast</h3>
                         <p class="mt-1 text-xs text-slate-300">
-                            Approval Process
+                            Quick Review
                         </p>
                     </div>
 
@@ -194,7 +191,7 @@
                         <!-- Button -->
                         <button type="submit"
                                 class="w-full rounded-2xl bg-gradient-to-r from-[#071224] to-[#0f43b0] px-5 py-4 text-sm font-bold tracking-wide text-white shadow-xl transition duration-300 hover:scale-[1.01] hover:shadow-blue-200">
-                            Sign In to Dashboard
+                            Sign In
                         </button>
 
                     </form>
