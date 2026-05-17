@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use App\Models\Enrollment;
 use App\Models\DepartmentHead;
+use App\Models\EnrollmentTemplate;
 use App\Models\Subject;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class EnrollmentController extends Controller
 {
@@ -122,6 +124,12 @@ class EnrollmentController extends Controller
 
     private function fillExistingPDF($data)
     {
+        $activeTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+
+        if ($activeTemplate && ! empty($activeTemplate->field_mappings)) {
+            return $this->fillMappedPDF($data, $activeTemplate);
+        }
+
         $pdf = new Fpdi();
 
         $templatePath = public_path('templates/enrollment-template.pdf');
@@ -216,6 +224,93 @@ class EnrollmentController extends Controller
         }
 
         return $pdf->Output('', 'S');
+    }
+
+    private function fillMappedPDF($data, EnrollmentTemplate $template)
+    {
+        if (! Storage::disk('public')->exists($template->file_path)) {
+            abort(500, 'Mapped PDF template file not found.');
+        }
+
+        $pdf = new Fpdi();
+        $templatePath = Storage::disk('public')->path($template->file_path);
+        $pdf->setSourceFile($templatePath);
+        $templateId = $pdf->importPage(1);
+
+        $pdf->AddPage('P', [(float) $template->page_width, (float) $template->page_height]);
+        $pdf->useTemplate($templateId);
+        $pdf->SetTextColor(0, 0, 0);
+
+        foreach ($template->field_mappings ?? [] as $mapping) {
+            $key = $mapping['key'] ?? null;
+            $type = $mapping['type'] ?? 'text';
+            $x = (float) ($mapping['x'] ?? 0);
+            $y = (float) ($mapping['y'] ?? 0);
+            $fontSize = (float) ($mapping['font_size'] ?? ($type === 'check' ? 14 : 10));
+
+            if (! $key) {
+                continue;
+            }
+
+            if ($type === 'check') {
+                if (! $this->mappedCheckIsSelected($key, $data)) {
+                    continue;
+                }
+
+                $pdf->SetFont('dejavusans', 'B', $fontSize);
+                $pdf->SetTextColor(0, 100, 0);
+                $pdf->SetXY($x, $y);
+                $pdf->Write(0, html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8'));
+                $pdf->SetTextColor(0, 0, 0);
+                continue;
+            }
+
+            $value = $this->mappedFieldValue($key, $data);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $pdf->SetFont('Helvetica', '', $fontSize);
+            $pdf->SetXY($x, $y);
+            $pdf->Write(0, $value);
+        }
+
+        return $pdf->Output('', 'S');
+    }
+
+    private function mappedFieldValue(string $key, $data): string
+    {
+        $value = data_get($data, $key, '');
+
+        if (is_array($value)) {
+            return implode(', ', $value);
+        }
+
+        return (string) ($value ?? '');
+    }
+
+    private function mappedCheckIsSelected(string $key, $data): bool
+    {
+        if (str_starts_with($key, 'course_')) {
+            return strtoupper((string) data_get($data, 'course_code')) === substr($key, 7);
+        }
+
+        if (str_starts_with($key, 'year_')) {
+            return (string) data_get($data, 'year_level') === substr($key, 5);
+        }
+
+        if (str_starts_with($key, 'semester_')) {
+            return strtolower((string) data_get($data, 'semester')) === strtolower(substr($key, 9));
+        }
+
+        if (str_starts_with($key, 'credential_')) {
+            $credentials = data_get($data, 'credentials', []);
+
+            return is_array($credentials) && in_array(substr($key, 11), $credentials, true);
+        }
+
+        return filled(data_get($data, $key));
     }
 
     private function detectScheduleConflicts($subjects): array

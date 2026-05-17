@@ -5,7 +5,11 @@
 
 @section('content')
 
-<div x-data="dashboardFrame()" x-init="init()" @dashboard-tab-selected.window="switchTab($event.detail.tab)" class="space-y-5">
+<div x-data="dashboardFrame()"
+     x-init="init()"
+     @dashboard-tab-selected.window="switchTab($event.detail.tab)"
+     @dashboard-toast.window="showToast($event.detail.type, $event.detail.title, $event.detail.message)"
+     class="space-y-5">
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
             {{ session('success') }}
@@ -271,8 +275,13 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     window.appData = {
         chartData: @json($chartData),
         user: @json(auth()->user()),
@@ -455,6 +464,186 @@
                 const matchesStatus = !this.statusFilter || status === this.statusFilter;
 
                 return matchesText && matchesStatus;
+            },
+            templateMapper(config) {
+                return {
+                    template: config.template,
+                    fields: config.fields,
+                    selectedField: config.fields[0]?.key || null,
+                    mappings: {},
+                    loadingPdf: false,
+                    saving: false,
+                    canvasWidth: 0,
+                    canvasHeight: 0,
+                    renderToken: 0,
+                    init() {
+                        this.loadMappings();
+                        this.$nextTick(() => this.renderPdf());
+                    },
+                    loadMappings() {
+                        this.mappings = {};
+                        (this.template?.field_mappings || []).forEach((mapping) => {
+                            this.mappings[mapping.key] = mapping;
+                        });
+                    },
+                    async uploadTemplate(form) {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Unable to upload template.');
+                        }
+
+                        this.template = data.template;
+                        this.loadMappings();
+                        form.reset();
+                        await this.$nextTick();
+                        await this.renderPdf();
+                        window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                            detail: { type: 'success', title: 'Template uploaded', message: 'PDF template is ready for mapping.' },
+                        }));
+                    },
+                    async renderPdf() {
+                        if (!this.template?.pdf_url || !window.pdfjsLib || !this.$refs.pdfCanvas) return;
+
+                        const token = ++this.renderToken;
+                        this.loadingPdf = true;
+                        const pdf = await window.pdfjsLib.getDocument(this.template.pdf_url).promise;
+                        const page = await pdf.getPage(1);
+                        const viewport = page.getViewport({ scale: 1.35 });
+                        const canvas = this.$refs.pdfCanvas;
+                        const context = canvas.getContext('2d');
+
+                        if (token !== this.renderToken) {
+                            pdf.destroy?.();
+                            return;
+                        }
+
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        canvas.style.width = `${viewport.width}px`;
+                        canvas.style.height = `${viewport.height}px`;
+                        canvas.style.transform = 'none';
+                        canvas.style.transformOrigin = 'top left';
+
+                        context.setTransform(1, 0, 0, 1, 0, 0);
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+
+                        this.canvasWidth = viewport.width;
+                        this.canvasHeight = viewport.height;
+
+                        await page.render({ canvasContext: context, viewport }).promise;
+
+                        if (token === this.renderToken) {
+                            context.setTransform(1, 0, 0, 1, 0, 0);
+                            canvas.style.transform = 'none';
+                            this.loadingPdf = false;
+                        }
+
+                        pdf.destroy?.();
+                    },
+                    fieldLabel(key) {
+                        return this.fields.find((field) => field.key === key)?.label || key;
+                    },
+                    fieldType(key) {
+                        return this.fields.find((field) => field.key === key)?.type || 'text';
+                    },
+                    mappedFields() {
+                        return Object.values(this.mappings);
+                    },
+                    missingFields() {
+                        return this.fields.filter((field) => !this.mappings[field.key]);
+                    },
+                    placeSelected(event) {
+                        if (!this.selectedField || !this.template) return;
+
+                        const rect = this.$refs.canvasWrap.getBoundingClientRect();
+                        this.setMapping(this.selectedField, event.clientX - rect.left, event.clientY - rect.top);
+                    },
+                    startDrag(event, key) {
+                        event.preventDefault();
+                        this.selectedField = key;
+
+                        const move = (moveEvent) => {
+                            const rect = this.$refs.canvasWrap.getBoundingClientRect();
+                            this.setMapping(key, moveEvent.clientX - rect.left, moveEvent.clientY - rect.top);
+                        };
+                        const stop = () => {
+                            window.removeEventListener('pointermove', move);
+                            window.removeEventListener('pointerup', stop);
+                        };
+
+                        window.addEventListener('pointermove', move);
+                        window.addEventListener('pointerup', stop);
+                    },
+                    setMapping(key, canvasX, canvasY) {
+                        if (!this.template || !this.canvasWidth || !this.canvasHeight) return;
+
+                        const field = this.fields.find((item) => item.key === key);
+                        const clampedX = Math.max(0, Math.min(canvasX, this.canvasWidth));
+                        const clampedY = Math.max(0, Math.min(canvasY, this.canvasHeight));
+
+                        this.mappings[key] = {
+                            key,
+                            label: field?.label || key,
+                            type: field?.type || 'text',
+                            x: Number(((clampedX / this.canvasWidth) * this.template.page_width).toFixed(2)),
+                            y: Number(((clampedY / this.canvasHeight) * this.template.page_height).toFixed(2)),
+                            font_size: this.mappings[key]?.font_size || (field?.type === 'check' ? 14 : 10),
+                        };
+                    },
+                    markerStyle(mapping) {
+                        if (!this.template || !this.canvasWidth || !this.canvasHeight) return '';
+
+                        const left = (mapping.x / this.template.page_width) * this.canvasWidth;
+                        const top = (mapping.y / this.template.page_height) * this.canvasHeight;
+
+                        return `left: ${left}px; top: ${top}px;`;
+                    },
+                    removeMapping(key) {
+                        this.mappings = Object.fromEntries(
+                            Object.entries(this.mappings).filter(([mappingKey]) => mappingKey !== key)
+                        );
+                    },
+                    async saveMappings() {
+                        if (!this.template?.save_url) return;
+
+                        this.saving = true;
+                        const response = await fetch(this.template.save_url, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                mappings: this.mappedFields(),
+                            }),
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+                        this.saving = false;
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Unable to save mappings.');
+                        }
+
+                        this.template = data.template;
+                        this.loadMappings();
+                        window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                            detail: { type: 'success', title: 'Mappings saved', message: 'Template field positions were saved.' },
+                        }));
+                    },
+                };
             },
         };
     };

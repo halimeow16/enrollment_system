@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Enrollment;
 use App\Models\Day;
 use App\Models\DepartmentHead;
+use App\Models\EnrollmentTemplate;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -102,6 +103,17 @@ class DashboardController extends Controller
         $departmentHeads = DepartmentHead::where('is_active', true)
             ->orderBy('course_code')
             ->get();
+        $activeEnrollmentTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+        $enrollmentTemplatePayload = $activeEnrollmentTemplate ? [
+            'id' => $activeEnrollmentTemplate->id,
+            'name' => $activeEnrollmentTemplate->name,
+            'original_filename' => $activeEnrollmentTemplate->original_filename,
+            'page_width' => (float) $activeEnrollmentTemplate->page_width,
+            'page_height' => (float) $activeEnrollmentTemplate->page_height,
+            'field_mappings' => $activeEnrollmentTemplate->field_mappings ?? [],
+            'pdf_url' => route('academic.templates.pdf', $activeEnrollmentTemplate),
+            'save_url' => route('academic.templates.mappings.update', $activeEnrollmentTemplate),
+        ] : null;
 
         return view('dashboard.index', compact(
             'stats',
@@ -114,7 +126,9 @@ class DashboardController extends Controller
             'rooms',
             'timeSlots',
             'subjectSchedules',
-            'departmentHeads'
+            'departmentHeads',
+            'activeEnrollmentTemplate',
+            'enrollmentTemplatePayload'
         ));
     }
 

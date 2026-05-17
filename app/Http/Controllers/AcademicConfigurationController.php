@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Day;
 use App\Models\DepartmentHead;
+use App\Models\EnrollmentTemplate;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -11,6 +12,8 @@ use App\Models\TimeSlot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Tcpdf\Fpdi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -207,6 +210,80 @@ class AcademicConfigurationController extends Controller
         return back()->with('success', 'Department head updated.');
     }
 
+    public function storeEnrollmentTemplate(Request $request): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+            'template_pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        ]);
+
+        $file = $request->file('template_pdf');
+        $path = $file->store('enrollment-templates', 'public');
+        $fullPath = Storage::disk('public')->path($path);
+        $size = $this->pdfFirstPageSize($fullPath);
+
+        $template = DB::transaction(function () use ($data, $file, $path, $size): EnrollmentTemplate {
+            EnrollmentTemplate::where('is_active', true)->update(['is_active' => false]);
+
+            return EnrollmentTemplate::create([
+                'name' => $data['name'] ?: 'Enrollment Form',
+                'file_path' => $path,
+                'original_filename' => $file->getClientOriginalName(),
+                'page_width' => $size['width'],
+                'page_height' => $size['height'],
+                'field_mappings' => [],
+                'is_active' => true,
+            ]);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Template uploaded.',
+                'template' => $this->templatePayload($template),
+            ], 201);
+        }
+
+        return back()->with('success', 'Template uploaded.');
+    }
+
+    public function updateEnrollmentTemplateMappings(Request $request, EnrollmentTemplate $template): JsonResponse
+    {
+        $data = $request->validate([
+            'mappings' => ['required', 'array'],
+            'mappings.*.key' => ['required', 'string', 'max:80'],
+            'mappings.*.label' => ['required', 'string', 'max:120'],
+            'mappings.*.type' => ['nullable', 'string', 'max:30'],
+            'mappings.*.x' => ['required', 'numeric', 'min:0'],
+            'mappings.*.y' => ['required', 'numeric', 'min:0'],
+            'mappings.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:40'],
+        ]);
+
+        $template->update([
+            'field_mappings' => collect($data['mappings'])->map(fn ($mapping) => [
+                'key' => $mapping['key'],
+                'label' => $mapping['label'],
+                'type' => $mapping['type'] ?? 'text',
+                'x' => round((float) $mapping['x'], 2),
+                'y' => round((float) $mapping['y'], 2),
+                'font_size' => round((float) ($mapping['font_size'] ?? 10), 1),
+            ])->values()->all(),
+        ]);
+
+        return response()->json([
+            'message' => 'Template mapping saved.',
+            'template' => $this->templatePayload($template->fresh()),
+        ]);
+    }
+
+    public function showEnrollmentTemplatePdf(EnrollmentTemplate $template)
+    {
+        abort_unless(Storage::disk('public')->exists($template->file_path), 404);
+
+        return response()->file(Storage::disk('public')->path($template->file_path), [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
     private function validateSubject(Request $request, ?Subject $subject = null): array
     {
         return $request->validate([
@@ -258,6 +335,33 @@ class AcademicConfigurationController extends Controller
             'day' => $schedule->day->name,
             'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
             'room' => $schedule->room->name,
+        ];
+    }
+
+    private function pdfFirstPageSize(string $path): array
+    {
+        $pdf = new Fpdi();
+        $pdf->setSourceFile($path);
+        $templateId = $pdf->importPage(1);
+        $size = $pdf->getTemplateSize($templateId);
+
+        return [
+            'width' => (float) ($size['width'] ?? 381),
+            'height' => (float) ($size['height'] ?? 508),
+        ];
+    }
+
+    private function templatePayload(EnrollmentTemplate $template): array
+    {
+        return [
+            'id' => $template->id,
+            'name' => $template->name,
+            'original_filename' => $template->original_filename,
+            'page_width' => (float) $template->page_width,
+            'page_height' => (float) $template->page_height,
+            'field_mappings' => $template->field_mappings ?? [],
+            'pdf_url' => route('academic.templates.pdf', $template),
+            'save_url' => route('academic.templates.mappings.update', $template),
         ];
     }
 }

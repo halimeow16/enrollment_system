@@ -713,13 +713,188 @@
             </div>
         </section>
 
-        <section x-show="section === 'templates'" x-cloak>
-            <div class="flex h-[484px] items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-                <div>
-                    <h3 class="font-extrabold text-white">Templates</h3>
-                    <p class="mt-2 text-sm text-slate-300">No template settings yet.</p>
+        <section x-show="section === 'templates'"
+                 x-cloak
+                 x-data="templateMapper({
+                    template: @js($enrollmentTemplatePayload),
+                    fields: [
+                        { key: 'student_number', label: 'Student ID', type: 'text' },
+                        { key: 'date_filed', label: 'Date Filed', type: 'text' },
+                        { key: 'school_year', label: 'School Year', type: 'text' },
+                        { key: 'last_name', label: 'Last Name', type: 'text' },
+                        { key: 'first_name', label: 'First Name', type: 'text' },
+                        { key: 'middle_name', label: 'Middle Name', type: 'text' },
+                        { key: 'cellphone', label: 'Cellphone', type: 'text' },
+                        { key: 'email', label: 'Email', type: 'text' },
+                        { key: 'last_school', label: 'Last School', type: 'text' },
+                        { key: 'present_address', label: 'Present Address', type: 'text' },
+                        { key: 'barangay', label: 'Barangay', type: 'text' },
+                        { key: 'city', label: 'City', type: 'text' },
+                        { key: 'province', label: 'Province', type: 'text' },
+                        { key: 'date_of_birth', label: 'Date of Birth', type: 'text' },
+                        { key: 'age', label: 'Age', type: 'text' },
+                        { key: 'civil_status', label: 'Civil Status', type: 'text' },
+                        { key: 'place_of_birth', label: 'Place of Birth', type: 'text' },
+                        { key: 'gender', label: 'Gender', type: 'text' },
+                        { key: 'religion', label: 'Religion', type: 'text' },
+                        { key: 'father_name', label: 'Father Name', type: 'text' },
+                        { key: 'father_address', label: 'Father Address', type: 'text' },
+                        { key: 'father_cpNumber', label: 'Father Contact', type: 'text' },
+                        { key: 'mother_name', label: 'Mother Name', type: 'text' },
+                        { key: 'mother_address', label: 'Mother Address', type: 'text' },
+                        { key: 'mother_cpNumber', label: 'Mother Contact', type: 'text' },
+                        { key: 'department_head_name', label: 'Department Head', type: 'text' },
+                        { key: 'course_BSIT', label: 'BSIT Check', type: 'check' },
+                        { key: 'course_BSCS', label: 'BSCS Check', type: 'check' },
+                        { key: 'course_ACT', label: 'ACT Check', type: 'check' },
+                        { key: 'course_BSHM', label: 'BSHM Check', type: 'check' },
+                        { key: 'course_BSOM', label: 'BSOM Check', type: 'check' },
+                        { key: 'course_BSA', label: 'BSA Check', type: 'check' },
+                        { key: 'year_1', label: 'Year 1 Check', type: 'check' },
+                        { key: 'year_2', label: 'Year 2 Check', type: 'check' },
+                        { key: 'year_3', label: 'Year 3 Check', type: 'check' },
+                        { key: 'year_4', label: 'Year 4 Check', type: 'check' },
+                        { key: 'semester_1st', label: '1st Sem Check', type: 'check' },
+                        { key: 'semester_2nd', label: '2nd Sem Check', type: 'check' },
+                        { key: 'semester_summer', label: 'Summer Check', type: 'check' },
+                        { key: 'credential_form_138', label: 'Form 138 Check', type: 'check' },
+                        { key: 'credential_birth_certificate', label: 'Birth Cert Check', type: 'check' },
+                        { key: 'credential_good_moral', label: 'Good Moral Check', type: 'check' },
+                        { key: 'credential_certificate_grades', label: 'Cert. Grades Check', type: 'check' },
+                        { key: 'credential_certificate_eligibility', label: 'Eligibility Check', type: 'check' },
+                        { key: 'credential_transcript', label: 'Transcript Check', type: 'check' },
+                        { key: 'credential_long_folder', label: 'Long Folder Check', type: 'check' },
+                        { key: 'credential_picture', label: 'Picture Check', type: 'check' },
+                    ],
+                 })"
+                 x-init="init()"
+                 class="grid grid-cols-12 gap-5">
+            <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-3">
+                <h3 class="font-extrabold text-white">Enrollment Template</h3>
+                <p class="mt-1 text-xs text-slate-300">Upload the current school form, then place data fields on the PDF.</p>
+
+                <form action="{{ route('academic.templates.store') }}"
+                      method="POST"
+                      enctype="multipart/form-data"
+                      class="mt-4 space-y-3"
+                      @submit.prevent="uploadTemplate($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
+                    @csrf
+                    <input name="name" placeholder="Template name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <input type="file" name="template_pdf" accept="application/pdf" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                        <i data-lucide="upload" class="h-4 w-4"></i>
+                        Upload PDF
+                    </button>
+                </form>
+
+                <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Active File</p>
+                    <template x-if="template">
+                        <div class="mt-2">
+                            <p class="text-sm font-bold text-white" x-text="template.name"></p>
+                            <p class="mt-1 break-all text-xs text-slate-400" x-text="template.original_filename"></p>
+                            <p class="mt-2 text-xs text-slate-300">
+                                <span x-text="template.page_width"></span> x <span x-text="template.page_height"></span> PDF units
+                            </p>
+                        </div>
+                    </template>
+                    <p x-show="!template" class="mt-2 text-xs text-slate-400">No PDF uploaded yet.</p>
+                </div>
+
+                <div class="mt-4">
+                    <div class="mb-2 flex items-center justify-between">
+                        <h4 class="text-sm font-extrabold text-white">Fields</h4>
+                        <span class="text-xs text-slate-400" x-text="`${mappedFields().length}/${fields.length}`"></span>
+                    </div>
+                    <div class="max-h-[300px] space-y-2 overflow-y-auto pr-1">
+                        <template x-for="field in fields" :key="field.key">
+                            <button type="button"
+                                    @click="selectedField = field.key"
+                                    :class="selectedField === field.key ? 'border-blue-300/40 bg-blue-500/20 text-blue-50' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'"
+                                    class="flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold transition">
+                                <span x-text="field.label"></span>
+                                <span :class="mappings[field.key] ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-slate-400'"
+                                      class="rounded-full px-2 py-0.5 text-[10px]"
+                                      x-text="mappings[field.key] ? 'Mapped' : field.type"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6">
+                <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 class="font-extrabold text-white">PDF Mapper</h3>
+                        <p class="mt-1 text-xs text-slate-300">Select a field, then click or drag it onto the form.</p>
+                    </div>
+                    <button type="button"
+                            @click="saveMappings().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
+                            :disabled="!template || saving"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
+                        <i data-lucide="save" class="h-4 w-4"></i>
+                        <span x-text="saving ? 'Saving...' : 'Save Mapping'"></span>
+                    </button>
+                </div>
+
+                <div x-show="!template" class="flex h-[560px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 text-center">
+                    <div>
+                        <i data-lucide="file-up" class="mx-auto h-10 w-10 text-blue-200"></i>
+                        <p class="mt-3 text-sm font-bold text-white">Upload a PDF template first</p>
+                        <p class="mt-1 text-xs text-slate-400">The mapper will render page 1 here.</p>
+                    </div>
+                </div>
+
+                <div x-show="template" class="h-[560px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                    <div x-show="loadingPdf" class="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200">
+                        Rendering PDF...
+                    </div>
+                    <div x-ref="canvasWrap"
+                         @click="placeSelected($event)"
+                         class="relative mx-auto w-max cursor-crosshair overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/30">
+                        <canvas x-ref="pdfCanvas"></canvas>
+                        <template x-for="mapping in mappedFields()" :key="mapping.key">
+                            <button type="button"
+                                    @pointerdown.stop="startDrag($event, mapping.key)"
+                                    :style="markerStyle(mapping)"
+                                    :class="mapping.type === 'check' ? 'border-emerald-300/50 bg-emerald-500/90' : 'border-blue-200/60 bg-[#1552d4]/95'"
+                                    class="absolute z-10 -translate-x-1 -translate-y-1 rounded-lg border px-2 py-1 text-[10px] font-extrabold text-white shadow-lg">
+                                <span x-text="mapping.label"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
             </div>
+
+            <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-3">
+                <h3 class="font-extrabold text-white">Saved Positions</h3>
+                <p class="mt-1 text-xs text-slate-300">PDF Page Coordinates</p>
+
+                <div class="mt-4 max-h-[540px] space-y-2 overflow-y-auto pr-1">
+                    <template x-for="mapping in mappedFields()" :key="`position-${mapping.key}`">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <p class="font-bold text-white" x-text="mapping.label"></p>
+                                    <p class="mt-1 text-slate-400">
+                                        X: <span x-text="mapping.x"></span>
+                                        <span class="mx-1 text-slate-600">/</span>
+                                        Y: <span x-text="mapping.y"></span>
+                                    </p>
+                                </div>
+                                <button type="button"
+                                        @click="removeMapping(mapping.key)"
+                                        class="rounded-lg border border-red-300/20 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-200 transition hover:bg-red-500/20">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <p x-show="mappedFields().length === 0" class="rounded-2xl border border-white/10 bg-white/5 p-4 text-center text-sm text-slate-300">
+                        No fields mapped yet.
+                    </p>
+                </div>
+            </aside>
         </section>
     </div>
 </div>
