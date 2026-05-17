@@ -30,7 +30,7 @@
     }
 </style>
 
-<div x-data="{ section: 'subjects', course: '', year: '', semester: '' }"
+<div x-data="{ section: 'subjects', course: '', year: '', semester: '', editingSubject: null }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -211,9 +211,39 @@
                                         @endforelse
                                     </td>
                                     <td class="px-3 py-3 text-right">
-                                        <details class="inline-block text-left">
-                                            <summary class="cursor-pointer rounded-2xl border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white">Edit</summary>
-                                            <div class="absolute right-10 z-20 mt-2 w-[520px] rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
+                                        <button type="button"
+                                                @click="editingSubject = {{ $subject->id }}; $nextTick(() => window.lucide?.createIcons())"
+                                                class="inline-flex items-center gap-1.5 rounded-2xl border border-blue-300/20 bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-100 transition hover:border-blue-200/40 hover:bg-blue-500/25">
+                                            <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                            Edit
+                                        </button>
+
+                                        <div x-show="editingSubject === {{ $subject->id }}"
+                                             x-cloak
+                                             x-transition.opacity
+                                             @keydown.escape.window="editingSubject = null"
+                                             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+                                            <div @click.outside="editingSubject = null"
+                                                 x-transition.scale.origin.center
+                                                 class="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#111c34] p-5 text-left shadow-2xl shadow-black/50">
+                                                <div class="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+                                                    <div>
+                                                        <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Edit Subject</p>
+                                                        <p class="mt-1 text-lg font-extrabold text-white">{{ $subject->code }}</p>
+                                                        <p class="mt-0.5 text-xs text-slate-400">{{ $subject->name }}</p>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300">
+                                                            {{ $subject->course_code }}
+                                                        </span>
+                                                        <button type="button"
+                                                                @click="editingSubject = null"
+                                                                class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white">
+                                                            <i data-lucide="x" class="h-4 w-4"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
                                                 <form action="{{ route('academic.subjects.update', $subject) }}" method="POST" class="grid grid-cols-2 gap-3">
                                                     @csrf
                                                     @method('PUT')
@@ -243,16 +273,21 @@
                                                     <input type="number" step="0.1" min="0" name="laboratory_units" value="{{ $subject->laboratory_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <input name="description" value="{{ $subject->description }}" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <div class="col-span-2 flex justify-end gap-2">
-                                                        <button class="rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white">Update</button>
+                                                        <button type="button"
+                                                                @click="editingSubject = null"
+                                                                class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                                            Cancel
+                                                        </button>
+                                                        <button class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Update Subject</button>
                                                     </div>
                                                 </form>
-                                                <form action="{{ route('academic.subjects.destroy', $subject) }}" method="POST" class="mt-2 text-right">
+                                                <form action="{{ route('academic.subjects.destroy', $subject) }}" method="POST" class="mt-3 text-right">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button class="text-xs font-bold text-red-600">Remove subject</button>
+                                                    <button class="rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">Remove subject</button>
                                                 </form>
                                             </div>
-                                        </details>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
