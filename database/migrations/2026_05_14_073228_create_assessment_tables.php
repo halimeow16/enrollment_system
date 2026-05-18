@@ -26,7 +26,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('enrollment_id')->constrained('enrollments')->cascadeOnDelete();
 
-            $table->decimal('total_units', 5, 1)->default(0);
+            $table->unsignedSmallInteger('total_units')->default(0);
 
             $table->decimal('initial_assessment', 10, 2)->default(0);
 

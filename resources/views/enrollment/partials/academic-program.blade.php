@@ -2,7 +2,7 @@
     <h2 class="section-title border-b border-slate-200 pb-3 mb-6">ACADEMIC PROGRAM</h2>
     
     <div class="mb-8">
-        <label class="block text-sm font-medium text-slate-600 mb-3">Choose Program</label>
+        <label class="block text-sm font-medium text-slate-600 mb-3">Choose Program <span class="text-red-500">*</span></label>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="courseGrid"></div>
     </div>
 
@@ -11,7 +11,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Year Level</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Year Level <span class="text-red-500">*</span></label>
             <select name="year_level" id="year_level" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="" disabled selected hidden>Select Year Level</option>
                 <option value="1">1st Year</option>
@@ -21,7 +21,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Semester</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Semester <span class="text-red-500">*</span></label>
             <select name="semester" id="semester" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="" disabled selected hidden>Select Semester</option>
                 <option value="1st">1st Semester</option>
@@ -40,7 +40,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Total Units</label>
-            <input type="text" id="total_units" readonly value="0.0"
+            <input type="text" id="total_units" readonly value="0"
                    class="form-input w-full px-5 py-3.5 bg-slate-100 border border-slate-200 rounded-2xl text-slate-600">
         </div>
     </div>

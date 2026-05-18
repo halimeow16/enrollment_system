@@ -95,7 +95,6 @@ class DatabaseSeeder extends Seeder
 
         foreach ($subjects as $subject) {
             Subject::create($subject + [
-                'description' => null,
                 'total_units' => $subject['lecture_units'] + $subject['laboratory_units'],
                 'is_active' => true,
             ]);

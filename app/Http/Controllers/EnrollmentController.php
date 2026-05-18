@@ -10,6 +10,7 @@ use App\Models\EnrollmentTemplate;
 use App\Models\Subject;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class EnrollmentController extends Controller
 {
@@ -69,9 +70,21 @@ class EnrollmentController extends Controller
             'credentials.*'    => 'string',
         ]);
 
+        $selectedSubjectIds = collect($validated['subject_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
         $selectedSubjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
-            ->whereIn('id', $validated['subject_ids'] ?? [])
-            ->get();
+            ->whereIn('id', $selectedSubjectIds)
+            ->get()
+            ->sortBy(fn ($subject) => $selectedSubjectIds->search((int) $subject->id))
+            ->values();
+
+        if (! $this->hasAvailablePdfLayout()) {
+            return back()
+                ->withErrors(['layout' => 'The enrollment form layout is unavailable. Please inform the admin so it can be updated.'])
+                ->withInput();
+        }
 
         $conflicts = $this->detectScheduleConflicts($selectedSubjects);
 
@@ -101,6 +114,8 @@ class EnrollmentController extends Controller
             return $enrollment;
         });
 
+        $enrollment->setRelation('subjects', $selectedSubjects);
+
         $pdfContent = $this->fillExistingPDF($enrollment);
 
         $filename = 'Enrollment_' . ($enrollment->student_number ?? 'Unknown') . '_' . now()->format('YmdHis') . '.pdf';
@@ -116,7 +131,29 @@ class EnrollmentController extends Controller
         $data['department_head_name'] = DepartmentHead::where('course_code', $data['course_code'] ?? null)
             ->where('is_active', true)
             ->value('name') ?? $data['department_head_name'] ?? null;
-        $pdfContent = $this->fillExistingPDF((object)$data);
+
+        $selectedSubjectIds = collect($data['subject_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $data['selected_subjects'] = Subject::whereIn('id', $selectedSubjectIds)
+            ->get(['id', 'code', 'name', 'total_units'])
+            ->sortBy(fn ($subject) => $selectedSubjectIds->search((int) $subject->id))
+            ->values()
+            ->map(fn ($subject) => [
+                'code' => $subject->code,
+                'name' => $subject->name,
+                'total_units' => (int) $subject->total_units,
+            ])
+            ->all();
+
+        try {
+            $pdfContent = $this->fillExistingPDF((object)$data);
+        } catch (Throwable) {
+            return response()->json([
+                'message' => 'Enrollment form preview is unavailable.',
+            ], 422);
+        }
 
         return response($pdfContent, 200)
             ->header('Content-Type', 'application/pdf');
@@ -226,6 +263,21 @@ class EnrollmentController extends Controller
         return $pdf->Output('', 'S');
     }
 
+    private function hasAvailablePdfLayout(): bool
+    {
+        $activeTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+
+        if (
+            $activeTemplate &&
+            ! empty($activeTemplate->field_mappings) &&
+            Storage::disk('public')->exists($activeTemplate->file_path)
+        ) {
+            return true;
+        }
+
+        return file_exists(public_path('templates/enrollment-template.pdf'));
+    }
+
     private function fillMappedPDF($data, EnrollmentTemplate $template)
     {
         if (! Storage::disk('public')->exists($template->file_path)) {
@@ -281,6 +333,14 @@ class EnrollmentController extends Controller
 
     private function mappedFieldValue(string $key, $data): string
     {
+        if (preg_match('/^subject_(code|name|units)_(\d+)$/', $key, $matches)) {
+            return $this->mappedSubjectValue($matches[1], (int) $matches[2], $data);
+        }
+
+        if ($key === 'total_units') {
+            return $this->mappedTotalUnitsValue($data);
+        }
+
         $value = data_get($data, $key, '');
 
         if (is_array($value)) {
@@ -288,6 +348,41 @@ class EnrollmentController extends Controller
         }
 
         return (string) ($value ?? '');
+    }
+
+    private function mappedSubjectValue(string $field, int $position, $data): string
+    {
+        $subject = $this->mappedSubjects($data)->get($position - 1);
+
+        if (! $subject) {
+            return '';
+        }
+
+        return match ($field) {
+            'code' => (string) data_get($subject, 'code', ''),
+            'name' => (string) data_get($subject, 'name', ''),
+            'units' => (string) ((int) data_get($subject, 'total_units', 0)),
+            default => '',
+        };
+    }
+
+    private function mappedTotalUnitsValue($data): string
+    {
+        $totalUnits = $this->mappedSubjects($data)
+            ->sum(fn ($subject) => (int) data_get($subject, 'total_units', 0));
+
+        return $totalUnits > 0 ? (string) $totalUnits : '';
+    }
+
+    private function mappedSubjects($data)
+    {
+        $subjects = data_get($data, 'selected_subjects');
+
+        if (empty($subjects) && $data instanceof Enrollment && $data->relationLoaded('subjects')) {
+            $subjects = $data->subjects;
+        }
+
+        return collect($subjects ?? [])->values();
     }
 
     private function mappedCheckIsSelected(string $key, $data): bool

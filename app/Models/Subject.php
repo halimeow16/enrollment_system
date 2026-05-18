@@ -14,7 +14,6 @@ class Subject extends Model
     protected $fillable = [
         'code',
         'name',
-        'description',
         'course_code',
         'year_level',
         'semester',
@@ -26,9 +25,9 @@ class Subject extends Model
     ];
 
     protected $casts = [
-        'lecture_units' => 'decimal:1',
-        'laboratory_units' => 'decimal:1',
-        'total_units' => 'decimal:1',
+        'lecture_units' => 'integer',
+        'laboratory_units' => 'integer',
+        'total_units' => 'integer',
         'is_active' => 'boolean',
     ];
 

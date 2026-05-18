@@ -13,9 +13,9 @@ return new class extends Migration
             $table->foreignId('enrollment_id')->constrained('enrollments')->cascadeOnDelete();
             $table->foreignId('subject_id')->constrained('subjects')->cascadeOnDelete();
 
-            $table->decimal('lecture_units', 4, 1)->default(0);
-            $table->decimal('laboratory_units', 4, 1)->default(0);
-            $table->decimal('total_units', 4, 1)->default(0);
+            $table->unsignedTinyInteger('lecture_units')->default(0);
+            $table->unsignedTinyInteger('laboratory_units')->default(0);
+            $table->unsignedTinyInteger('total_units')->default(0);
 
             $table->timestamps();
 

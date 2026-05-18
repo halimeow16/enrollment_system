@@ -30,7 +30,7 @@
     }
 </style>
 
-<div x-data="{ section: 'subjects', course: '', year: '', semester: '', editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
+<div x-data="{ section: 'subjects', course: '', year: '', semester: '', scheduleSearch: '', editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -71,7 +71,7 @@
 
     <div class="max-h-[calc(100vh-245px)] overflow-y-auto p-5">
         <section x-show="section === 'subjects'" x-cloak class="grid grid-cols-12 gap-5">
-            <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-4">
+            <aside class="col-span-12 flex h-[535px] flex-col rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-4">
                 <div class="mb-4">
                     <h3 class="font-extrabold text-white">Add Subject</h3>
                     <p class="mt-1 text-xs text-slate-300">Set the course, year, semester, type, and units.</p>
@@ -82,7 +82,7 @@
                       @submit.prevent="submitSubjectForm($event.target)
                           .then((subject) => { addLiveSubject(subject); subjectCount++; $event.target.reset(); showToast('success', 'Subject added', 'Subject was saved and added to the list.'); })
                           .catch(() => showToast('error', 'Save failed', 'Unable to add subject. Please check the fields.'))"
-                      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      class="grid flex-1 grid-cols-1 content-between gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     @csrf
                     <div>
                         <label class="text-xs font-semibold text-slate-300">Code</label>
@@ -126,15 +126,11 @@
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-slate-300">Lecture Units</label>
-                        <input type="number" step="0.1" min="0" name="lecture_units" value="3" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input type="number" step="1" min="0" name="lecture_units" value="3" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-slate-300">Lab Units</label>
-                        <input type="number" step="0.1" min="0" name="laboratory_units" value="0" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    </div>
-                    <div class="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-                        <label class="text-xs font-semibold text-slate-300">Description</label>
-                        <input name="description" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input type="number" step="1" min="0" name="laboratory_units" value="0" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     </div>
                     <div class="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
                         <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0]">
@@ -211,8 +207,8 @@
                                         <p class="mt-1 font-semibold text-blue-100" x-text="subject.type"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
-                                        <span x-text="`${Number(subject.total_units || 0).toFixed(1)} total`"></span>
-                                        <p class="text-slate-500" x-text="`${Number(subject.lecture_units || 0).toFixed(1)} LEC / ${Number(subject.laboratory_units || 0).toFixed(1)} LAB`"></p>
+                                        <span x-text="`${Number(subject.total_units || 0)} total`"></span>
+                                        <p class="text-slate-500" x-text="`${Number(subject.lecture_units || 0)} LEC / ${Number(subject.laboratory_units || 0)} LAB`"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
                                         <span class="text-slate-500">No schedule</span>
@@ -279,9 +275,8 @@
                                                             <option value="{{ $type }}">{{ $type }}</option>
                                                         @endforeach
                                                     </select>
-                                                    <input type="number" step="0.1" min="0" name="lecture_units" :value="subject.lecture_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input type="number" step="0.1" min="0" name="laboratory_units" :value="subject.laboratory_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input name="description" :value="subject.description" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input type="number" step="1" min="0" name="lecture_units" :value="subject.lecture_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input type="number" step="1" min="0" name="laboratory_units" :value="subject.laboratory_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <div class="col-span-2 flex justify-between gap-2">
                                                         <button type="button"
                                                                 @click="confirmingSubjectRemoval = subject.id"
@@ -333,9 +328,9 @@
                                         yearLevel: @js($subject->year_level),
                                         semesterValue: @js($subject->semester),
                                         typeValue: @js($subject->type),
-                                        lectureUnits: @js((float) $subject->lecture_units),
-                                        laboratoryUnits: @js((float) $subject->laboratory_units),
-                                        totalUnits: @js((float) $subject->total_units),
+                                        lectureUnits: @js((int) $subject->lecture_units),
+                                        laboratoryUnits: @js((int) $subject->laboratory_units),
+                                        totalUnits: @js((int) $subject->total_units),
                                         removed: false,
                                         applySubject(subject) {
                                             this.code = subject.code;
@@ -359,8 +354,8 @@
                                         <p class="mt-1 font-semibold text-blue-100" x-text="typeValue"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
-                                        <span x-text="`${totalUnits.toFixed(1)} total`"></span>
-                                        <p class="text-slate-500" x-text="`${lectureUnits.toFixed(1)} LEC / ${laboratoryUnits.toFixed(1)} LAB`"></p>
+                                        <span x-text="`${totalUnits} total`"></span>
+                                        <p class="text-slate-500" x-text="`${lectureUnits} LEC / ${laboratoryUnits} LAB`"></p>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-slate-300">
                                         @forelse($subject->schedules as $schedule)
@@ -433,9 +428,8 @@
                                                             <option value="{{ $type }}" @selected($subject->type === $type)>{{ $type }}</option>
                                                         @endforeach
                                                     </select>
-                                                    <input type="number" step="0.1" min="0" name="lecture_units" value="{{ $subject->lecture_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input type="number" step="0.1" min="0" name="laboratory_units" value="{{ $subject->laboratory_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input name="description" value="{{ $subject->description }}" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input type="number" step="1" min="0" name="lecture_units" value="{{ $subject->lecture_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <input type="number" step="1" min="0" name="laboratory_units" value="{{ $subject->laboratory_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <div class="col-span-2 flex justify-between gap-2">
                                                         <button type="button"
                                                                 @click="confirmingSubjectRemoval = {{ $subject->id }}"
@@ -584,12 +578,24 @@
             </div>
 
             <div class="col-span-12 h-[430px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-4">
-                <h3 class="font-extrabold text-white">Assigned Schedules</h3>
-                <p class="mt-1 text-xs text-slate-300"><span x-text="scheduleCount"></span> current schedule entries.</p>
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="font-extrabold text-white">Assigned Schedules</h3>
+                        <p class="mt-1 text-xs text-slate-300"><span x-text="scheduleCount"></span> current schedule entries.</p>
+                    </div>
+                    <div class="relative w-40 shrink-0">
+                        <i data-lucide="search" class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400"></i>
+                        <input type="search"
+                               x-model="scheduleSearch"
+                               placeholder="Search"
+                               class="w-full rounded-lg border border-slate-200 pl-8 pr-2 py-2 text-xs">
+                    </div>
+                </div>
 
-                <div class="mt-4 h-[390px] space-y-2 overflow-y-auto pr-1">
+                <div class="mt-4 h-[350px] space-y-2 overflow-y-auto pr-1">
                     <template x-for="schedule in addedSchedules" :key="`schedule-${schedule.id}`">
-                        <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
+                        <div x-show="!scheduleSearch || `${schedule.subject.code} ${schedule.subject.name} ${schedule.day} ${schedule.time} ${schedule.room}`.toLowerCase().includes(scheduleSearch.toLowerCase())"
+                             class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
                             <p class="font-bold text-white" x-text="`${schedule.subject.code} - ${schedule.subject.name}`"></p>
                             <p class="mt-1 text-xs text-slate-300" x-text="`${schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
                             <button type="button"
@@ -622,7 +628,9 @@
                         </div>
                     </template>
                     @forelse($subjectSchedules as $schedule)
-                        <div x-data="{ removed: false }" x-show="!removed" class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
+                        <div x-data="{ removed: false, searchText: @js($schedule->subject->code . ' ' . $schedule->subject->name . ' ' . $schedule->day->name . ' ' . ($schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time)) . ' ' . $schedule->room->name) }"
+                             x-show="!removed && (!scheduleSearch || searchText.toLowerCase().includes(scheduleSearch.toLowerCase()))"
+                             class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
                             <p class="font-bold text-white">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
                             <p class="mt-1 text-xs text-slate-300">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
                             <button type="button"
@@ -744,6 +752,37 @@
                         { key: 'mother_address', label: 'Mother Address', type: 'text' },
                         { key: 'mother_cpNumber', label: 'Mother Contact', type: 'text' },
                         { key: 'department_head_name', label: 'Department Head', type: 'text' },
+                        { key: 'subject_code_1', label: 'Subject Code 1', type: 'text' },
+                        { key: 'subject_name_1', label: 'Subject Name 1', type: 'text' },
+                        { key: 'subject_units_1', label: 'Subject Units 1', type: 'text' },
+                        { key: 'subject_code_2', label: 'Subject Code 2', type: 'text' },
+                        { key: 'subject_name_2', label: 'Subject Name 2', type: 'text' },
+                        { key: 'subject_units_2', label: 'Subject Units 2', type: 'text' },
+                        { key: 'subject_code_3', label: 'Subject Code 3', type: 'text' },
+                        { key: 'subject_name_3', label: 'Subject Name 3', type: 'text' },
+                        { key: 'subject_units_3', label: 'Subject Units 3', type: 'text' },
+                        { key: 'subject_code_4', label: 'Subject Code 4', type: 'text' },
+                        { key: 'subject_name_4', label: 'Subject Name 4', type: 'text' },
+                        { key: 'subject_units_4', label: 'Subject Units 4', type: 'text' },
+                        { key: 'subject_code_5', label: 'Subject Code 5', type: 'text' },
+                        { key: 'subject_name_5', label: 'Subject Name 5', type: 'text' },
+                        { key: 'subject_units_5', label: 'Subject Units 5', type: 'text' },
+                        { key: 'subject_code_6', label: 'Subject Code 6', type: 'text' },
+                        { key: 'subject_name_6', label: 'Subject Name 6', type: 'text' },
+                        { key: 'subject_units_6', label: 'Subject Units 6', type: 'text' },
+                        { key: 'subject_code_7', label: 'Subject Code 7', type: 'text' },
+                        { key: 'subject_name_7', label: 'Subject Name 7', type: 'text' },
+                        { key: 'subject_units_7', label: 'Subject Units 7', type: 'text' },
+                        { key: 'subject_code_8', label: 'Subject Code 8', type: 'text' },
+                        { key: 'subject_name_8', label: 'Subject Name 8', type: 'text' },
+                        { key: 'subject_units_8', label: 'Subject Units 8', type: 'text' },
+                        { key: 'subject_code_9', label: 'Subject Code 9', type: 'text' },
+                        { key: 'subject_name_9', label: 'Subject Name 9', type: 'text' },
+                        { key: 'subject_units_9', label: 'Subject Units 9', type: 'text' },
+                        { key: 'subject_code_10', label: 'Subject Code 10', type: 'text' },
+                        { key: 'subject_name_10', label: 'Subject Name 10', type: 'text' },
+                        { key: 'subject_units_10', label: 'Subject Units 10', type: 'text' },
+                        { key: 'total_units', label: 'Total Units', type: 'text' },
                         { key: 'course_BSIT', label: 'BSIT Check', type: 'check' },
                         { key: 'course_BSCS', label: 'BSCS Check', type: 'check' },
                         { key: 'course_ACT', label: 'ACT Check', type: 'check' },

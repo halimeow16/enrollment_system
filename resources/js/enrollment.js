@@ -65,13 +65,20 @@ function generatePreview() {
         method: 'POST',
         body: formData,
         headers: {
+            'Accept': 'application/json, application/pdf',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         }
     })
     .then(response => {
         if (!response.ok) {
-            return response.text().then(text => { throw new Error(text || response.statusText); });
+            return response.json()
+                .catch(() => ({}))
+                .then(data => {
+                    const error = new Error(data.message || 'Enrollment form preview is unavailable.');
+                    error.previewUnavailable = true;
+                    throw error;
+                });
         }
         return response.blob();
     })
@@ -86,6 +93,19 @@ function generatePreview() {
     })
     .catch(error => {
         console.error('Preview Error:', error);
+        if (error.previewUnavailable) {
+            document.getElementById('formPreview').innerHTML = `
+                <div class="text-center py-16 px-6">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                        <i class="fa-solid fa-file-circle-xmark text-xl"></i>
+                    </div>
+                    <p class="mt-4 text-lg font-bold text-slate-800">Preview unavailable</p>
+                    <p class="mt-2 text-sm text-slate-500">No current enrollment form layout is available.</p>
+                </div>
+            `;
+            return;
+        }
+
         document.getElementById('formPreview').innerHTML = `
             <div class="text-red-600 text-center py-10 px-6">
                 <p class="font-medium">Failed to generate preview</p>
@@ -149,7 +169,7 @@ function renderSubjectList() {
                 <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox">
                 <span class="min-w-0 flex-1">
                     <span class="block text-sm font-bold text-slate-800">${subject.code} - ${subject.name}</span>
-                    <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units.toFixed(1)} units</span>
+                    <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units} units</span>
                     <span class="mt-1 block text-xs text-slate-500">${schedule}</span>
                 </span>
             </label>
@@ -170,7 +190,7 @@ function updateSubjectTotals() {
     const subjects = (window.subjectCatalog ?? []).filter(subject => selectedIds.includes(subject.id));
 
     const totalUnits = subjects.reduce((total, subject) => total + Number(subject.total_units || 0), 0);
-    if (totalInput) totalInput.value = totalUnits.toFixed(1);
+    if (totalInput) totalInput.value = totalUnits;
 
     const conflicts = detectSubjectConflicts(subjects);
     if (conflictText) {

@@ -486,8 +486,12 @@
                     },
                     loadMappings() {
                         this.mappings = {};
+                        const validFieldKeys = new Set(this.fields.map((field) => field.key));
+
                         (this.template?.field_mappings || []).forEach((mapping) => {
-                            this.mappings[mapping.key] = mapping;
+                            if (validFieldKeys.has(mapping.key)) {
+                                this.mappings[mapping.key] = mapping;
+                            }
                         });
                     },
                     async uploadTemplate(form) {

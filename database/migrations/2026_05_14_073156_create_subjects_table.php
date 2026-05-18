@@ -12,16 +12,15 @@ return new class extends Migration
             $table->id();
             $table->string('code')->unique();
             $table->string('name');
-            $table->string('description')->nullable();
 
             $table->string('course_code');
             $table->string('year_level'); 
             $table->enum('semester', ['1st', '2nd', 'Summer']);
 
             $table->enum('type', ['LEC', 'LAB', 'BOTH'])->default('LEC');
-            $table->decimal('lecture_units', 4, 1)->default(0);
-            $table->decimal('laboratory_units', 4, 1)->default(0);
-            $table->decimal('total_units', 4, 1)->default(0);
+            $table->unsignedTinyInteger('lecture_units')->default(0);
+            $table->unsignedTinyInteger('laboratory_units')->default(0);
+            $table->unsignedTinyInteger('total_units')->default(0);
 
             $table->boolean('is_active')->default(true);
             $table->timestamps();

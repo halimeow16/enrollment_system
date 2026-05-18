@@ -26,34 +26,34 @@
             <input type="email" name="email" value="{{ old('email') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
         <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-slate-600 mb-1">Last School Attended</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Last School Attended <span class="text-red-500">*</span></label>
             <input type="text" name="last_school" required value="{{ old('last_school') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-8">
         <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-slate-600 mb-1">Present Address</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Present Address <span class="text-red-500">*</span></label>
             <input type="text" name="present_address" required value="{{ old('present_address') }}"
                    placeholder="House No., Street, Subdivision" maxlength="50" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Province</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Province <span class="text-red-500">*</span></label>
             <select id="province" name="province" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="">Select Province</option>
             </select>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">City / Town</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">City / Town <span class="text-red-500">*</span></label>
             <select id="city" name="city" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="">Select City/Town</option>
             </select>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Barangay</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Barangay <span class="text-red-500">*</span></label>
             <select id="barangay" name="barangay" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="">Select Barangay</option>
             </select>
@@ -73,12 +73,12 @@
                 readonly>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Place of Birth</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Place of Birth <span class="text-red-500">*</span></label>
             <input type="text" name="place_of_birth" required maxlength="50" value="{{ old('place_of_birth') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Civil Status</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Civil Status <span class="text-red-500">*</span></label>
             <select name="civil_status" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="">Select</option>
                 <option value="Single">Single</option>
@@ -89,7 +89,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Gender</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Gender <span class="text-red-500">*</span></label>
             <select name="gender" required class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
                 <option value="">Select</option>
                 <option value="Male">Male</option>
@@ -98,7 +98,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-600 mb-1">Religion</label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Religion <span class="text-red-500">*</span></label>
             <input type="text" name="religion" required value="{{ old('religion') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 

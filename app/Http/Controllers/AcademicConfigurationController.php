@@ -22,7 +22,7 @@ class AcademicConfigurationController extends Controller
     public function storeSubject(Request $request): RedirectResponse|JsonResponse
     {
         $data = $this->validateSubject($request);
-        $data['total_units'] = (float) $data['lecture_units'] + (float) $data['laboratory_units'];
+        $data['total_units'] = (int) $data['lecture_units'] + (int) $data['laboratory_units'];
 
         $subject = Subject::create($data);
 
@@ -39,7 +39,7 @@ class AcademicConfigurationController extends Controller
     public function updateSubject(Request $request, Subject $subject): RedirectResponse|JsonResponse
     {
         $data = $this->validateSubject($request, $subject);
-        $data['total_units'] = (float) $data['lecture_units'] + (float) $data['laboratory_units'];
+        $data['total_units'] = (int) $data['lecture_units'] + (int) $data['laboratory_units'];
 
         $subject->update($data);
 
@@ -296,13 +296,12 @@ class AcademicConfigurationController extends Controller
                     ->ignore($subject?->id),
             ],
             'name' => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string', 'max:255'],
             'course_code' => ['required', 'string', 'max:30'],
             'year_level' => ['required', Rule::in(['1', '2', '3', '4'])],
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
             'type' => ['required', Rule::in(['LEC', 'LAB', 'BOTH'])],
-            'lecture_units' => ['required', 'numeric', 'min:0', 'max:9'],
-            'laboratory_units' => ['required', 'numeric', 'min:0', 'max:9'],
+            'lecture_units' => ['required', 'integer', 'min:0', 'max:9'],
+            'laboratory_units' => ['required', 'integer', 'min:0', 'max:9'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
     }
@@ -313,14 +312,13 @@ class AcademicConfigurationController extends Controller
             'id' => $subject->id,
             'code' => $subject->code,
             'name' => $subject->name,
-            'description' => $subject->description,
             'course_code' => $subject->course_code,
             'year_level' => $subject->year_level,
             'semester' => $subject->semester,
             'type' => $subject->type,
-            'lecture_units' => (float) $subject->lecture_units,
-            'laboratory_units' => (float) $subject->laboratory_units,
-            'total_units' => (float) $subject->total_units,
+            'lecture_units' => (int) $subject->lecture_units,
+            'laboratory_units' => (int) $subject->laboratory_units,
+            'total_units' => (int) $subject->total_units,
         ];
     }
 
