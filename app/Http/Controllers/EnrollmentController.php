@@ -37,7 +37,7 @@ class EnrollmentController extends Controller
     {
         $validated = $request->validate([
             'student_number'   => 'nullable|string|max:50',
-            'date_filed'       => 'nullable|date',
+            'date_filed'       => 'nullable|date_format:Y-m-d',
             'school_year'      => 'nullable|string',
             'first_name'       => 'nullable|string|max:100',
             'middle_name'      => 'nullable|string|max:100',
@@ -49,7 +49,7 @@ class EnrollmentController extends Controller
             'barangay'         => 'nullable|string',
             'city'             => 'nullable|string',
             'province'         => 'nullable|string',
-            'date_of_birth'    => 'nullable|date',
+            'date_of_birth'    => 'nullable|date_format:Y-m-d',
             'age'              => 'nullable|integer|min:1',
             'place_of_birth'   => 'nullable|string',
             'civil_status'     => 'nullable|string',

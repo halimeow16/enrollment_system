@@ -35,7 +35,7 @@
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-slate-600 mb-1">Present Address <span class="text-red-500">*</span></label>
             <input type="text" name="present_address" required value="{{ old('present_address') }}"
-                   placeholder="House No., Street, Subdivision" maxlength="50" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                   placeholder="House No., Street, Subdivision" maxlength="40" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 
         <div>
@@ -74,7 +74,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Place of Birth <span class="text-red-500">*</span></label>
-            <input type="text" name="place_of_birth" required maxlength="50" value="{{ old('place_of_birth') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <input type="text" name="place_of_birth" placeholder="City, Province (e.g., Subic, Zambales)" required maxlength="50" value="{{ old('place_of_birth') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 
         <div>
