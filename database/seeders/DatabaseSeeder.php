@@ -69,12 +69,12 @@ class DatabaseSeeder extends Seeder
         }
 
         $departmentHeads = [
-            ['course_code' => 'BSIT', 'name' => 'Engr. Maria Santos', 'title' => 'BSIT Department Head'],
-            ['course_code' => 'BSCS', 'name' => 'Dr. Renato Cruz', 'title' => 'BSCS Department Head'],
-            ['course_code' => 'ACT', 'name' => 'Ms. Liza Mercado', 'title' => 'ACT Program Head'],
-            ['course_code' => 'BSHM', 'name' => 'Ms. Patricia Gomez', 'title' => 'BSHM Department Head'],
-            ['course_code' => 'BSOM', 'name' => 'Mr. Daniel Reyes', 'title' => 'BSOM Department Head'],
-            ['course_code' => 'BSA', 'name' => 'CPA Andrea Villanueva', 'title' => 'BSA Department Head'],
+            ['course_code' => 'BSIT', 'name' => 'Noel R. Marcelino', 'title' => 'BSIT Department Head'],
+            ['course_code' => 'BSCS', 'name' => 'Noel R. Marcelino', 'title' => 'BSCS Department Head'],
+            ['course_code' => 'ACT', 'name' => 'Noel R. Marcelino', 'title' => 'ACT Program Head'],
+            ['course_code' => 'BSBA', 'name' => 'Sample Dept. Name', 'title' => 'BSBA Department Head'],
+            ['course_code' => 'BSOM', 'name' => 'Sample Dept. Name', 'title' => 'BSOM Department Head'],
+            ['course_code' => 'BSA', 'name' => 'Sample Dept. Name', 'title' => 'BSA Department Head'],
         ];
 
         foreach ($departmentHeads as $head) {
@@ -107,8 +107,8 @@ class DatabaseSeeder extends Seeder
             ['student_number' => '2026-00002', 'first_name' => 'Sofia', 'middle_name' => 'B.', 'last_name' => 'Reyes', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '1', 'semester' => '2nd', 'enrollment_status' => 'pending', 'subjects' => ['GE103', 'CC104', 'HCI101']],
             ['student_number' => '2026-00003', 'first_name' => 'Carlo', 'middle_name' => 'C.', 'last_name' => 'Mendoza', 'course_code' => 'BSCS', 'course_name' => 'BS Computer Science', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['GE101', 'CC101', 'CC102']],
             ['student_number' => '2026-00004', 'first_name' => 'Bianca', 'middle_name' => 'D.', 'last_name' => 'Garcia', 'course_code' => 'ACT', 'course_name' => 'Associate in Computer Technology', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'pending', 'subjects' => ['GE101', 'SPI101', 'CC101']],
-            ['student_number' => '2026-00005', 'first_name' => 'Jerome', 'middle_name' => 'E.', 'last_name' => 'Aquino', 'course_code' => 'BSHM', 'course_name' => 'BS Hospitality Management', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['HM101']],
-            ['student_number' => '2026-00006', 'first_name' => 'Angelica', 'middle_name' => 'F.', 'last_name' => 'Torres', 'course_code' => 'BSOM', 'course_name' => 'BS Office Management', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'cancelled', 'subjects' => ['OM101']],
+            ['student_number' => '2026-00005', 'first_name' => 'Jerome', 'middle_name' => 'E.', 'last_name' => 'Aquino', 'course_code' => 'BSBA', 'course_name' => 'BS Business Administration', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['HM101']],
+            ['student_number' => '2026-00006', 'first_name' => 'Angelica', 'middle_name' => 'F.', 'last_name' => 'Torres', 'course_code' => 'BSOM', 'course_name' => 'BS Operations Management', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'cancelled', 'subjects' => ['OM101']],
             ['student_number' => '2026-00007', 'first_name' => 'Nathan', 'middle_name' => 'G.', 'last_name' => 'Lim', 'course_code' => 'BSA', 'course_name' => 'BS Accountancy', 'year_level' => '1', 'semester' => '1st', 'enrollment_status' => 'cancelled', 'subjects' => ['ACC101']],
             ['student_number' => '2026-00008', 'first_name' => 'Isabella', 'middle_name' => 'H.', 'last_name' => 'Navarro', 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology', 'year_level' => '2', 'semester' => '1st', 'enrollment_status' => 'enrolled', 'subjects' => ['IT201']],
         ];

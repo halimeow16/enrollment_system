@@ -30,17 +30,17 @@
     }
 </style>
 
-<div x-data="{ section: 'subjects', course: '', year: '', semester: '', scheduleSearch: '', editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
+<div x-data="{ section: 'subjects', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Academic Setup</p>
                 <h2 class="mt-1 text-xl font-extrabold text-white">Configuration</h2>
-                <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, rooms, and department heads in one workspace.</p>
+                <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, department heads, fees, and templates in one workspace.</p>
             </div>
 
-            <div class="grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <div class="grid grid-cols-5 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
                 <button type="button"
                         @click="section = 'subjects'"
                         :class="section === 'subjects' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -58,6 +58,12 @@
                         :class="section === 'heads' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
                         class="rounded-xl px-3 py-2 text-xs font-bold transition">
                     Dept. Heads
+                </button>
+                <button type="button"
+                        @click="section = 'fees'"
+                        :class="section === 'fees' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                    Fees
                 </button>
                 <button type="button"
                         @click="section = 'templates'"
@@ -95,7 +101,7 @@
                     <div>
                         <label class="text-xs font-semibold text-slate-300">Course</label>
                         <select name="course_code" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                            @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
+                            @foreach(['BSIT', 'BSCS', 'ACT', 'BSBA', 'BSOM', 'BSA'] as $courseCode)
                                 <option value="{{ $courseCode }}">{{ $courseCode }}</option>
                             @endforeach
                         </select>
@@ -128,9 +134,9 @@
                         <label class="text-xs font-semibold text-slate-300">Lecture Units</label>
                         <input type="number" step="1" min="0" name="lecture_units" value="3" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-slate-300">Lab Units</label>
-                        <input type="number" step="1" min="0" name="laboratory_units" value="0" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <div class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                        <p class="font-semibold text-slate-200">Lab Units</p>
+                        <p class="mt-1">Auto: 1 for Lab/Both, 0 for Lecture.</p>
                     </div>
                     <div class="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
                         <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0]">
@@ -256,7 +262,7 @@
                                                     <input name="code" :value="subject.code" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <input name="name" :value="subject.name" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <select name="course_code" :value="subject.course_code" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
+                                                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSBA', 'BSOM', 'BSA'] as $courseCode)
                                                             <option value="{{ $courseCode }}">{{ $courseCode }}</option>
                                                         @endforeach
                                                     </select>
@@ -276,7 +282,10 @@
                                                         @endforeach
                                                     </select>
                                                     <input type="number" step="1" min="0" name="lecture_units" :value="subject.lecture_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input type="number" step="1" min="0" name="laboratory_units" :value="subject.laboratory_units" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <div class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                                                        <p class="font-semibold text-slate-200">Lab Units</p>
+                                                        <p>Auto: 1 for Lab/Both, 0 for Lecture.</p>
+                                                    </div>
                                                     <div class="col-span-2 flex justify-between gap-2">
                                                         <button type="button"
                                                                 @click="confirmingSubjectRemoval = subject.id"
@@ -409,7 +418,7 @@
                                                     <input name="code" value="{{ $subject->code }}" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <input name="name" value="{{ $subject->name }}" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                                     <select name="course_code" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
+                                                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSBA', 'BSOM', 'BSA'] as $courseCode)
                                                             <option value="{{ $courseCode }}" @selected($subject->course_code === $courseCode)>{{ $courseCode }}</option>
                                                         @endforeach
                                                     </select>
@@ -429,7 +438,10 @@
                                                         @endforeach
                                                     </select>
                                                     <input type="number" step="1" min="0" name="lecture_units" value="{{ $subject->lecture_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                                    <input type="number" step="1" min="0" name="laboratory_units" value="{{ $subject->laboratory_units }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                                    <div class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                                                        <p class="font-semibold text-slate-200">Lab Units</p>
+                                                        <p>Auto: 1 for Lab/Both, 0 for Lecture.</p>
+                                                    </div>
                                                     <div class="col-span-2 flex justify-between gap-2">
                                                         <button type="button"
                                                                 @click="confirmingSubjectRemoval = {{ $subject->id }}"
@@ -681,7 +693,7 @@
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <select name="course_code" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSHM', 'BSOM', 'BSA'] as $courseCode)
+                        @foreach(['BSIT', 'BSCS', 'ACT', 'BSBA', 'BSOM', 'BSA'] as $courseCode)
                             <option value="{{ $courseCode }}">{{ $courseCode }}</option>
                         @endforeach
                     </select>
@@ -721,6 +733,69 @@
             </div>
         </section>
 
+        <section x-show="section === 'fees'" x-cloak class="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+
+            <div class="grid min-h-[390px] grid-cols-12">
+                <aside class="col-span-12 border-b border-white/10 p-4 lg:col-span-2 lg:border-b-0 lg:border-r lg:border-white/10">
+                    <p class="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Courses</p>
+                    <div class="flex gap-2 overflow-x-auto lg:block lg:space-y-2 lg:overflow-visible">
+                        @foreach($feeRows as $feeRow)
+                            <button type="button"
+                                    @click="feeCourse = @js($feeRow['course_code'])"
+                                    :class="feeCourse === @js($feeRow['course_code']) ? 'border-blue-300/50 bg-blue-500/20 text-white' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'"
+                                    class="min-w-24 rounded-xl border px-4 py-3 text-center text-sm font-bold transition lg:w-full">
+                                {{ $feeRow['course_code'] }}
+                            </button>
+                        @endforeach
+                    </div>
+                </aside>
+
+                <div class="col-span-12 flex justify-center p-5 lg:col-span-10">
+                    @foreach($feeRows as $feeRow)
+                        <form action="{{ route('academic.fees.update') }}"
+                              method="POST"
+                              x-show="feeCourse === @js($feeRow['course_code'])"
+                              x-data="{ saving: false }"
+                              @submit.prevent="saving = true; submitAcademicForm($event.target)
+                                  .then(() => showToast('success', 'Fees updated', '{{ $feeRow['course_code'] }} fee configuration was saved.'))
+                                  .catch((error) => showToast('error', 'Save failed', error.message))
+                                  .finally(() => saving = false)"
+                              class="w-full max-w-4xl">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="course_code" value="{{ $feeRow['course_code'] }}">
+
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h4 class="text-2xl font-extrabold text-white">{{ $feeRow['course_code'] }}</h4>
+                                    <p class="mt-1 text-sm text-slate-300">Course fee configuration</p>
+                                </div>
+                                <button type="submit"
+                                        :disabled="saving"
+                                        class="inline-flex items-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-60">
+                                    <i data-lucide="save" class="h-4 w-4"></i>
+                                    <span x-text="saving ? 'Saving' : 'Save Fees'"></span>
+                                </button>
+                            </div>
+
+                            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                @foreach($feeTypes as $feeType => $feeLabel)
+                                    <label class="block rounded-2xl border border-white/10 bg-white/5 p-3">
+                                        <span class="text-xs font-semibold text-slate-300">{{ $feeLabel }}</span>
+                                        <input type="number"
+                                               step="0.01"
+                                               min="0"
+                                               name="fees[{{ $feeType }}]"
+                                               value="{{ number_format($feeRow['fees'][$feeType] ?? 0, 2, '.', '') }}"
+                                               class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                    </label>
+                                @endforeach
+                            </div>
+                        </form>
+                    @endforeach
+                </div>
+            </div>
+        </section>
         <section x-show="section === 'templates'"
                  x-cloak
                  x-data="templateMapper({
@@ -783,10 +858,18 @@
                         { key: 'subject_name_10', label: 'Subject Name 10', type: 'text' },
                         { key: 'subject_units_10', label: 'Subject Units 10', type: 'text' },
                         { key: 'total_units', label: 'Total Units', type: 'text' },
+                        { key: 'tuition_fee', label: 'Tuition Fee', type: 'text' },
+                        { key: 'nstp_fee', label: 'NSTP Fee', type: 'text' },
+                        { key: 'subtotal_tuition_fee', label: 'Subtotal Tuition Fee', type: 'text' },
+                        { key: 'misc_fees', label: 'Misc. Fees', type: 'text' },
+                        { key: 'hands_on_fee', label: 'Hands-on Fee', type: 'text' },
+                        { key: 'lab_fee', label: 'Lab Fee', type: 'text' },
+                        { key: 'total_tuition_fee', label: 'Total Tuition Fee', type: 'text' },
+                        { key: 'total_account', label: 'Total Account', type: 'text' },
                         { key: 'course_BSIT', label: 'BSIT Check', type: 'check' },
                         { key: 'course_BSCS', label: 'BSCS Check', type: 'check' },
                         { key: 'course_ACT', label: 'ACT Check', type: 'check' },
-                        { key: 'course_BSHM', label: 'BSHM Check', type: 'check' },
+                        { key: 'course_BSBA', label: 'BSBA Check', type: 'check' },
                         { key: 'course_BSOM', label: 'BSOM Check', type: 'check' },
                         { key: 'course_BSA', label: 'BSA Check', type: 'check' },
                         { key: 'year_1', label: 'Year 1 Check', type: 'check' },
@@ -879,6 +962,17 @@
                         <p class="mt-1 text-xs text-slate-300">Select a field, then click it onto the form.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                        <div x-show="template" class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-2 py-1.5 text-xs font-bold text-white">
+                            <button type="button"
+                                    @click="goToPage(currentPage - 1)"
+                                    :disabled="currentPage <= 1"
+                                    class="rounded-md px-2 py-1 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">Prev</button>
+                            <span>Page <span x-text="currentPage"></span>/<span x-text="pageCount"></span></span>
+                            <button type="button"
+                                    @click="goToPage(currentPage + 1)"
+                                    :disabled="currentPage >= pageCount"
+                                    class="rounded-md px-2 py-1 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+                        </div>
                         <button type="button"
                                 @click="toggleFullscreen()"
                                 :disabled="!template"
@@ -948,23 +1042,14 @@
                              @click="placeSelected($event)"
                              class="relative mx-auto w-max cursor-crosshair overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/30">
                             <canvas x-ref="pdfCanvas"></canvas>
-                            <template x-for="mapping in mappedFields()" :key="mapping.key">
+                            <template x-for="mapping in visibleMappedFields()" :key="mapping.key">
                                 <button type="button"
                                         @pointerdown.stop="startDrag($event, mapping.key)"
                                         :style="markerStyle(mapping)"
                                         :class="mapping.type === 'check' ? 'text-emerald-700' : 'text-[#1552d4]'"
                                         class="absolute z-10 -translate-x-0 -translate-y-0 whitespace-nowrap border-0 bg-transparent p-0 font-bold shadow-none outline-none">
                                     <span x-show="mapping.type !== 'check'" x-text="mapping.label"></span>
-                                    <svg x-show="mapping.type === 'check'"
-                                         viewBox="0 0 24 24"
-                                         fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="3"
-                                         stroke-linecap="round"
-                                         stroke-linejoin="round"
-                                         class="h-[1em] w-[1em]">
-                                        <path d="M20 6 9 17l-5-5"></path>
-                                    </svg>
+                                    <span x-show="mapping.type === 'check'" class="font-bold leading-none">&#10003;</span>
                                 </button>
                             </template>
                         </div>
@@ -983,7 +1068,7 @@
                                 <div>
                                     <p class="font-bold text-white" x-text="mapping.label"></p>
                                     <p class="mt-1 text-slate-400">
-                                        X: <span x-text="mapping.x"></span>
+                                        Page: <span x-text="mapping.page || 1"></span><span class="mx-1 text-slate-600">/</span> X: <span x-text="mapping.x"></span>
                                         <span class="mx-1 text-slate-600">/</span>
                                         Y: <span x-text="mapping.y"></span>
                                     </p>

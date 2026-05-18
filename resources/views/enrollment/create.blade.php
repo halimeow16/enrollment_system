@@ -96,15 +96,6 @@
             'lecture_units' => (int) $subject->lecture_units,
             'laboratory_units' => (int) $subject->laboratory_units,
             'total_units' => (int) $subject->total_units,
-            'schedules' => $subject->schedules->map(function ($schedule) {
-                return [
-                    'day_id' => $schedule->day_id,
-                    'time_slot_id' => $schedule->time_slot_id,
-                    'day' => $schedule->day->name,
-                    'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
-                    'room' => $schedule->room->name,
-                ];
-            })->values(),
         ];
     })->values();
 

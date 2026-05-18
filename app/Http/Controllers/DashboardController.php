@@ -6,6 +6,7 @@ use App\Models\Enrollment;
 use App\Models\Day;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
+use App\Models\FeeConfiguration;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -103,6 +104,36 @@ class DashboardController extends Controller
         $departmentHeads = DepartmentHead::where('is_active', true)
             ->orderBy('course_code')
             ->get();
+        $feeTypes = [
+            'tuition_per_unit' => 'Tuition / Unit',
+            'misc_fee' => 'Misc. Fees',
+            'hands_on_fee' => 'Hands-on Fee',
+            'lab_fee' => 'Lab Fee / Unit',
+            'nstp_fee' => 'NSTP Fee',
+        ];
+        $feeConfigurations = FeeConfiguration::where('is_active', true)
+            ->whereNotNull('course_code')
+            ->whereNotNull('fee_type')
+            ->get()
+            ->groupBy('course_code');
+        $courseOrder = collect(['BSIT', 'BSCS', 'ACT', 'BSA', 'BSBA', 'BSOM']);
+        $feeCourses = $courseOrder
+            ->merge($subjects->pluck('course_code'))
+            ->merge($feeConfigurations->keys())
+            ->filter()
+            ->unique()
+            ->sortBy(fn ($courseCode) => ($index = $courseOrder->search($courseCode)) === false ? 999 : $index)
+            ->values();
+        $feeRows = $feeCourses->map(function ($courseCode) use ($feeConfigurations, $feeTypes) {
+            $courseFees = $feeConfigurations->get($courseCode, collect())->keyBy('fee_type');
+
+            return [
+                'course_code' => $courseCode,
+                'fees' => collect($feeTypes)->mapWithKeys(fn ($label, $type) => [
+                    $type => (float) optional($courseFees->get($type))->amount,
+                ])->all(),
+            ];
+        });
         $activeEnrollmentTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
         $enrollmentTemplatePayload = $activeEnrollmentTemplate ? [
             'id' => $activeEnrollmentTemplate->id,
@@ -127,6 +158,8 @@ class DashboardController extends Controller
             'timeSlots',
             'subjectSchedules',
             'departmentHeads',
+            'feeRows',
+            'feeTypes',
             'activeEnrollmentTemplate',
             'enrollmentTemplatePayload'
         ));

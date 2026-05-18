@@ -2,8 +2,8 @@ const courses = [
     {code: "BSIT", name: "BS Information Technology"},
     {code: "BSCS", name: "BS Computer Science"},
     {code: "ACT",  name: "Associate in Computer Technology"},
-    {code: "BSHM", name: "BS Hospitality Management"},
-    {code: "BSOM", name: "BS Office Management"},
+    {code: "BSBA", name: "BS Business Administration"},
+    {code: "BSOM", name: "BS Operations Management"},
     {code: "BSA",  name: "BS Accountancy"}
 ];
 
@@ -159,22 +159,15 @@ function renderSubjectList() {
         return;
     }
 
-    container.innerHTML = subjects.map(subject => {
-        const schedule = subject.schedules.length
-            ? subject.schedules.map(item => `${item.day} ${item.time} / ${item.room}`).join('<br>')
-            : 'No schedule assigned';
-
-        return `
-            <label class="mb-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 last:mb-0">
-                <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox">
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">${subject.code} - ${subject.name}</span>
-                    <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units} units</span>
-                    <span class="mt-1 block text-xs text-slate-500">${schedule}</span>
-                </span>
-            </label>
-        `;
-    }).join('');
+    container.innerHTML = subjects.map(subject => `
+        <label class="mb-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 last:mb-0">
+            <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox">
+            <span class="min-w-0 flex-1">
+                <span class="block text-sm font-bold text-slate-800">${subject.code} - ${subject.name}</span>
+                <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units} units</span>
+            </span>
+        </label>
+    `).join('');
 
     document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', updateSubjectTotals);
@@ -185,37 +178,11 @@ function renderSubjectList() {
 
 function updateSubjectTotals() {
     const totalInput = document.getElementById('total_units');
-    const conflictText = document.getElementById('subjectConflictText');
     const selectedIds = Array.from(document.querySelectorAll('.subject-checkbox:checked')).map(input => Number(input.value));
     const subjects = (window.subjectCatalog ?? []).filter(subject => selectedIds.includes(subject.id));
 
     const totalUnits = subjects.reduce((total, subject) => total + Number(subject.total_units || 0), 0);
     if (totalInput) totalInput.value = totalUnits;
-
-    const conflicts = detectSubjectConflicts(subjects);
-    if (conflictText) {
-        conflictText.textContent = conflicts.length ? conflicts[0] : '';
-    }
-}
-
-function detectSubjectConflicts(subjects) {
-    const seen = new Map();
-    const conflicts = [];
-
-    subjects.forEach(subject => {
-        subject.schedules.forEach(schedule => {
-            const key = `${schedule.day_id}:${schedule.time_slot_id}`;
-
-            if (seen.has(key)) {
-                conflicts.push(`${seen.get(key).code} conflicts with ${subject.code} on ${schedule.day} at ${schedule.time}.`);
-                return;
-            }
-
-            seen.set(key, subject);
-        });
-    });
-
-    return conflicts;
 }
 
 async function loadProvinces() {

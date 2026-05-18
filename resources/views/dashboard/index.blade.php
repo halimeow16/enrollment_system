@@ -479,6 +479,8 @@
                     globalTextSize: 10,
                     canvasWidth: 0,
                     canvasHeight: 0,
+                    currentPage: 1,
+                    pageCount: 1,
                     renderToken: 0,
                     init() {
                         this.loadMappings();
@@ -490,7 +492,7 @@
 
                         (this.template?.field_mappings || []).forEach((mapping) => {
                             if (validFieldKeys.has(mapping.key)) {
-                                this.mappings[mapping.key] = mapping;
+                                this.mappings[mapping.key] = { ...mapping, page: Number(mapping.page || 1) };
                             }
                         });
                     },
@@ -525,7 +527,9 @@
                         const token = ++this.renderToken;
                         this.loadingPdf = true;
                         const pdf = await window.pdfjsLib.getDocument(this.template.pdf_url).promise;
-                        const page = await pdf.getPage(1);
+                        this.pageCount = pdf.numPages || 1;
+                        this.currentPage = Math.min(Math.max(1, this.currentPage), this.pageCount);
+                        const page = await pdf.getPage(this.currentPage);
                         const viewport = page.getViewport({ scale: 1.35 });
                         const canvas = this.$refs.pdfCanvas;
                         const context = canvas.getContext('2d');
@@ -569,6 +573,9 @@
                     },
                     mappedFields() {
                         return Object.values(this.mappings);
+                    },
+                    visibleMappedFields() {
+                        return this.mappedFields().filter((mapping) => Number(mapping.page || 1) === this.currentPage);
                     },
                     missingFields() {
                         return this.fields.filter((field) => !this.mappings[field.key]);
@@ -622,6 +629,7 @@
                             type: field?.type || 'text',
                             x: Number(((clampedX / this.canvasWidth) * this.template.page_width).toFixed(2)),
                             y: Number(((clampedY / this.canvasHeight) * this.template.page_height).toFixed(2)),
+                            page: this.currentPage,
                             font_size: this.selectedTextSize(),
                         };
                     },
@@ -645,6 +653,11 @@
                     toggleFullscreen() {
                         this.isFullscreen = !this.isFullscreen;
                         this.$nextTick(() => window.lucide?.createIcons());
+                    },
+                    async goToPage(page) {
+                        if (!this.template) return;
+                        this.currentPage = Math.min(Math.max(1, Number(page || 1)), this.pageCount || 1);
+                        await this.renderPdf();
                     },
                     updateSelectedTextSize(value) {
                         const size = Math.max(4, Math.min(40, Number(value || 10)));

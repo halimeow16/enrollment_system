@@ -7,6 +7,7 @@ use setasign\Fpdi\Tcpdf\Fpdi;
 use App\Models\Enrollment;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
+use App\Models\FeeConfiguration;
 use App\Models\Subject;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -16,8 +17,9 @@ class EnrollmentController extends Controller
 {
     public function create()
     {
-        $subjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
+        $subjects = Subject::query()
             ->where('is_active', true)
+            ->whereIn('type', ['LEC', 'BOTH'])
             ->orderBy('course_code')
             ->orderBy('year_level')
             ->orderBy('semester')
@@ -74,8 +76,9 @@ class EnrollmentController extends Controller
             ->map(fn ($id) => (int) $id)
             ->values();
 
-        $selectedSubjects = Subject::with(['schedules.day', 'schedules.timeSlot', 'schedules.room'])
+        $selectedSubjects = Subject::query()
             ->whereIn('id', $selectedSubjectIds)
+            ->whereIn('type', ['LEC', 'BOTH'])
             ->get()
             ->sortBy(fn ($subject) => $selectedSubjectIds->search((int) $subject->id))
             ->values();
@@ -86,13 +89,6 @@ class EnrollmentController extends Controller
                 ->withInput();
         }
 
-        $conflicts = $this->detectScheduleConflicts($selectedSubjects);
-
-        if (! empty($conflicts)) {
-            return back()
-                ->withErrors(['subject_ids' => 'Subject schedule conflict: ' . implode(' ', $conflicts)])
-                ->withInput();
-        }
 
         $validated['department_head_name'] = DepartmentHead::where('course_code', $validated['course_code'] ?? null)
             ->where('is_active', true)
@@ -137,12 +133,15 @@ class EnrollmentController extends Controller
             ->values();
 
         $data['selected_subjects'] = Subject::whereIn('id', $selectedSubjectIds)
-            ->get(['id', 'code', 'name', 'total_units'])
+            ->whereIn('type', ['LEC', 'BOTH'])
+            ->get(['id', 'code', 'name', 'lecture_units', 'laboratory_units', 'total_units'])
             ->sortBy(fn ($subject) => $selectedSubjectIds->search((int) $subject->id))
             ->values()
             ->map(fn ($subject) => [
                 'code' => $subject->code,
                 'name' => $subject->name,
+                'lecture_units' => (int) $subject->lecture_units,
+                'laboratory_units' => (int) $subject->laboratory_units,
                 'total_units' => (int) $subject->total_units,
             ])
             ->all();
@@ -285,12 +284,17 @@ class EnrollmentController extends Controller
         }
 
         $pdf = new Fpdi();
+        $pdf->SetAutoPageBreak(false, 0);
         $templatePath = Storage::disk('public')->path($template->file_path);
-        $pdf->setSourceFile($templatePath);
-        $templateId = $pdf->importPage(1);
+        $pageCount = $pdf->setSourceFile($templatePath);
 
-        $pdf->AddPage('P', [(float) $template->page_width, (float) $template->page_height]);
-        $pdf->useTemplate($templateId);
+        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+            $templateId = $pdf->importPage($pageNumber);
+            $size = $pdf->getTemplateSize($templateId);
+            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+            $pdf->useTemplate($templateId);
+        }
+
         $pdf->SetTextColor(0, 0, 0);
 
         foreach ($template->field_mappings ?? [] as $mapping) {
@@ -299,6 +303,7 @@ class EnrollmentController extends Controller
             $x = (float) ($mapping['x'] ?? 0);
             $y = (float) ($mapping['y'] ?? 0);
             $fontSize = (float) ($mapping['font_size'] ?? ($type === 'check' ? 14 : 10));
+            $page = max(1, min((int) ($mapping['page'] ?? 1), $pageCount));
 
             if (! $key) {
                 continue;
@@ -309,9 +314,13 @@ class EnrollmentController extends Controller
                     continue;
                 }
 
-                $pdf->SetFont('dejavusans', 'B', $fontSize);
+                $pdf->SetPage($page);
+
+
+                $checkFontSize = $fontSize * 1.35;
+                $pdf->SetFont('dejavusans', 'B', $checkFontSize);
                 $pdf->SetTextColor(0, 100, 0);
-                $pdf->SetXY($x, $y);
+                $pdf->SetXY($x - 1.4, $y - 2.4);
                 $pdf->Write(0, html_entity_decode('&#10003;', ENT_QUOTES, 'UTF-8'));
                 $pdf->SetTextColor(0, 0, 0);
                 continue;
@@ -322,6 +331,9 @@ class EnrollmentController extends Controller
             if ($value === '') {
                 continue;
             }
+
+            $pdf->SetPage($page);
+
 
             $pdf->SetFont('Helvetica', '', $fontSize);
             $pdf->SetXY($x, $y);
@@ -339,6 +351,10 @@ class EnrollmentController extends Controller
 
         if ($key === 'total_units') {
             return $this->mappedTotalUnitsValue($data);
+        }
+
+        if (in_array($key, $this->mappedFeeKeys(), true)) {
+            return $this->mappedFeeValue($key, $data);
         }
 
         $value = data_get($data, $key, '');
@@ -373,6 +389,65 @@ class EnrollmentController extends Controller
 
         return $totalUnits > 0 ? (string) $totalUnits : '';
     }
+    private function mappedFeeKeys(): array
+    {
+        return [
+            'tuition_fee',
+            'nstp_fee',
+            'subtotal_tuition_fee',
+            'misc_fees',
+            'hands_on_fee',
+            'lab_fee',
+            'total_tuition_fee',
+            'total_account',
+        ];
+    }
+
+    private function mappedFeeValue(string $key, $data): string
+    {
+        $fees = $this->calculatedFees($data);
+
+        return number_format($fees[$key] ?? 0, 2, '.', ',');
+    }
+
+    private function calculatedFees($data): array
+    {
+        $courseCode = (string) data_get($data, 'course_code', '');
+        $subjects = $this->mappedSubjects($data);
+        $configuredFees = FeeConfiguration::where('is_active', true)
+            ->where('course_code', $courseCode)
+            ->whereIn('fee_type', ['tuition_per_unit', 'misc_fee', 'hands_on_fee', 'lab_fee', 'nstp_fee'])
+            ->get()
+            ->keyBy('fee_type');
+
+        $tuitionRate = (float) optional($configuredFees->get('tuition_per_unit'))->amount;
+        $labRate = (float) optional($configuredFees->get('lab_fee'))->amount;
+        $miscFees = (float) optional($configuredFees->get('misc_fee'))->amount;
+        $nstpRate = (float) optional($configuredFees->get('nstp_fee'))->amount;
+        $handsOnRate = (float) optional($configuredFees->get('hands_on_fee'))->amount;
+
+        $totalUnits = $subjects->sum(fn ($subject) => (int) data_get($subject, 'total_units', 0));
+        $labUnits = $subjects->sum(fn ($subject) => (int) data_get($subject, 'laboratory_units', 0));
+        $tuitionFee = round($totalUnits * $tuitionRate, 2);
+        $labFee = round($labUnits * $labRate, 2);
+        $handsOnFee = $labUnits > 0 ? $handsOnRate : 0;
+        $hasNstpSubject = $subjects->contains(fn ($subject) => str_contains(strtoupper((string) data_get($subject, 'code', '') . ' ' . data_get($subject, 'name', '')), 'NSTP'));
+        $nstpFee = $hasNstpSubject ? $nstpRate : 0;
+        $subtotalTuitionFee = $tuitionFee;
+        $totalTuitionFee = $subtotalTuitionFee + $miscFees + $handsOnFee + $labFee + $nstpFee;
+        $totalAccount = round($totalTuitionFee);
+
+        return [
+            'tuition_fee' => $tuitionFee,
+            'nstp_fee' => $nstpFee,
+            'subtotal_tuition_fee' => $subtotalTuitionFee,
+            'misc_fees' => $miscFees,
+            'hands_on_fee' => $handsOnFee,
+            'lab_fee' => $labFee,
+            'total_tuition_fee' => $totalTuitionFee,
+            'total_account' => $totalAccount,
+        ];
+    }
 
     private function mappedSubjects($data)
     {
@@ -406,29 +481,6 @@ class EnrollmentController extends Controller
         }
 
         return filled(data_get($data, $key));
-    }
-
-    private function detectScheduleConflicts($subjects): array
-    {
-        $seen = [];
-        $conflicts = [];
-
-        foreach ($subjects as $subject) {
-            foreach ($subject->schedules as $schedule) {
-                $key = $schedule->day_id . ':' . $schedule->time_slot_id;
-
-                if (isset($seen[$key])) {
-                    $conflicts[] = $seen[$key]->code . ' conflicts with ' . $subject->code . ' on ' .
-                        $schedule->day->name . ' at ' .
-                        ($schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . '-' . $schedule->timeSlot->end_time)) . '.';
-                    continue;
-                }
-
-                $seen[$key] = $subject;
-            }
-        }
-
-        return $conflicts;
     }
 
     private function checkCourseBox($pdf, $courseCode)

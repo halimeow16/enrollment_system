@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Day;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
+use App\Models\FeeConfiguration;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -22,7 +23,7 @@ class AcademicConfigurationController extends Controller
     public function storeSubject(Request $request): RedirectResponse|JsonResponse
     {
         $data = $this->validateSubject($request);
-        $data['total_units'] = (int) $data['lecture_units'] + (int) $data['laboratory_units'];
+        $data = $this->applyFixedSubjectUnits($data);
 
         $subject = Subject::create($data);
 
@@ -39,7 +40,7 @@ class AcademicConfigurationController extends Controller
     public function updateSubject(Request $request, Subject $subject): RedirectResponse|JsonResponse
     {
         $data = $this->validateSubject($request, $subject);
-        $data['total_units'] = (int) $data['lecture_units'] + (int) $data['laboratory_units'];
+        $data = $this->applyFixedSubjectUnits($data);
 
         $subject->update($data);
 
@@ -210,6 +211,44 @@ class AcademicConfigurationController extends Controller
         return back()->with('success', 'Department head updated.');
     }
 
+    public function updateFees(Request $request): RedirectResponse|JsonResponse
+    {
+        $feeTypes = ['tuition_per_unit', 'misc_fee', 'hands_on_fee', 'lab_fee', 'nstp_fee'];
+        $data = $request->validate([
+            'course_code' => ['required', 'string', 'max:30'],
+            'fees' => ['required', 'array'],
+            'fees.tuition_per_unit' => ['required', 'numeric', 'min:0'],
+            'fees.misc_fee' => ['required', 'numeric', 'min:0'],
+            'fees.hands_on_fee' => ['required', 'numeric', 'min:0'],
+            'fees.lab_fee' => ['required', 'numeric', 'min:0'],
+            'fees.nstp_fee' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        foreach ($feeTypes as $feeType) {
+            FeeConfiguration::updateOrCreate(
+                ['course_code' => $data['course_code'], 'fee_type' => $feeType],
+                [
+                    'name' => str($feeType)->replace('_', ' ')->title()->toString(),
+                    'basis' => in_array($feeType, ['tuition_per_unit', 'lab_fee'], true) ? 'per_unit' : 'flat',
+                    'amount' => $data['fees'][$feeType],
+                    'applies_to' => 'ALL',
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Fee configuration updated.',
+                'course_code' => $data['course_code'],
+                'fees' => collect($feeTypes)->mapWithKeys(fn ($feeType) => [
+                    $feeType => (float) $data['fees'][$feeType],
+                ])->all(),
+            ]);
+        }
+
+        return back()->with('success', 'Fee configuration updated.');
+    }
     public function storeEnrollmentTemplate(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
@@ -255,6 +294,7 @@ class AcademicConfigurationController extends Controller
             'mappings.*.type' => ['nullable', 'string', 'max:30'],
             'mappings.*.x' => ['required', 'numeric', 'min:0'],
             'mappings.*.y' => ['required', 'numeric', 'min:0'],
+            'mappings.*.page' => ['nullable', 'integer', 'min:1'],
             'mappings.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:40'],
         ]);
 
@@ -265,6 +305,7 @@ class AcademicConfigurationController extends Controller
                 'type' => $mapping['type'] ?? 'text',
                 'x' => round((float) $mapping['x'], 2),
                 'y' => round((float) $mapping['y'], 2),
+                'page' => (int) ($mapping['page'] ?? 1),
                 'font_size' => round((float) ($mapping['font_size'] ?? 10), 1),
             ])->values()->all(),
         ]);
@@ -284,6 +325,14 @@ class AcademicConfigurationController extends Controller
         ]);
     }
 
+    private function applyFixedSubjectUnits(array $data): array
+    {
+        $data['lecture_units'] = (int) $data['lecture_units'];
+        $data['laboratory_units'] = in_array($data['type'], ['LAB', 'BOTH'], true) ? 1 : 0;
+        $data['total_units'] = $data['lecture_units'] + $data['laboratory_units'];
+
+        return $data;
+    }
     private function validateSubject(Request $request, ?Subject $subject = null): array
     {
         return $request->validate([
@@ -301,7 +350,6 @@ class AcademicConfigurationController extends Controller
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
             'type' => ['required', Rule::in(['LEC', 'LAB', 'BOTH'])],
             'lecture_units' => ['required', 'integer', 'min:0', 'max:9'],
-            'laboratory_units' => ['required', 'integer', 'min:0', 'max:9'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
     }

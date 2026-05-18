@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
         Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
         Route::post('/department-heads', [AcademicConfigurationController::class, 'storeDepartmentHead'])->name('department-heads.store');
+        Route::put('/fees', [AcademicConfigurationController::class, 'updateFees'])->name('fees.update');
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');
         Route::put('/templates/{template}/mappings', [AcademicConfigurationController::class, 'updateEnrollmentTemplateMappings'])->name('templates.mappings.update');
         Route::get('/templates/{template}/pdf', [AcademicConfigurationController::class, 'showEnrollmentTemplatePdf'])->name('templates.pdf');
