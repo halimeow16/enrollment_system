@@ -890,7 +890,30 @@
                     ],
                  })"
                  x-init="init()"
-                 class="grid grid-cols-12 gap-5">
+                 class="space-y-5">
+            <div class="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h3 class="font-extrabold text-white">Templates</h3>
+                    <p class="mt-1 text-xs text-slate-300">Manage document layouts used by the system.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
+                    <button type="button"
+                            @click="templateSection = 'enrollment'"
+                            :class="templateSection === 'enrollment' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                            class="rounded-xl px-4 py-2 text-xs font-bold transition">
+                        Enrollment Template
+                    </button>
+                    <button type="button"
+                            @click="templateSection = 'id'"
+                            :class="templateSection === 'id' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                            class="rounded-xl px-4 py-2 text-xs font-bold transition">
+                        ID Template
+                    </button>
+                </div>
+            </div>
+
+            <div x-show="templateSection === 'enrollment'" x-cloak class="grid grid-cols-12 gap-5">
             <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-3">
                 <h3 class="font-extrabold text-white">Enrollment Template</h3>
                 <p class="mt-1 text-xs text-slate-300">Upload the current school form, then place data fields on the PDF.</p>
@@ -1086,6 +1109,21 @@
                     </p>
                 </div>
             </aside>
+            </div>
+
+            <section x-show="templateSection === 'id'"
+                     x-cloak
+                     class="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <div class="flex min-h-[520px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 text-center">
+                    <div>
+                        <i data-lucide="badge" class="mx-auto h-10 w-10 text-blue-200"></i>
+                        <h3 class="mt-3 text-base font-extrabold text-white">ID Template</h3>
+                        <p class="mt-1 max-w-md text-sm text-slate-300">
+                            Blank workspace reserved for student ID layout mapping.
+                        </p>
+                    </div>
+                </div>
+            </section>
         </section>
     </div>
 </div>

@@ -469,6 +469,7 @@
                 return {
                     template: config.template,
                     fields: config.fields,
+                    templateSection: 'enrollment',
                     selectedField: config.fields[0]?.key || null,
                     mappings: {},
                     loadingPdf: false,
