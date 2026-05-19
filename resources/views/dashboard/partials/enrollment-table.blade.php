@@ -63,7 +63,20 @@
                     </td>
                     <td class="px-5 py-3.5">
                         @if($compact)
-                            <x-enrollment-badge :status="$enrollment->enrollment_status ?? 'pending'" />
+                            <span x-show="statusFor({{ $enrollment->id }}, @js($enrollment->enrollment_status ?? 'pending')) === 'pending'"
+                                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize bg-amber-100 text-amber-700">
+                                Pending
+                            </span>
+                            <span x-show="statusFor({{ $enrollment->id }}, @js($enrollment->enrollment_status ?? 'pending')) === 'enrolled'"
+                                  x-cloak
+                                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize bg-emerald-100 text-emerald-700">
+                                Enrolled
+                            </span>
+                            <span x-show="statusFor({{ $enrollment->id }}, @js($enrollment->enrollment_status ?? 'pending')) === 'cancelled'"
+                                  x-cloak
+                                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize bg-slate-100 text-slate-500">
+                                Cancelled
+                            </span>
                         @else
                             <span x-show="rowStatus === 'pending'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize bg-amber-100 text-amber-700">
                                 Pending
@@ -89,7 +102,7 @@
                                 <form action="{{ route('enrollments.status.update', $enrollment) }}"
                                       method="POST"
                                       @submit.prevent="savingStatus = true; updateEnrollmentStatus($event.target, selectedStatus)
-                                          .then((status) => { adjustStatusStats(rowStatus, status); rowStatus = status; selectedStatus = status; showToast('success', 'Status updated', 'Enrollment status was saved.'); })
+                                          .then((status) => { setEnrollmentStatus({{ $enrollment->id }}, rowStatus, status); rowStatus = status; selectedStatus = status; showToast('success', 'Status updated', 'Enrollment status was saved.'); })
                                           .catch(() => { selectedStatus = rowStatus; showToast('error', 'Update failed', 'Unable to update status. Please try again.'); })
                                           .finally(() => { savingStatus = false; })"
                                       class="flex min-w-[170px] items-center gap-1.5">

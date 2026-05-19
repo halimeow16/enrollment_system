@@ -254,13 +254,102 @@
     </section>
 
     {{-- ID generation --}}
-    <section x-show="activeTab === 'id-generation'" x-cloak class="h-[calc(100vh-170px)] min-h-[520px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 p-6 shadow-2xl shadow-black/30">
-        <div class="flex h-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-center">
-            <div>
-                <i data-lucide="badge" class="mx-auto h-10 w-10 text-blue-200"></i>
-                <h2 class="mt-4 text-xl font-extrabold text-white">ID Generation</h2>
-                <p class="mt-2 text-sm text-slate-300">No ID generation tools yet.</p>
+    <section x-show="activeTab === 'id-generation'" x-cloak class="h-[calc(100vh-170px)] min-h-[560px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
+        <div class="border-b border-white/10 px-5 py-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="font-extrabold text-white">Generate IDs</h2>
+                    <p class="mt-0.5 text-xs text-slate-300">
+                        <span x-text="formatCount(stats.total_enrolled)"></span> enrolled students ready for ID generation.
+                    </p>
+                </div>
+
+                <div class="relative w-full md:w-80">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
+                    <input type="search"
+                           x-model="idSearch"
+                           placeholder="Search student, number, course..."
+                           class="w-full rounded-2xl border border-white/10 bg-white/10 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-400 outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+                </div>
             </div>
+        </div>
+
+        <div class="h-[calc(100%-73px)] overflow-auto">
+            <table class="w-full text-sm">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-white/5 text-xs uppercase tracking-wide text-slate-300">
+                        <th class="px-5 py-3 text-left font-semibold">Student</th>
+                        <th class="px-5 py-3 text-left font-semibold">Program</th>
+                        <th class="px-5 py-3 text-left font-semibold">Year/Sem</th>
+                        <th class="px-5 py-3 text-left font-semibold">Date Filed</th>
+                        <th class="px-5 py-3 text-left font-semibold">Contact</th>
+                        <th class="w-40 px-5 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    @forelse ($allEnrollments as $enrollment)
+                        @php
+                            $name = trim(($enrollment->last_name ?? '') . ', ' . ($enrollment->first_name ?? ''));
+                            $name = $name === ',' ? 'Unnamed student' : $name;
+                            $rowText = strtolower(implode(' ', [
+                                $name,
+                                $enrollment->student_number,
+                                $enrollment->course_code,
+                                $enrollment->course_name,
+                                $enrollment->year_level,
+                                $enrollment->semester,
+                                $enrollment->email,
+                                $enrollment->cellphone,
+                            ]));
+                        @endphp
+                        <tr x-show="matchesIdGeneration(@js($rowText), {{ $enrollment->id }})"
+                            x-cloak
+                            class="transition-colors duration-100 hover:bg-white/5">
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-500/20 text-xs font-bold text-blue-100">
+                                        {{ strtoupper(substr($enrollment->first_name ?? $enrollment->last_name ?? '?', 0, 1)) }}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-white">{{ $name }}</p>
+                                        <p class="font-mono text-xs text-slate-400">{{ $enrollment->student_number ?? 'No student no.' }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <p class="text-xs font-semibold text-blue-100">{{ $enrollment->course_code ?? 'Not set' }}</p>
+                                <p class="max-w-52 truncate text-xs text-slate-400">{{ $enrollment->course_name ?? 'Course name unavailable' }}</p>
+                            </td>
+                            <td class="px-5 py-3.5 text-xs text-slate-300">
+                                {{ $enrollment->year_level ? $enrollment->year_level . 'yr' : 'Year not set' }}
+                                <span class="mx-1 text-slate-500">/</span>
+                                {{ $enrollment->semester ?? 'Sem not set' }}
+                            </td>
+                            <td class="px-5 py-3.5 text-xs text-slate-400">
+                                {{ $enrollment->date_filed ? $enrollment->date_filed->format('M d, Y') : 'Not filed' }}
+                            </td>
+                            <td class="px-5 py-3.5 text-xs text-slate-400">
+                                <p>{{ $enrollment->cellphone ?? 'No phone' }}</p>
+                                <p class="max-w-48 truncate">{{ $enrollment->email ?? 'No email' }}</p>
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <button type="button"
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/25">
+                                    <i data-lucide="badge" class="h-3.5 w-3.5"></i>
+                                    Generate ID
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-slate-300">
+                                <i data-lucide="inbox" class="mx-auto mb-2 h-8 w-8 opacity-40"></i>
+                                <p class="text-sm">No enrollments yet.</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </section>
 
@@ -292,8 +381,10 @@
             activeTab: 'overview',
             previousTab: 'overview',
             search: '',
+            idSearch: '',
             statusFilter: '',
             stats: @json($stats),
+            enrollmentStatuses: @json($allEnrollments->pluck('enrollment_status', 'id')),
             subjectCount: {{ $subjects->count() }},
             addedSubjects: [],
             addedDays: [],
@@ -354,6 +445,13 @@
                 if (newStatus === 'pending') {
                     this.stats.pending = Number(this.stats.pending || 0) + 1;
                 }
+            },
+            setEnrollmentStatus(enrollmentId, oldStatus, newStatus) {
+                this.adjustStatusStats(oldStatus, newStatus);
+                this.enrollmentStatuses[enrollmentId] = newStatus;
+            },
+            statusFor(enrollmentId, fallback = 'pending') {
+                return this.enrollmentStatuses[enrollmentId] || fallback;
             },
             showToast(type, title, message) {
                 const id = Date.now() + Math.random();
@@ -464,6 +562,12 @@
                 const matchesStatus = !this.statusFilter || status === this.statusFilter;
 
                 return matchesText && matchesStatus;
+            },
+            matchesIdGeneration(rowText, enrollmentId) {
+                const status = this.enrollmentStatuses[enrollmentId];
+                const matchesText = !this.idSearch || rowText.toLowerCase().includes(this.idSearch.toLowerCase());
+
+                return status === 'enrolled' && matchesText;
             },
             templateMapper(config) {
                 return {
