@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
+use App\Models\AppSetting;
 use App\Models\Enrollment;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
@@ -17,6 +18,7 @@ class EnrollmentController extends Controller
 {
     public function create()
     {
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
         $subjects = Subject::query()
             ->where('is_active', true)
             ->whereIn('type', ['LEC', 'BOTH'])
@@ -30,7 +32,7 @@ class EnrollmentController extends Controller
             ->get()
             ->keyBy('course_code');
 
-        return view('enrollment.create', compact('subjects', 'departmentHeads'));
+        return view('enrollment.create', compact('subjects', 'departmentHeads', 'academicYear'));
     }
 
     public function store(Request $request)
@@ -71,6 +73,8 @@ class EnrollmentController extends Controller
             'credentials'      => 'nullable|array',
             'credentials.*'    => 'string',
         ]);
+
+        $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
 
         $selectedSubjectIds = collect($validated['subject_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
@@ -124,6 +128,7 @@ class EnrollmentController extends Controller
     public function preview(Request $request)
     {
         $data = $request->all();
+        $data['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
         $data['department_head_name'] = DepartmentHead::where('course_code', $data['course_code'] ?? null)
             ->where('is_active', true)
             ->value('name') ?? $data['department_head_name'] ?? null;

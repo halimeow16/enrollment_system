@@ -1,6 +1,7 @@
 <header class="sticky top-0 z-30 border-b border-white/10 bg-[#071224]/80 glass"
-        x-data="{ mobileOpen: false, activeTab: 'overview' }"
-        @dashboard-tab-changed.window="activeTab = $event.detail.tab">
+        x-data="{ mobileOpen: false, activeTab: 'overview', academicYear: @js($academicYear ?? '2026-2027') }"
+        @dashboard-tab-changed.window="activeTab = $event.detail.tab"
+        @academic-year-updated.window="academicYear = $event.detail.academicYear">
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex h-20 items-center justify-between">
 
@@ -38,7 +39,7 @@
 
             <div class="flex items-center gap-3">
                 <span class="hidden sm:inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-2 text-xs font-bold text-blue-200">
-                    A.Y. 2026-2027
+                    A.Y. <span class="ml-1" x-text="academicYear"></span>
                 </span>
 
                 <div class="relative" x-data="{ open: false }" @click.outside="open = false">

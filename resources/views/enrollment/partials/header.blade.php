@@ -4,7 +4,7 @@
             <img src="{{ asset('images/logo.png') }}" alt="COMTEQ Logo" class="h-20">
         </div>
         <div class="text-right">
-            <p class="text-sm font-semibold">Academic Year 2026-2027</p>
+            <p class="text-sm font-semibold">Academic Year {{ $academicYear ?? '2026-2027' }}</p>
             <p class="text-xs text-emerald-600">Student Enrollment</p>
         </div>
     </div>

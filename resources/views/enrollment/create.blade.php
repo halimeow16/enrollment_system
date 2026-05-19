@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'COMTEQ | Enrollment Form 2026-2027')
+@section('title', 'COMTEQ | Enrollment Form')
 
 @section('content')
 <div class="bg-slate-50 min-h-screen">

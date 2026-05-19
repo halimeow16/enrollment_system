@@ -30,7 +30,7 @@
     }
 </style>
 
-<div x-data="{ section: 'subjects', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null }"
+<div x-data="{ section: 'settings', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null, academicYear: @js($academicYear ?? '2026-2027') }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -40,7 +40,13 @@
                 <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, department heads, fees, and templates in one workspace.</p>
             </div>
 
-            <div class="grid grid-cols-5 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <div class="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 md:grid-cols-6">
+                <button type="button"
+                        @click="section = 'settings'"
+                        :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                    Settings
+                </button>
                 <button type="button"
                         @click="section = 'subjects'"
                         :class="section === 'subjects' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -76,6 +82,56 @@
     </div>
 
     <div class="max-h-[calc(100vh-245px)] overflow-y-auto p-5">
+        <section x-show="section === 'settings'" x-cloak class="grid grid-cols-12 gap-5">
+            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-5">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">School Term</p>
+                    <h3 class="mt-1 text-lg font-extrabold text-white">Academic Year</h3>
+                    <p class="mt-1 text-xs leading-5 text-slate-300">This value is used on the dashboard and locked into new enrollment forms.</p>
+                </div>
+
+                <form action="{{ route('academic.academic-year.update') }}"
+                      method="POST"
+                      class="mt-5 space-y-4"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active.`); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
+                    @csrf
+                    @method('PUT')
+
+                    <label class="block text-xs font-semibold text-slate-300">
+                        Active Academic Year
+                        <input name="academic_year"
+                               x-model="academicYear"
+                               required
+                               pattern="\d{4}-\d{4}"
+                               placeholder="2026-2027"
+                               class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                    </label>
+
+                    <button type="submit"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                        <i data-lucide="save" class="h-4 w-4"></i>
+                        Save Academic Year
+                    </button>
+                </form>
+            </div>
+
+            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-7">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Current Behavior</p>
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p class="text-xs font-bold text-slate-300">Dashboard</p>
+                        <p class="mt-2 text-lg font-extrabold text-white">A.Y. <span x-text="academicYear"></span></p>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p class="text-xs font-bold text-slate-300">Enrollment Form</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-200">School year is read-only.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section x-show="section === 'subjects'" x-cloak class="grid grid-cols-12 gap-5">
             <aside class="col-span-12 flex h-[535px] flex-col rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-4">
                 <div class="mb-4">
@@ -890,16 +946,24 @@
                     ],
                     idTemplate: @js($idTemplatePayload),
                     idTemplates: @js($idTemplatePayloads),
+                    idFonts: @js($idFonts ?? []),
+                    idFontUploadUrl: @js(route('academic.id-templates.fonts.store')),
                     idFields: [
                         { key: 'student_photo', label: 'Student Photo', type: 'image', width: 120, height: 140, shape: 'rectangle', object_fit: 'cover' },
                         { key: 'signature', label: 'Signature', type: 'image', width: 160, height: 48, shape: 'rectangle', object_fit: 'contain', locked_shape: true },
                         { key: 'student_number', label: 'Student ID', type: 'text', width: 150, height: 24, font_size: 16, font_family: 'Arial', font_weight: '700' },
                         { key: 'full_name', label: 'Name', type: 'text', width: 260, height: 28, font_size: 20, font_family: 'Arial', font_weight: '800' },
                         { key: 'present_address', label: 'Address', type: 'text', width: 260, height: 44, font_size: 12, font_family: 'Arial', font_weight: '600' },
-                        { key: 'course_code', label: 'Course', type: 'text', width: 120, height: 24, font_size: 15, font_family: 'Arial', font_weight: '700' },
+                        { key: 'course_code', label: 'Course Code', type: 'text', width: 120, height: 24, font_size: 15, font_family: 'Arial', font_weight: '700' },
+                        { key: 'course_plain_name', label: 'Course Plain Name', type: 'text', width: 180, height: 26, font_size: 13, font_family: 'Arial', font_weight: '700' },
+                        { key: 'course_short_name', label: 'Course Short Name', type: 'text', width: 220, height: 28, font_size: 13, font_family: 'Arial', font_weight: '700' },
+                        { key: 'course_full_name', label: 'Course Full Name', type: 'text', width: 280, height: 42, font_size: 12, font_family: 'Arial', font_weight: '600' },
                         { key: 'year_level', label: 'Year Level', type: 'text', width: 110, height: 22, font_size: 14, font_family: 'Arial', font_weight: '700' },
                         { key: 'date_of_birth', label: 'Birthday', type: 'text', width: 150, height: 22, font_size: 14, font_family: 'Arial', font_weight: '600' },
                         { key: 'school_year', label: 'School Year', type: 'text', width: 140, height: 22, font_size: 13, font_family: 'Arial', font_weight: '600' },
+                        { key: 'emergency_contact_name', label: 'Emergency Name', type: 'text', width: 180, height: 24, font_size: 13, font_family: 'Arial', font_weight: '700' },
+                        { key: 'emergency_contact_relationship', label: 'Emergency Relation', type: 'text', width: 160, height: 22, font_size: 12, font_family: 'Arial', font_weight: '600' },
+                        { key: 'emergency_contact_number', label: 'Emergency Contact', type: 'text', width: 170, height: 22, font_size: 12, font_family: 'Arial', font_weight: '600' },
                     ],
                  })"
                  x-init="init()"
@@ -1177,6 +1241,23 @@
                         </button>
                     </form>
 
+                    <form action="{{ route('academic.id-templates.fonts.store') }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3"
+                          @submit.prevent="uploadIdFont($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Font upload failed', message: error.message } })))">
+                        @csrf
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Font Style</p>
+                            <p class="mt-1 text-xs text-slate-400">Upload TTF, OTF, WOFF, or WOFF2 files for ID text.</p>
+                        </div>
+                        <input type="file" name="font_file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15">
+                            <i data-lucide="type" class="h-4 w-4"></i>
+                            Upload Font
+                        </button>
+                    </form>
+
                     <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
                         <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Active ID File</p>
                         <template x-if="idTemplate">
@@ -1351,6 +1432,10 @@
                                         Text Size
                                         <input type="number" min="4" max="80" :value="selectedIdMapping()?.font_size" @input="updateSelectedIdField('font_size', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
                                     </label>
+                                    <label x-show="selectedIdMapping()?.type === 'text'" class="text-xs font-semibold text-slate-300">
+                                        Color
+                                        <input type="color" :value="selectedIdMapping()?.font_color || '#111827'" @input="updateSelectedIdField('font_color', $event.target.value)" class="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-1 py-1">
+                                    </label>
                                     <label x-show="selectedIdMapping()?.type === 'image' && !selectedIdMapping()?.locked_shape" class="text-xs font-semibold text-slate-300">
                                         Shape
                                         <select :value="selectedIdMapping()?.shape || 'rectangle'" @change="updateSelectedIdField('shape', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
@@ -1369,6 +1454,9 @@
                                         <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
                                         <option value="Times New Roman">Times New Roman</option>
                                         <option value="Courier New">Courier New</option>
+                                        <template x-for="font in idFonts" :key="`fullscreen-font-${font.family}`">
+                                            <option :value="font.family" x-text="font.family"></option>
+                                        </template>
                                     </select>
                                 </label>
                                 <label x-show="selectedIdMapping()?.type === 'image'" class="block text-xs font-semibold text-slate-300">
@@ -1399,6 +1487,10 @@
                                 Text Size
                                 <input type="number" min="4" max="80" :value="selectedIdMapping()?.font_size" @input="updateSelectedIdField('font_size', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
                             </label>
+                            <label x-show="selectedIdMapping()?.type === 'text'" class="text-xs font-semibold text-slate-300">
+                                Color
+                                <input type="color" :value="selectedIdMapping()?.font_color || '#111827'" @input="updateSelectedIdField('font_color', $event.target.value)" class="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-1 py-1">
+                            </label>
                             <label x-show="selectedIdMapping()?.type === 'image' && !selectedIdMapping()?.locked_shape" class="text-xs font-semibold text-slate-300">
                                 Shape
                                 <select :value="selectedIdMapping()?.shape || 'rectangle'" @change="updateSelectedIdField('shape', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
@@ -1426,6 +1518,9 @@
                                 <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
                                 <option value="Times New Roman">Times New Roman</option>
                                 <option value="Courier New">Courier New</option>
+                                <template x-for="font in idFonts" :key="`font-${font.family}`">
+                                    <option :value="font.family" x-text="font.family"></option>
+                                </template>
                             </select>
                         </label>
                         <label x-show="selectedIdMapping()?.type === 'image'" class="block text-xs font-semibold text-slate-300">

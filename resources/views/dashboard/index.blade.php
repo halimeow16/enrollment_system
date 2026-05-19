@@ -61,7 +61,7 @@
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Registrar Workspace</p>
                 <h1 class="mt-2 text-3xl font-extrabold text-white" x-text="titles[activeTab]"></h1>
-                <p class="mt-1 text-sm text-slate-300">A.Y. 2026-2027 - {{ now()->format('l, F j') }}</p>
+                <p class="mt-1 text-sm text-slate-300">A.Y. <span x-text="academicYear"></span> - {{ now()->format('l, F j') }}</p>
 
             </div>
 
@@ -264,12 +264,20 @@
                     </p>
                 </div>
 
-                <div class="relative w-full md:w-80">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
-                    <input type="search"
-                           x-model="idSearch"
-                           placeholder="Search student, number, course..."
-                           class="w-full rounded-2xl border border-white/10 bg-white/10 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-400 outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+                <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                    <div class="relative w-full md:w-80">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
+                        <input type="search"
+                               x-model="idSearch"
+                               placeholder="Search student, number, course..."
+                               class="w-full rounded-2xl border border-white/10 bg-white/10 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-400 outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+                    </div>
+                    <select x-model="idGenerationFilter"
+                            class="w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20 sm:w-36">
+                        <option class="text-slate-900" value="">All</option>
+                        <option class="text-slate-900" value="pending">Pending</option>
+                        <option class="text-slate-900" value="generated">Generated</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -283,7 +291,8 @@
                         <th class="px-5 py-3 text-left font-semibold">Year/Sem</th>
                         <th class="px-5 py-3 text-left font-semibold">Date Filed</th>
                         <th class="px-5 py-3 text-left font-semibold">Contact</th>
-                        <th class="w-40 px-5 py-3 text-right font-semibold">Action</th>
+                        <th class="w-44 px-5 py-3 text-left font-semibold">ID Status</th>
+                        <th class="w-48 px-5 py-3 text-right font-semibold">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-white/10">
@@ -332,17 +341,74 @@
                                 <p>{{ $enrollment->cellphone ?? 'No phone' }}</p>
                                 <p class="max-w-48 truncate">{{ $enrollment->email ?? 'No email' }}</p>
                             </td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex max-w-40 flex-wrap gap-1.5">
+                                    <span x-show="!idStatusFor({{ $enrollment->id }}).generated"
+                                          x-cloak
+                                          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold leading-none"
+                                          :class="idStatusFor({{ $enrollment->id }}).emergency_contact_submitted ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-300/20' : 'bg-slate-400/10 text-slate-300 ring-1 ring-white/10'">
+                                        <i :data-lucide="idStatusFor({{ $enrollment->id }}).emergency_contact_submitted ? 'phone-call' : 'phone-off'" class="h-3 w-3"></i>
+                                        <span x-text="idStatusFor({{ $enrollment->id }}).emergency_contact_submitted ? 'Contact' : 'No contact'"></span>
+                                    </span>
+                                    <span x-show="!idStatusFor({{ $enrollment->id }}).generated"
+                                          x-cloak
+                                          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold leading-none"
+                                          :class="idStatusFor({{ $enrollment->id }}).photo_submitted ? 'bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/20' : 'bg-slate-400/10 text-slate-300 ring-1 ring-white/10'">
+                                        <i :data-lucide="idStatusFor({{ $enrollment->id }}).photo_submitted ? 'image-check' : 'image-off'" class="h-3 w-3"></i>
+                                        <span x-text="idStatusFor({{ $enrollment->id }}).photo_submitted ? 'Photo' : 'No photo'"></span>
+                                    </span>
+                                    <span x-show="!idStatusFor({{ $enrollment->id }}).generated"
+                                          x-cloak
+                                          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold leading-none"
+                                          :class="idStatusFor({{ $enrollment->id }}).signature_submitted ? 'bg-violet-400/15 text-violet-100 ring-1 ring-violet-300/20' : 'bg-slate-400/10 text-slate-300 ring-1 ring-white/10'">
+                                        <i :data-lucide="idStatusFor({{ $enrollment->id }}).signature_submitted ? 'pen-line' : 'pen-off'" class="h-3 w-3"></i>
+                                        <span x-text="idStatusFor({{ $enrollment->id }}).signature_submitted ? 'Sign' : 'No sign'"></span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold leading-none"
+                                          :class="idStatusFor({{ $enrollment->id }}).generated ? 'bg-blue-400/15 text-blue-100 ring-1 ring-blue-300/20' : 'bg-amber-400/10 text-amber-100 ring-1 ring-amber-300/15'">
+                                        <i :data-lucide="idStatusFor({{ $enrollment->id }}).generated ? 'badge-check' : 'badge'" class="h-3 w-3"></i>
+                                        <span x-text="idStatusFor({{ $enrollment->id }}).generated ? 'Generated' : 'Pending'"></span>
+                                    </span>
+                                </div>
+                            </td>
                             <td class="px-5 py-3.5 text-right">
+                                <div class="flex justify-end gap-1.5">
+                                    <label title="Upload photo" class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-500/10 text-cyan-100 transition hover:bg-cyan-500/20">
+                                        <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                        <span class="sr-only">Upload photo</span>
+                                        <input type="file"
+                                               accept="image/png,image/jpeg,image/webp"
+                                               class="sr-only"
+                                               @change="uploadIdAsset($event, '{{ route('enrollments.id-photo', $enrollment) }}', {{ $enrollment->id }}, 'photo')">
+                                    </label>
+                                    <label title="Upload signature" class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-violet-300/20 bg-violet-500/10 text-violet-100 transition hover:bg-violet-500/20">
+                                        <i data-lucide="pen-line" class="h-3.5 w-3.5"></i>
+                                        <span class="sr-only">Upload signature</span>
+                                        <input type="file"
+                                               accept="image/png,image/jpeg,image/webp"
+                                               class="sr-only"
+                                               @change="uploadIdAsset($event, '{{ route('enrollments.id-signature', $enrollment) }}', {{ $enrollment->id }}, 'signature')">
+                                    </label>
+                                    <button type="button"
+                                            @click="previewIdCard('{{ route('enrollments.id-card-data', $enrollment) }}')"
+                                            title="Preview ID"
+                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-slate-100 transition hover:bg-white/15">
+                                        <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+                                        <span class="sr-only">Preview ID</span>
+                                    </button>
                                 <button type="button"
-                                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-300/20 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/25">
+                                        @click="generateIdCard('{{ route('enrollments.id-card-data', $enrollment) }}', '{{ route('enrollments.id-generated', $enrollment) }}', {{ $enrollment->id }})"
+                                        title="Generate ID"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-500/15 text-blue-100 transition hover:bg-blue-500/25">
                                     <i data-lucide="badge" class="h-3.5 w-3.5"></i>
-                                    Generate ID
+                                    <span class="sr-only">Generate ID</span>
                                 </button>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-slate-300">
+                            <td colspan="7" class="px-5 py-12 text-center text-slate-300">
                                 <i data-lucide="inbox" class="mx-auto mb-2 h-8 w-8 opacity-40"></i>
                                 <p class="text-sm">No enrollments yet.</p>
                             </td>
@@ -352,6 +418,38 @@
             </table>
         </div>
     </section>
+
+    <div x-show="idPreview.open"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
+         @click.self="closeIdPreview()"
+         @keydown.escape.window="closeIdPreview()">
+        <div class="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#101a2d] shadow-2xl shadow-black/40">
+            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                    <h3 class="text-base font-extrabold text-white">ID Preview</h3>
+                    <p class="text-xs text-slate-400">Preview only. Use Generate ID to download the JPEG.</p>
+                </div>
+                <button type="button"
+                        @click="closeIdPreview()"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+            <div class="overflow-auto p-5">
+                <template x-if="idPreview.loading">
+                    <div class="flex min-h-72 items-center justify-center text-sm font-semibold text-slate-300">
+                        Rendering preview...
+                    </div>
+                </template>
+                <template x-if="!idPreview.loading && idPreview.image">
+                    <img :src="idPreview.image"
+                         alt="Generated ID preview"
+                         class="mx-auto max-h-[72vh] max-w-full rounded-2xl bg-white shadow-xl">
+                </template>
+            </div>
+        </div>
+    </div>
 
     @if(auth()->user()->user_type === 'admin')
         <section x-show="activeTab === 'configuration'" x-cloak>
@@ -365,6 +463,17 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+    @foreach($idFonts ?? [] as $font)
+        @font-face {
+            font-family: @js($font['family']);
+            src: url(@js($font['url'])) format('{{ $font['extension'] === 'otf' ? 'opentype' : ($font['extension'] === 'ttf' ? 'truetype' : $font['extension']) }}');
+            font-style: normal;
+            font-weight: 100 900;
+            font-display: swap;
+        }
+    @endforeach
+</style>
 
 <script>
     if (window.pdfjsLib) {
@@ -383,8 +492,20 @@
             search: '',
             idSearch: '',
             statusFilter: '',
+            idGenerationFilter: '',
             stats: @json($stats),
+            academicYear: @json($academicYear),
             enrollmentStatuses: @json($allEnrollments->pluck('enrollment_status', 'id')),
+            idGenerationStatuses: @json($idGenerationStatuses),
+            idGenerationStatusUrl: @json(route('id-generation.statuses')),
+            idGenerationRefreshTimer: null,
+            idFonts: @json($idFonts ?? []),
+            registeredIdFonts: {},
+            idPreview: {
+                open: false,
+                loading: false,
+                image: '',
+            },
             subjectCount: {{ $subjects->count() }},
             addedSubjects: [],
             addedDays: [],
@@ -404,10 +525,29 @@
                 form: 'New Enrollment',
             },
             init() {
+                this.registerDashboardIdFonts();
+                window.addEventListener('id-font-uploaded', (event) => {
+                    const font = event.detail?.font;
+                    if (!font) return;
+
+                    this.idFonts = [
+                        ...(this.idFonts || []).filter((item) => item.family !== font.family),
+                        font,
+                    ];
+                    this.registerDashboardIdFont(font);
+                });
                 this.$watch('activeTab', (tab) => {
                     window.dispatchEvent(new CustomEvent('dashboard-tab-changed', { detail: { tab } }));
+                    if (tab === 'id-generation') {
+                        this.refreshIdGenerationStatuses();
+                    }
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
+                this.idGenerationRefreshTimer = setInterval(() => {
+                    if (this.activeTab === 'id-generation') {
+                        this.refreshIdGenerationStatuses();
+                    }
+                }, 7000);
             },
             switchTab(tab) {
                 if (tab !== this.activeTab) {
@@ -536,6 +676,12 @@
 
                 return response.json();
             },
+            setAcademicYear(value) {
+                this.academicYear = value;
+                window.dispatchEvent(new CustomEvent('academic-year-updated', {
+                    detail: { academicYear: value },
+                }));
+            },
             async deleteAcademicItem(form) {
                 return this.deleteSubject(form);
             },
@@ -566,8 +712,359 @@
             matchesIdGeneration(rowText, enrollmentId) {
                 const status = this.enrollmentStatuses[enrollmentId];
                 const matchesText = !this.idSearch || rowText.toLowerCase().includes(this.idSearch.toLowerCase());
+                const idStatus = this.idStatusFor(enrollmentId);
+                const matchesGeneratedFilter = !this.idGenerationFilter
+                    || (this.idGenerationFilter === 'generated' && idStatus.generated)
+                    || (this.idGenerationFilter === 'pending' && !idStatus.generated);
 
-                return status === 'enrolled' && matchesText;
+                return status === 'enrolled' && matchesText && matchesGeneratedFilter;
+            },
+            idStatusFor(enrollmentId) {
+                return this.idGenerationStatuses[enrollmentId] || {
+                    requirements_submitted: false,
+                    emergency_contact_submitted: false,
+                    photo_submitted: false,
+                    signature_submitted: false,
+                    requirements_status: 'not_submitted',
+                    submitted_at: null,
+                    generated: false,
+                    generated_at: null,
+                    status: 'draft',
+                };
+            },
+            async refreshIdGenerationStatuses() {
+                try {
+                    const response = await fetch(this.idGenerationStatusUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    this.idGenerationStatuses = {
+                        ...this.idGenerationStatuses,
+                        ...(data.statuses || {}),
+                    };
+                    this.$nextTick(() => window.lucide?.createIcons());
+                } catch (error) {
+                    // Keep the current list visible if a background refresh fails.
+                }
+            },
+            async markIdGenerated(url, enrollmentId) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token || '',
+                    },
+                });
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+                if (data.status) {
+                    this.idGenerationStatuses[enrollmentId] = data.status;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                }
+            },
+            async uploadIdAsset(event, url, enrollmentId, fieldName = 'photo') {
+                const input = event.target;
+                const file = input.files?.[0];
+
+                if (!file) return;
+
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const formData = new FormData();
+                formData.append(fieldName, file);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': token || '',
+                        },
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Unable to upload student photo.');
+                    }
+
+                    if (data.status) {
+                        this.idGenerationStatuses[enrollmentId] = data.status;
+                    }
+
+                    const label = fieldName === 'signature' ? 'Signature' : 'Photo';
+                    this.showToast('success', `${label} uploaded`, `${label} is ready for ID generation.`);
+                    this.$nextTick(() => window.lucide?.createIcons());
+                } catch (error) {
+                    this.showToast('error', 'Upload failed', error.message);
+                } finally {
+                    input.value = '';
+                }
+            },
+            async buildIdOutput(url) {
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Unable to render ID.');
+                }
+
+                const renderedSides = [];
+
+                for (const template of data.templates || []) {
+                    renderedSides.push(await this.renderIdSide(template, data.student));
+                }
+
+                if (renderedSides.length === 0) {
+                    throw new Error('No mapped ID template is available.');
+                }
+
+                const gap = renderedSides.length > 1 ? 32 : 0;
+                const outputWidth = Math.max(...renderedSides.map((canvas) => canvas.width));
+                const outputHeight = renderedSides.reduce((sum, canvas) => sum + canvas.height, 0) + gap;
+                const output = document.createElement('canvas');
+                output.width = outputWidth;
+                output.height = outputHeight;
+                const context = output.getContext('2d');
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, output.width, output.height);
+
+                let y = 0;
+                renderedSides.forEach((canvas, index) => {
+                    context.drawImage(canvas, (outputWidth - canvas.width) / 2, y);
+                    y += canvas.height + (index === 0 ? gap : 0);
+                });
+
+                return {
+                    image: output.toDataURL('image/jpeg', 0.95),
+                    fileName: data.student?.file_name || 'student-id.jpg',
+                };
+            },
+            async previewIdCard(url) {
+                this.idPreview.open = true;
+                this.idPreview.loading = true;
+                this.idPreview.image = '';
+                this.$nextTick(() => window.lucide?.createIcons());
+
+                try {
+                    const output = await this.buildIdOutput(url);
+                    this.idPreview.image = output.image;
+                } catch (error) {
+                    this.idPreview.open = false;
+                    this.showToast('error', 'Preview failed', error.message);
+                } finally {
+                    this.idPreview.loading = false;
+                }
+            },
+            closeIdPreview() {
+                this.idPreview.open = false;
+                this.idPreview.loading = false;
+                this.idPreview.image = '';
+            },
+            async generateIdCard(url, markUrl = null, enrollmentId = null) {
+                try {
+                    const output = await this.buildIdOutput(url);
+                    const link = document.createElement('a');
+                    link.href = output.image;
+                    link.download = output.fileName;
+                    link.click();
+
+                    if (markUrl && enrollmentId) {
+                        await this.markIdGenerated(markUrl, enrollmentId);
+                    }
+
+                    this.showToast('success', 'ID generated', 'JPEG download is ready.');
+                } catch (error) {
+                    this.showToast('error', 'Generation failed', error.message);
+                }
+            },
+            async renderIdSide(template, student) {
+                const canvas = document.createElement('canvas');
+                canvas.width = Number(template.width || 540);
+                canvas.height = Number(template.height || 340);
+                const context = canvas.getContext('2d');
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+
+                const background = await this.loadCanvasImage(template.background);
+                context.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+                for (const field of template.fields || []) {
+                    if (field.type === 'image') {
+                        const source = field.key === 'signature' ? student.signature : student.photo;
+                        if (!source) continue;
+
+                        const image = await this.loadCanvasImage(source);
+                        this.drawMaskedImage(context, image, field);
+                    } else {
+                        await this.ensureIdFontLoaded(field);
+                        this.drawIdText(context, student.fields?.[field.key] || '', field);
+                    }
+                }
+
+                return canvas;
+            },
+            loadCanvasImage(source) {
+                return new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.onload = () => resolve(image);
+                    image.onerror = () => reject(new Error('Unable to load ID image assets.'));
+                    image.src = source;
+                });
+            },
+            async registerDashboardIdFonts() {
+                for (const font of this.idFonts || []) {
+                    await this.registerDashboardIdFont(font);
+                }
+            },
+            async registerDashboardIdFont(font) {
+                if (!font?.family || !font?.url || !window.FontFace || !document.fonts || this.registeredIdFonts[font.family]) {
+                    return;
+                }
+
+                try {
+                    const face = new FontFace(font.family, `url(${font.url})`, {
+                        style: 'normal',
+                        weight: '100 900',
+                    });
+                    const loadedFace = await face.load();
+                    document.fonts.add(loadedFace);
+                    this.registeredIdFonts[font.family] = true;
+                } catch (error) {
+                    this.registeredIdFonts[font.family] = false;
+                }
+            },
+            async ensureIdFontLoaded(field) {
+                if (!document.fonts || !field.font_family) return;
+
+                try {
+                    const font = (this.idFonts || []).find((item) => item.family === field.font_family);
+                    if (font) {
+                        await this.registerDashboardIdFont(font);
+                    }
+
+                    const fontSize = Number(field.font_size || 14);
+                    const fontFamily = field.font_family;
+                    const fontWeight = field.font_weight || '700';
+                    await document.fonts.load(`normal ${fontSize}px "${fontFamily}"`);
+                    await document.fonts.load(`${fontWeight} ${fontSize}px "${fontFamily}"`);
+                    await document.fonts.ready;
+                } catch (error) {
+                    // Browser canvas will fall back to Arial if the font cannot load.
+                }
+            },
+            drawIdText(context, value, field) {
+                const text = String(value || '').trim();
+                if (!text) return;
+
+                const x = Number(field.x || 0);
+                const y = Number(field.y || 0);
+                const width = Number(field.width || 120);
+                const height = Number(field.height || 24);
+                const fontSize = Number(field.font_size || 14);
+                const lineHeight = fontSize * 1.12;
+                const fontFamily = field.font_family || 'Arial';
+                const fontWeight = field.font_weight || '700';
+
+                context.save();
+                context.beginPath();
+                context.rect(x, y, width, height);
+                context.clip();
+                context.font = `${fontWeight} ${fontSize}px "${fontFamily}", Arial, sans-serif`;
+                context.fillStyle = field.font_color || '#111827';
+                context.textBaseline = 'top';
+
+                const words = text.split(/\s+/);
+                const lines = [];
+                let line = '';
+
+                words.forEach((word) => {
+                    const testLine = line ? `${line} ${word}` : word;
+                    if (context.measureText(testLine).width <= width || !line) {
+                        line = testLine;
+                    } else {
+                        lines.push(line);
+                        line = word;
+                    }
+                });
+
+                if (line) lines.push(line);
+
+                lines.slice(0, Math.max(1, Math.floor(height / lineHeight))).forEach((textLine, index) => {
+                    context.fillText(textLine, x, y + (index * lineHeight));
+                });
+
+                context.restore();
+            },
+            drawMaskedImage(context, image, field) {
+                const x = Number(field.x || 0);
+                const y = Number(field.y || 0);
+                const width = Number(field.width || 120);
+                const height = Number(field.height || 120);
+
+                context.save();
+                this.applyIdImageMask(context, x, y, width, height, field.shape || 'rectangle');
+                context.clip();
+
+                const fit = field.object_fit || 'cover';
+                const imageRatio = image.width / image.height;
+                const boxRatio = width / height;
+                let drawWidth = width;
+                let drawHeight = height;
+
+                if ((fit === 'cover' && imageRatio > boxRatio) || (fit === 'contain' && imageRatio < boxRatio)) {
+                    drawHeight = height;
+                    drawWidth = height * imageRatio;
+                } else {
+                    drawWidth = width;
+                    drawHeight = width / imageRatio;
+                }
+
+                const drawX = x + ((width - drawWidth) / 2);
+                const drawY = y + ((height - drawHeight) / 2);
+                context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+                context.restore();
+            },
+            applyIdImageMask(context, x, y, width, height, shape) {
+                context.beginPath();
+
+                if (shape === 'circle' || shape === 'oval') {
+                    context.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+                    return;
+                }
+
+                if (shape === 'hexagon') {
+                    context.moveTo(x + width * 0.5, y);
+                    context.lineTo(x + width * 0.93, y + height * 0.25);
+                    context.lineTo(x + width * 0.93, y + height * 0.75);
+                    context.lineTo(x + width * 0.5, y + height);
+                    context.lineTo(x + width * 0.07, y + height * 0.75);
+                    context.lineTo(x + width * 0.07, y + height * 0.25);
+                    context.closePath();
+                    return;
+                }
+
+                if (shape === 'rounded') {
+                    context.roundRect(x, y, width, height, 14);
+                    return;
+                }
+
+                context.rect(x, y, width, height);
             },
             templateMapper(config) {
                 return {
@@ -577,6 +1074,8 @@
                     idTemplates: config.idTemplates || { front: config.idTemplate?.side === 'front' ? config.idTemplate : null, back: config.idTemplate?.side === 'back' ? config.idTemplate : null },
                     idTemplateSide: config.idTemplate?.side || (config.idTemplates?.front ? 'front' : 'back'),
                     idFields: config.idFields,
+                    idFonts: config.idFonts || [],
+                    idFontUploadUrl: config.idFontUploadUrl,
                     templateSection: 'enrollment',
                     selectedField: config.fields[0]?.key || null,
                     selectedIdField: config.idFields[0]?.key || null,
@@ -742,6 +1241,52 @@
                         window.dispatchEvent(new CustomEvent('dashboard-toast', {
                             detail: { type: 'success', title: 'ID template uploaded', message: 'Background is ready for mapping.' },
                         }));
+                    },
+                    async uploadIdFont(form) {
+                        const response = await fetch(form.action || this.idFontUploadUrl, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Unable to upload font.');
+                        }
+
+                        this.idFonts = [
+                            ...this.idFonts.filter((font) => font.family !== data.font.family),
+                            data.font,
+                        ];
+                        if (this.$root?._x_dataStack?.[0]) {
+                            const dashboard = this.$root._x_dataStack[0];
+                            dashboard.idFonts = [
+                                ...(dashboard.idFonts || []).filter((font) => font.family !== data.font.family),
+                                data.font,
+                            ];
+                            await dashboard.registerDashboardIdFont?.(data.font);
+                        }
+                        await this.registerIdFont(data.font);
+                        window.dispatchEvent(new CustomEvent('id-font-uploaded', { detail: { font: data.font } }));
+                        form.reset();
+                        window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                            detail: { type: 'success', title: 'Font uploaded', message: `${data.font.family} is now available.` },
+                        }));
+                    },
+                    async registerIdFont(font) {
+                        if (!font?.family || !font?.url || !window.FontFace || !document.fonts) return;
+
+                        try {
+                            const face = new FontFace(font.family, `url(${font.url})`);
+                            const loadedFace = await face.load();
+                            document.fonts.add(loadedFace);
+                        } catch (error) {
+                            // The select can still show the font; browser CSS fallback handles failed loads.
+                        }
                     },
                     async renderPdf() {
                         if (!this.template?.pdf_url || !window.pdfjsLib || !this.$refs.pdfCanvas) return;
@@ -1076,6 +1621,7 @@
                             font_size: Number(existing.font_size || field?.font_size || this.idGlobalTextSize),
                             font_family: existing.font_family || field?.font_family || 'Arial',
                             font_weight: existing.font_weight || field?.font_weight || '700',
+                            font_color: existing.font_color || field?.font_color || '#111827',
                             shape: field?.locked_shape ? 'rectangle' : (existing.shape || field?.shape || 'rectangle'),
                             object_fit: existing.object_fit || field?.object_fit || 'cover',
                             locked_shape: Boolean(existing.locked_shape || field?.locked_shape),
@@ -1103,7 +1649,7 @@
                         const fontSize = (Number(mapping.font_size || this.idGlobalTextSize) / this.idTemplate.height) * this.idCanvasHeight;
                         const lineHeight = mapping.type === 'text' ? 1.12 : 1;
 
-                        return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: ${mapping.font_family || 'Arial'}; font-weight: ${mapping.font_weight || '700'};`;
+                        return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: ${mapping.font_family || 'Arial'}; font-weight: ${mapping.font_weight || '700'}; color: ${mapping.font_color || '#111827'};`;
                     },
                     idTextBoxStyle(mapping) {
                         const selected = this.selectedIdField === mapping.key;
@@ -1118,6 +1664,7 @@
                             'word-break: normal',
                             'box-sizing: border-box',
                             'padding: 1px 2px',
+                            `color: ${mapping.font_color || '#111827'}`,
                             `border: 1px ${selected ? 'solid rgba(21, 82, 212, 0.95)' : 'dashed rgba(21, 82, 212, 0.65)'}`,
                             `background: ${selected ? 'rgba(21, 82, 212, 0.08)' : 'rgba(255, 255, 255, 0.12)'}`,
                         ].join('; ');

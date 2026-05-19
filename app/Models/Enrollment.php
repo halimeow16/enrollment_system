@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Enrollment extends Model
@@ -37,5 +38,10 @@ class Enrollment extends Model
         return $this->belongsToMany(Subject::class, 'enrollment_subjects')
             ->withPivot(['lecture_units', 'laboratory_units', 'total_units'])
             ->withTimestamps();
+    }
+
+    public function studentId(): HasOne
+    {
+        return $this->hasOne(StudentId::class);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Day;
+use App\Models\AppSetting;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
@@ -15,6 +16,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -36,6 +39,22 @@ class AcademicConfigurationController extends Controller
         }
 
         return back()->with('success', 'Subject added.');
+    }
+
+    public function updateAcademicYear(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'academic_year' => ['required', 'string', 'max:20', 'regex:/^\d{4}-\d{4}$/'],
+        ], [
+            'academic_year.regex' => 'Use the format YYYY-YYYY, for example 2026-2027.',
+        ]);
+
+        AppSetting::setValue('academic_year', $data['academic_year']);
+
+        return response()->json([
+            'message' => 'Academic year updated.',
+            'academic_year' => $data['academic_year'],
+        ]);
     }
 
     public function updateSubject(Request $request, Subject $subject): RedirectResponse|JsonResponse
@@ -382,6 +401,7 @@ class AcademicConfigurationController extends Controller
             'fields.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:80'],
             'fields.*.font_family' => ['nullable', 'string', 'max:80'],
             'fields.*.font_weight' => ['nullable', 'string', 'max:20'],
+            'fields.*.font_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'fields.*.shape' => ['nullable', Rule::in(['rectangle', 'rounded', 'circle', 'oval', 'hexagon'])],
             'fields.*.object_fit' => ['nullable', Rule::in(['cover', 'contain'])],
             'fields.*.locked_shape' => ['nullable', 'boolean'],
@@ -402,6 +422,7 @@ class AcademicConfigurationController extends Controller
                     'font_size' => round((float) ($field['font_size'] ?? 12), 1),
                     'font_family' => $field['font_family'] ?? 'Arial',
                     'font_weight' => $field['font_weight'] ?? '700',
+                    'font_color' => $field['font_color'] ?? '#111827',
                     'shape' => $field['shape'] ?? 'rectangle',
                     'object_fit' => $field['object_fit'] ?? 'cover',
                     'locked_shape' => (bool) ($field['locked_shape'] ?? false),
@@ -413,6 +434,39 @@ class AcademicConfigurationController extends Controller
             'message' => 'ID template layout saved.',
             'template' => $this->idTemplatePayload($template->fresh()),
         ]);
+    }
+
+    public function storeIdTemplateFont(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'font_file' => ['required', 'file', 'max:5120'],
+        ], [
+            'font_file.required' => 'Choose a font file to upload.',
+        ]);
+
+        $file = $data['font_file'];
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (! in_array($extension, ['ttf', 'otf', 'woff', 'woff2'], true)) {
+            throw ValidationException::withMessages([
+                'font_file' => 'Upload a TTF, OTF, WOFF, or WOFF2 font file.',
+            ]);
+        }
+
+        $baseName = Str::of(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+            ->slug('-')
+            ->limit(80, '')
+            ->toString() ?: 'id-font';
+        $path = $file->storeAs('id-template-fonts', $baseName . '.' . $extension, 'public');
+
+        return response()->json([
+            'message' => 'Font uploaded.',
+            'font' => [
+                'family' => Str::of($baseName)->headline()->toString(),
+                'url' => '/storage/' . ltrim($path, '/'),
+                'extension' => $extension,
+            ],
+        ], 201);
     }
 
     public function showIdTemplateBackground(IdTemplate $template)

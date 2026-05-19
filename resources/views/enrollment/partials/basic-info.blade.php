@@ -11,7 +11,7 @@
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-600 mb-1">School Year <span class="text-red-500">*</span></label>
-        <input type="text" name="school_year" required
+        <input type="text" name="school_year" value="{{ old('school_year', $academicYear ?? '2026-2027') }}" required readonly
                class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
     </div>
 </div>
