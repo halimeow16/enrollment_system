@@ -54,5 +54,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');
         Route::put('/templates/{template}/mappings', [AcademicConfigurationController::class, 'updateEnrollmentTemplateMappings'])->name('templates.mappings.update');
         Route::get('/templates/{template}/pdf', [AcademicConfigurationController::class, 'showEnrollmentTemplatePdf'])->name('templates.pdf');
+        Route::post('/id-templates', [AcademicConfigurationController::class, 'storeIdTemplate'])->name('id-templates.store');
+        Route::put('/id-templates/{template}/layout', [AcademicConfigurationController::class, 'updateIdTemplateLayout'])->name('id-templates.layout.update');
+        Route::get('/id-templates/{template}/background', [AcademicConfigurationController::class, 'showIdTemplateBackground'])->name('id-templates.background');
     });
 });

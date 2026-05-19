@@ -6,6 +6,7 @@ use App\Models\Day;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
+use App\Models\IdTemplate;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -325,6 +326,102 @@ class AcademicConfigurationController extends Controller
         ]);
     }
 
+    public function storeIdTemplate(Request $request): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+            'side' => ['required', Rule::in(['front', 'back'])],
+            'school_year' => ['nullable', 'string', 'max:20'],
+            'background_image' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
+        $file = $request->file('background_image');
+        $path = $file->store('id-templates', 'public');
+        [$width, $height] = getimagesize(Storage::disk('public')->path($path)) ?: [540, 340];
+
+        $template = DB::transaction(function () use ($data, $path, $width, $height): IdTemplate {
+            IdTemplate::where('side', $data['side'])->where('is_active', true)->update(['is_active' => false]);
+
+            return IdTemplate::create([
+                'name' => $data['name'] ?: ucfirst($data['side']) . ' ID Template',
+                'side' => $data['side'],
+                'school_year' => $data['school_year'] ?? null,
+                'background_image_path' => $path,
+                'layout_config' => [
+                    'width' => (float) $width,
+                    'height' => (float) $height,
+                    'fields' => [],
+                ],
+                'is_active' => true,
+            ]);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'ID template uploaded.',
+                'template' => $this->idTemplatePayload($template),
+            ], 201);
+        }
+
+        return back()->with('success', 'ID template uploaded.');
+    }
+
+    public function updateIdTemplateLayout(Request $request, IdTemplate $template): JsonResponse
+    {
+        $data = $request->validate([
+            'width' => ['required', 'numeric', 'min:1'],
+            'height' => ['required', 'numeric', 'min:1'],
+            'fields' => ['present', 'array'],
+            'fields.*.key' => ['required', 'string', 'max:80'],
+            'fields.*.label' => ['required', 'string', 'max:120'],
+            'fields.*.type' => ['required', Rule::in(['text', 'image'])],
+            'fields.*.x' => ['required', 'numeric', 'min:0'],
+            'fields.*.y' => ['required', 'numeric', 'min:0'],
+            'fields.*.width' => ['required', 'numeric', 'min:1'],
+            'fields.*.height' => ['required', 'numeric', 'min:1'],
+            'fields.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:80'],
+            'fields.*.font_family' => ['nullable', 'string', 'max:80'],
+            'fields.*.font_weight' => ['nullable', 'string', 'max:20'],
+            'fields.*.shape' => ['nullable', Rule::in(['rectangle', 'rounded', 'circle', 'oval', 'hexagon'])],
+            'fields.*.object_fit' => ['nullable', Rule::in(['cover', 'contain'])],
+            'fields.*.locked_shape' => ['nullable', 'boolean'],
+        ]);
+
+        $template->update([
+            'layout_config' => [
+                'width' => round((float) $data['width'], 2),
+                'height' => round((float) $data['height'], 2),
+                'fields' => collect($data['fields'])->map(fn ($field) => [
+                    'key' => $field['key'],
+                    'label' => $field['label'],
+                    'type' => $field['type'],
+                    'x' => round((float) $field['x'], 2),
+                    'y' => round((float) $field['y'], 2),
+                    'width' => round((float) $field['width'], 2),
+                    'height' => round((float) $field['height'], 2),
+                    'font_size' => round((float) ($field['font_size'] ?? 12), 1),
+                    'font_family' => $field['font_family'] ?? 'Arial',
+                    'font_weight' => $field['font_weight'] ?? '700',
+                    'shape' => $field['shape'] ?? 'rectangle',
+                    'object_fit' => $field['object_fit'] ?? 'cover',
+                    'locked_shape' => (bool) ($field['locked_shape'] ?? false),
+                ])->values()->all(),
+            ],
+        ]);
+
+        return response()->json([
+            'message' => 'ID template layout saved.',
+            'template' => $this->idTemplatePayload($template->fresh()),
+        ]);
+    }
+
+    public function showIdTemplateBackground(IdTemplate $template)
+    {
+        abort_unless($template->background_image_path && Storage::disk('public')->exists($template->background_image_path), 404);
+
+        return response()->file(Storage::disk('public')->path($template->background_image_path));
+    }
+
     private function applyFixedSubjectUnits(array $data): array
     {
         $data['lecture_units'] = (int) $data['lecture_units'];
@@ -408,6 +505,23 @@ class AcademicConfigurationController extends Controller
             'field_mappings' => $template->field_mappings ?? [],
             'pdf_url' => route('academic.templates.pdf', $template),
             'save_url' => route('academic.templates.mappings.update', $template),
+        ];
+    }
+
+    private function idTemplatePayload(IdTemplate $template): array
+    {
+        $layout = $template->layout_config ?? [];
+
+        return [
+            'id' => $template->id,
+            'name' => $template->name,
+            'side' => $template->side,
+            'school_year' => $template->school_year,
+            'background_url' => route('academic.id-templates.background', $template),
+            'save_url' => route('academic.id-templates.layout.update', $template),
+            'width' => (float) ($layout['width'] ?? 540),
+            'height' => (float) ($layout['height'] ?? 340),
+            'fields' => $layout['fields'] ?? [],
         ];
     }
 }

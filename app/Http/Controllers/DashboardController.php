@@ -7,6 +7,7 @@ use App\Models\Day;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
+use App\Models\IdTemplate;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -145,6 +146,28 @@ class DashboardController extends Controller
             'pdf_url' => route('academic.templates.pdf', $activeEnrollmentTemplate),
             'save_url' => route('academic.templates.mappings.update', $activeEnrollmentTemplate),
         ] : null;
+        $idTemplates = IdTemplate::where('is_active', true)
+            ->whereIn('side', ['front', 'back'])
+            ->latest()
+            ->get()
+            ->unique('side')
+            ->keyBy('side');
+        $idTemplatePayloads = collect(['front', 'back'])->mapWithKeys(function ($side) use ($idTemplates) {
+            $template = $idTemplates->get($side);
+
+            return [$side => $template ? [
+                'id' => $template->id,
+                'name' => $template->name,
+                'side' => $template->side,
+                'school_year' => $template->school_year,
+                'background_url' => route('academic.id-templates.background', $template),
+                'save_url' => route('academic.id-templates.layout.update', $template),
+                'width' => (float) ($template->layout_config['width'] ?? 540),
+                'height' => (float) ($template->layout_config['height'] ?? 340),
+                'fields' => $template->layout_config['fields'] ?? [],
+            ] : null];
+        })->all();
+        $idTemplatePayload = $idTemplatePayloads['front'] ?? $idTemplatePayloads['back'] ?? null;
 
         return view('dashboard.index', compact(
             'stats',
@@ -161,7 +184,9 @@ class DashboardController extends Controller
             'feeRows',
             'feeTypes',
             'activeEnrollmentTemplate',
-            'enrollmentTemplatePayload'
+            'enrollmentTemplatePayload',
+            'idTemplatePayloads',
+            'idTemplatePayload'
         ));
     }
 

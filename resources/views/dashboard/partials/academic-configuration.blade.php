@@ -888,6 +888,19 @@
                         { key: 'credential_long_folder', label: 'Long Folder Check', type: 'check' },
                         { key: 'credential_picture', label: 'Picture Check', type: 'check' },
                     ],
+                    idTemplate: @js($idTemplatePayload),
+                    idTemplates: @js($idTemplatePayloads),
+                    idFields: [
+                        { key: 'student_photo', label: 'Student Photo', type: 'image', width: 120, height: 140, shape: 'rectangle', object_fit: 'cover' },
+                        { key: 'signature', label: 'Signature', type: 'image', width: 160, height: 48, shape: 'rectangle', object_fit: 'contain', locked_shape: true },
+                        { key: 'student_number', label: 'Student ID', type: 'text', width: 150, height: 24, font_size: 16, font_family: 'Arial', font_weight: '700' },
+                        { key: 'full_name', label: 'Name', type: 'text', width: 260, height: 28, font_size: 20, font_family: 'Arial', font_weight: '800' },
+                        { key: 'present_address', label: 'Address', type: 'text', width: 260, height: 44, font_size: 12, font_family: 'Arial', font_weight: '600' },
+                        { key: 'course_code', label: 'Course', type: 'text', width: 120, height: 24, font_size: 15, font_family: 'Arial', font_weight: '700' },
+                        { key: 'year_level', label: 'Year Level', type: 'text', width: 110, height: 22, font_size: 14, font_family: 'Arial', font_weight: '700' },
+                        { key: 'date_of_birth', label: 'Birthday', type: 'text', width: 150, height: 22, font_size: 14, font_family: 'Arial', font_weight: '600' },
+                        { key: 'school_year', label: 'School Year', type: 'text', width: 140, height: 22, font_size: 13, font_family: 'Arial', font_weight: '600' },
+                    ],
                  })"
                  x-init="init()"
                  class="space-y-5">
@@ -1113,16 +1126,350 @@
 
             <section x-show="templateSection === 'id'"
                      x-cloak
-                     class="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <div class="flex min-h-[520px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 text-center">
-                    <div>
-                        <i data-lucide="badge" class="mx-auto h-10 w-10 text-blue-200"></i>
-                        <h3 class="mt-3 text-base font-extrabold text-white">ID Template</h3>
-                        <p class="mt-1 max-w-md text-sm text-slate-300">
-                            Blank workspace reserved for student ID layout mapping.
-                        </p>
+                     class="grid grid-cols-12 gap-5">
+                <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-3">
+                    <h3 class="font-extrabold text-white">ID Template</h3>
+                    <p class="mt-1 text-xs text-slate-300">Upload a blank ID background, then place text and photo fields.</p>
+
+                    <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button"
+                                    @click="switchIdTemplateSide('front')"
+                                    :class="idTemplateSide === 'front' ? 'bg-white text-[#1552d4]' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                                    class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                                Front
+                            </button>
+                            <button type="button"
+                                    @click="switchIdTemplateSide('back')"
+                                    :class="idTemplateSide === 'back' ? 'bg-white text-[#1552d4]' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                                    class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                                Back
+                            </button>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <span :class="idTemplates.front ? 'text-emerald-200' : 'text-slate-500'">
+                                Front <span x-text="idTemplates.front ? 'Ready' : 'Empty'"></span>
+                            </span>
+                            <span :class="idTemplates.back ? 'text-emerald-200' : 'text-slate-500'">
+                                Back <span x-text="idTemplates.back ? 'Ready' : 'Empty'"></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <form action="{{ route('academic.id-templates.store') }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="mt-4 space-y-3"
+                          @submit.prevent="uploadIdTemplate($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
+                        @csrf
+                        <input name="name" placeholder="Template name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select name="side" required x-model="idTemplateSide" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="front">Front</option>
+                                <option value="back">Back</option>
+                            </select>
+                            <input name="school_year" placeholder="A.Y." class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        </div>
+                        <input type="file" name="background_image" accept="image/png,image/jpeg,image/webp" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                            <i data-lucide="upload" class="h-4 w-4"></i>
+                            Upload Background
+                        </button>
+                    </form>
+
+                    <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Active ID File</p>
+                        <template x-if="idTemplate">
+                            <div class="mt-2">
+                                <p class="text-sm font-bold text-white" x-text="idTemplate.name"></p>
+                                <p class="mt-1 text-xs capitalize text-slate-400">
+                                    <span x-text="idTemplate.side"></span>
+                                    <span x-show="idTemplate.school_year">/ <span x-text="idTemplate.school_year"></span></span>
+                                </p>
+                            </div>
+                        </template>
+                        <p x-show="!idTemplate" class="mt-2 text-xs text-slate-400">No ID background uploaded yet.</p>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="mb-2 flex items-center justify-between">
+                            <h4 class="text-sm font-extrabold text-white">Fields</h4>
+                            <span class="text-xs text-slate-400" x-text="`${mappedIdFieldCount()}/${idFields.length}`"></span>
+                        </div>
+                        <div class="max-h-[250px] space-y-2 overflow-y-auto pr-1">
+                            <template x-for="field in idFields" :key="field.key">
+                                <button type="button"
+                                        @click="selectedIdField = field.key"
+                                        :class="selectedIdField === field.key ? 'border-blue-300/40 bg-blue-500/20 text-blue-50' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'"
+                                        class="flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold transition">
+                                    <span x-text="field.label"></span>
+                                    <span :class="isIdFieldMapped(field.key) ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-slate-400'"
+                                          class="rounded-full px-2 py-0.5 text-[10px]"
+                                          x-text="isIdFieldMapped(field.key) ? 'Mapped' : field.type"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                </aside>
+
+                <div @keydown.escape.window="idFullscreen = false"
+                     :class="idFullscreen ? 'fixed inset-4 z-[80] flex flex-col rounded-3xl border border-white/10 bg-[#071224]/95 p-5 shadow-2xl shadow-black/60 backdrop-blur' : 'col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6'"
+                     class="transition">
+                    <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 class="font-extrabold text-white">ID Mapper</h3>
+                            <p class="mt-1 text-xs text-slate-300">Select a field, click the ID, then drag it into place.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/10 p-1 text-xs font-bold text-white">
+                                <button type="button"
+                                        @click="zoomIdStage(-0.1)"
+                                        :disabled="!idTemplate || idZoom <= 0.4"
+                                        class="rounded-md px-2 py-1 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">
+                                    <i data-lucide="minus" class="h-3.5 w-3.5"></i>
+                                </button>
+                                <button type="button"
+                                        @click="resetIdZoom()"
+                                        :disabled="!idTemplate"
+                                        class="min-w-14 rounded-md px-2 py-1 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                        x-text="`${Math.round(idZoom * 100)}%`"></button>
+                                <button type="button"
+                                        @click="zoomIdStage(0.1)"
+                                        :disabled="!idTemplate || idZoom >= 3"
+                                        class="rounded-md px-2 py-1 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">
+                                    <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                                </button>
+                            </div>
+                            <button type="button"
+                                    @click="toggleIdFullscreen()"
+                                    :disabled="!idTemplate"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50">
+                                <i :data-lucide="idFullscreen ? 'minimize-2' : 'maximize-2'" class="h-4 w-4"></i>
+                                <span x-text="idFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"></span>
+                            </button>
+                            <button type="button"
+                                    @click="saveIdLayout().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
+                                    :disabled="!idTemplate || idSaving"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
+                                <i data-lucide="save" class="h-4 w-4"></i>
+                                <span x-text="idSaving ? 'Saving...' : 'Save ID Layouts'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div x-show="!idTemplate" class="flex h-[560px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 text-center">
+                        <div>
+                            <i data-lucide="image-up" class="mx-auto h-10 w-10 text-blue-200"></i>
+                            <p class="mt-3 text-sm font-bold text-white">Upload an ID background first</p>
+                            <p class="mt-1 text-xs text-slate-400">PNG, JPG, or WEBP works best.</p>
+                        </div>
+                    </div>
+
+                    <div x-show="idTemplate"
+                         x-ref="idViewport"
+                         :class="idFullscreen ? 'grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_280px] gap-4 overflow-hidden border-0 bg-transparent p-0' : 'h-[560px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/50 p-4'"
+                         @wheel="zoomIdStageAt($event)">
+                        <aside x-show="idFullscreen" class="min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="mb-3 flex items-center justify-between">
+                                <h4 class="text-sm font-extrabold text-white">Fields</h4>
+                                <span class="text-xs text-slate-400" x-text="`${mappedIdFieldCount()}/${idFields.length}`"></span>
+                            </div>
+                            <div class="h-[calc(100%-2rem)] space-y-2 overflow-y-auto pr-1">
+                                <template x-for="field in idFields" :key="`fullscreen-id-field-${field.key}`">
+                                    <button type="button"
+                                            @click="selectedIdField = field.key"
+                                            :class="selectedIdField === field.key ? 'border-blue-300/40 bg-blue-500/20 text-blue-50' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'"
+                                            class="flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold transition">
+                                        <span x-text="field.label"></span>
+                                        <span :class="isIdFieldMapped(field.key) ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-slate-400'"
+                                              class="rounded-full px-2 py-0.5 text-[10px]"
+                                              x-text="isIdFieldMapped(field.key) ? 'Mapped' : field.type"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </aside>
+
+                        <div :class="idFullscreen ? 'min-h-0 overflow-auto rounded-2xl border border-white/10 bg-slate-950/50 p-4' : 'contents'"
+                             @wheel.stop="zoomIdStageAt($event)">
+                            <div x-ref="idStage"
+                                 @click="placeSelectedIdField($event)"
+                                 :style="idStageZoomStyle()"
+                                 class="relative mx-auto w-max cursor-crosshair overflow-hidden rounded-xl bg-white shadow-2xl shadow-black/30">
+                                <img x-ref="idBackground"
+                                     :src="idTemplate?.background_url"
+                                     @load="refreshIdCanvasSize()"
+                                     class="block max-h-[520px] max-w-full select-none"
+                                     alt="ID template background">
+                                <template x-for="mapping in mappedIdFields()" :key="mapping.key">
+                                    <button type="button"
+                                            @pointerdown.stop="startIdDrag($event, mapping.key)"
+                                            :style="idMarkerStyle(mapping)"
+                                            :class="mapping.type === 'image' ? 'border-blue-500/80 bg-blue-500/10 text-blue-700' : 'border-transparent bg-transparent text-[#1552d4]'"
+                                            class="absolute z-10 overflow-visible rounded-none p-0 text-left font-bold outline-none">
+                                        <template x-if="mapping.type === 'text'">
+                                            <span :style="idTextBoxStyle(mapping)" x-text="mapping.label"></span>
+                                        </template>
+                                        <template x-if="mapping.type === 'image'">
+                                            <span :style="idPhotoMaskStyle(mapping)"
+                                                  class="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-500/80 bg-blue-50/70 text-[10px] font-extrabold uppercase tracking-wide">
+                                                Photo
+                                            </span>
+                                        </template>
+                                        <template x-if="selectedIdField === mapping.key">
+                                            <span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'nw')" class="absolute -left-1.5 -top-1.5 h-3 w-3 cursor-nwse-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'n')" class="absolute left-1/2 -top-1.5 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'ne')" class="absolute -right-1.5 -top-1.5 h-3 w-3 cursor-nesw-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'e')" class="absolute -right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'se')" class="absolute -bottom-1.5 -right-1.5 h-3 w-3 cursor-nwse-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 's')" class="absolute bottom-[-0.375rem] left-1/2 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'sw')" class="absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-nesw-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                                <span @pointerdown.stop="startIdResize($event, mapping.key, 'w')" class="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-full border border-white bg-[#1552d4] shadow"></span>
+                                            </span>
+                                        </template>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <aside x-show="idFullscreen" class="min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <h4 class="text-sm font-extrabold text-white">Inspector</h4>
+                            <p class="mt-1 text-xs text-slate-300">Selected field settings stay available while mapping.</p>
+                            <div x-show="selectedIdMapping()" x-cloak class="mt-3 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                                <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Selected Field</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="text-xs font-semibold text-slate-300">
+                                        Width
+                                        <input type="number" min="1" :value="selectedIdMapping()?.width" @input="updateSelectedIdField('width', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                    </label>
+                                    <label class="text-xs font-semibold text-slate-300">
+                                        Height
+                                        <input type="number" min="1" :value="selectedIdMapping()?.height" @input="updateSelectedIdField('height', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                    </label>
+                                    <label x-show="selectedIdMapping()?.type === 'text'" class="text-xs font-semibold text-slate-300">
+                                        Text Size
+                                        <input type="number" min="4" max="80" :value="selectedIdMapping()?.font_size" @input="updateSelectedIdField('font_size', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                    </label>
+                                    <label x-show="selectedIdMapping()?.type === 'image' && !selectedIdMapping()?.locked_shape" class="text-xs font-semibold text-slate-300">
+                                        Shape
+                                        <select :value="selectedIdMapping()?.shape || 'rectangle'" @change="updateSelectedIdField('shape', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                            <option value="rectangle">Rectangle</option>
+                                            <option value="rounded">Rounded</option>
+                                            <option value="circle">Circle</option>
+                                            <option value="oval">Oval</option>
+                                            <option value="hexagon">Hexagon</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <label x-show="selectedIdMapping()?.type === 'text'" class="block text-xs font-semibold text-slate-300">
+                                    Font
+                                    <select :value="selectedIdMapping()?.font_family" @change="updateSelectedIdField('font_family', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                        <option value="Arial">Arial</option>
+                                        <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Courier New">Courier New</option>
+                                    </select>
+                                </label>
+                                <label x-show="selectedIdMapping()?.type === 'image'" class="block text-xs font-semibold text-slate-300">
+                                    Photo Fit
+                                    <select :value="selectedIdMapping()?.object_fit || 'cover'" @change="updateSelectedIdField('object_fit', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                        <option value="cover">Crop to Fill</option>
+                                        <option value="contain">Fit Inside</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </aside>
                     </div>
                 </div>
+
+                <aside class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-3">
+                    <div x-show="selectedIdMapping()" x-cloak class="mb-4 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Selected Field</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="text-xs font-semibold text-slate-300">
+                                Width
+                                <input type="number" min="1" :value="selectedIdMapping()?.width" @input="updateSelectedIdField('width', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">
+                                Height
+                                <input type="number" min="1" :value="selectedIdMapping()?.height" @input="updateSelectedIdField('height', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                            </label>
+                            <label x-show="selectedIdMapping()?.type === 'text'" class="text-xs font-semibold text-slate-300">
+                                Text Size
+                                <input type="number" min="4" max="80" :value="selectedIdMapping()?.font_size" @input="updateSelectedIdField('font_size', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                            </label>
+                            <label x-show="selectedIdMapping()?.type === 'image' && !selectedIdMapping()?.locked_shape" class="text-xs font-semibold text-slate-300">
+                                Shape
+                                <select :value="selectedIdMapping()?.shape || 'rectangle'" @change="updateSelectedIdField('shape', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                    <option value="rectangle">Rectangle</option>
+                                    <option value="rounded">Rounded</option>
+                                    <option value="circle">Circle</option>
+                                    <option value="oval">Oval</option>
+                                    <option value="hexagon">Hexagon</option>
+                                </select>
+                            </label>
+                            <label x-show="selectedIdMapping()?.type === 'text'" class="text-xs font-semibold text-slate-300">
+                                Weight
+                                <select :value="selectedIdMapping()?.font_weight" @change="updateSelectedIdField('font_weight', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                    <option value="400">Regular</option>
+                                    <option value="600">Semi Bold</option>
+                                    <option value="700">Bold</option>
+                                    <option value="800">Extra Bold</option>
+                                </select>
+                            </label>
+                        </div>
+                        <label x-show="selectedIdMapping()?.type === 'text'" class="block text-xs font-semibold text-slate-300">
+                            Font
+                            <select :value="selectedIdMapping()?.font_family" @change="updateSelectedIdField('font_family', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                <option value="Arial">Arial</option>
+                                <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                        </label>
+                        <label x-show="selectedIdMapping()?.type === 'image'" class="block text-xs font-semibold text-slate-300">
+                            Photo Fit
+                            <select :value="selectedIdMapping()?.object_fit || 'cover'" @change="updateSelectedIdField('object_fit', $event.target.value)" class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs">
+                                <option value="cover">Crop to Fill</option>
+                                <option value="contain">Fit Inside</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <h3 class="font-extrabold text-white">Layout JSON</h3>
+                    <p class="mt-1 text-xs text-slate-300">Coordinates, sizes, and font settings saved for generation.</p>
+
+                    <div class="mt-4 max-h-[540px] space-y-2 overflow-y-auto pr-1">
+                        <template x-for="mapping in mappedIdFields()" :key="`id-position-${mapping.key}`">
+                            <div class="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <p class="font-bold text-white" x-text="mapping.label"></p>
+                                        <p class="mt-1 text-slate-400">
+                                            X: <span x-text="mapping.x"></span>
+                                            <span class="mx-1 text-slate-600">/</span>
+                                            Y: <span x-text="mapping.y"></span>
+                                        </p>
+                                        <p class="mt-1 text-slate-500">
+                                            <span x-text="mapping.width"></span>x<span x-text="mapping.height"></span>
+                                            <span x-show="mapping.type === 'text'"> / <span x-text="mapping.font_size"></span>px</span>
+                                            <span x-show="mapping.type === 'image'"> / <span x-text="mapping.shape || 'rectangle'"></span></span>
+                                        </p>
+                                    </div>
+                                    <button type="button"
+                                            @click="removeIdMapping(mapping.key)"
+                                            class="rounded-lg border border-red-300/20 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-200 transition hover:bg-red-500/20">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <p x-show="mappedIdFields().length === 0" class="rounded-2xl border border-white/10 bg-white/5 p-4 text-center text-sm text-slate-300">
+                            No ID fields mapped yet.
+                        </p>
+                    </div>
+                </aside>
             </section>
         </section>
     </div>

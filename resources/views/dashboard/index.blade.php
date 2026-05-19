@@ -573,22 +573,48 @@
                 return {
                     template: config.template,
                     fields: config.fields,
+                    idTemplate: config.idTemplate,
+                    idTemplates: config.idTemplates || { front: config.idTemplate?.side === 'front' ? config.idTemplate : null, back: config.idTemplate?.side === 'back' ? config.idTemplate : null },
+                    idTemplateSide: config.idTemplate?.side || (config.idTemplates?.front ? 'front' : 'back'),
+                    idFields: config.idFields,
                     templateSection: 'enrollment',
                     selectedField: config.fields[0]?.key || null,
+                    selectedIdField: config.idFields[0]?.key || null,
                     mappings: {},
+                    idMappings: {},
                     loadingPdf: false,
                     saving: false,
+                    idSaving: false,
+                    idSavedLayoutSignatures: {},
                     isFullscreen: false,
+                    idFullscreen: false,
                     isDraggingMarker: false,
+                    isDraggingIdMarker: false,
                     suppressNextPlacement: false,
+                    suppressNextIdPlacement: false,
                     globalTextSize: 10,
+                    idGlobalTextSize: 18,
                     canvasWidth: 0,
                     canvasHeight: 0,
+                    idCanvasWidth: 0,
+                    idCanvasHeight: 0,
+                    idZoom: 1,
                     currentPage: 1,
                     pageCount: 1,
                     renderToken: 0,
                     init() {
                         this.loadMappings();
+                        this.loadIdLayout();
+                        this.captureIdLayoutSignatures();
+                        this.$watch('templateSection', (section) => {
+                            if (section === 'id') {
+                                this.$nextTick(() => {
+                                    this.loadIdLayout();
+                                    this.refreshIdCanvasSize();
+                                    window.lucide?.createIcons();
+                                });
+                            }
+                        });
                         this.$nextTick(() => this.renderPdf());
                     },
                     loadMappings() {
@@ -599,6 +625,66 @@
                             if (validFieldKeys.has(mapping.key)) {
                                 this.mappings[mapping.key] = { ...mapping, page: Number(mapping.page || 1) };
                             }
+                        });
+                    },
+                    loadIdLayout() {
+                        this.idMappings = {};
+                        const validFieldKeys = new Set(this.idFields.map((field) => field.key));
+                        this.idCanvasWidth = Number(this.idTemplate?.width || this.idCanvasWidth || 0);
+                        this.idCanvasHeight = Number(this.idTemplate?.height || this.idCanvasHeight || 0);
+
+                        (this.idTemplate?.fields || []).forEach((field) => {
+                            if (validFieldKeys.has(field.key)) {
+                                this.idMappings[field.key] = { ...field };
+                            }
+                        });
+                    },
+                    idLayoutSignature(template) {
+                        if (!template) return '';
+
+                        const fields = [...(template.fields || [])].sort((a, b) => a.key.localeCompare(b.key));
+
+                        return JSON.stringify({
+                            width: Number(template.width || 0),
+                            height: Number(template.height || 0),
+                            fields,
+                        });
+                    },
+                    captureIdLayoutSignatures() {
+                        this.idSavedLayoutSignatures = Object.fromEntries(
+                            Object.entries(this.idTemplates || {})
+                                .filter(([, template]) => template?.save_url)
+                                .map(([side, template]) => [side, this.idLayoutSignature(template)])
+                        );
+                    },
+                    changedIdTemplates() {
+                        return Object.values(this.idTemplates || {}).filter((template) => {
+                            if (!template?.save_url) return false;
+
+                            return this.idLayoutSignature(template) !== (this.idSavedLayoutSignatures[template.side] || '');
+                        });
+                    },
+                    persistCurrentIdLayout() {
+                        if (!this.idTemplate?.side) return;
+
+                        this.idTemplates = {
+                            ...this.idTemplates,
+                            [this.idTemplate.side]: {
+                                ...this.idTemplate,
+                                fields: this.mappedIdFields(),
+                            },
+                        };
+                        this.idTemplate = this.idTemplates[this.idTemplate.side];
+                    },
+                    switchIdTemplateSide(side) {
+                        this.persistCurrentIdLayout();
+                        this.idTemplateSide = side;
+                        this.idTemplate = this.idTemplates[side] || null;
+                        this.selectedIdField = this.idFields[0]?.key || null;
+                        this.loadIdLayout();
+                        this.$nextTick(() => {
+                            this.refreshIdCanvasSize();
+                            window.lucide?.createIcons();
                         });
                     },
                     async uploadTemplate(form) {
@@ -624,6 +710,37 @@
                         await this.renderPdf();
                         window.dispatchEvent(new CustomEvent('dashboard-toast', {
                             detail: { type: 'success', title: 'Template uploaded', message: 'PDF template is ready for mapping.' },
+                        }));
+                    },
+                    async uploadIdTemplate(form) {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Unable to upload ID template.');
+                        }
+
+                        this.idTemplates = {
+                            ...this.idTemplates,
+                            [data.template.side]: data.template,
+                        };
+                        this.idTemplateSide = data.template.side;
+                        this.idTemplate = data.template;
+                        this.loadIdLayout();
+                        this.captureIdLayoutSignatures();
+                        form.reset();
+                        await this.$nextTick();
+                        this.refreshIdCanvasSize();
+                        window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                            detail: { type: 'success', title: 'ID template uploaded', message: 'Background is ready for mapping.' },
                         }));
                     },
                     async renderPdf() {
@@ -673,11 +790,29 @@
                     fieldType(key) {
                         return this.fields.find((field) => field.key === key)?.type || 'text';
                     },
+                    idFieldLabel(key) {
+                        return this.idFields.find((field) => field.key === key)?.label || key;
+                    },
+                    idFieldType(key) {
+                        return this.idFields.find((field) => field.key === key)?.type || 'text';
+                    },
                     selectedTextSize() {
                         return this.mappings[this.selectedField]?.font_size || this.globalTextSize;
                     },
+                    selectedIdMapping() {
+                        return this.idMappings[this.selectedIdField] || null;
+                    },
                     mappedFields() {
                         return Object.values(this.mappings);
+                    },
+                    mappedIdFields() {
+                        return Object.values(this.idMappings);
+                    },
+                    mappedIdFieldCount() {
+                        return this.mappedIdFields().length;
+                    },
+                    isIdFieldMapped(key) {
+                        return this.mappedIdFields().some((field) => field.key === key);
                     },
                     visibleMappedFields() {
                         return this.mappedFields().filter((mapping) => Number(mapping.page || 1) === this.currentPage);
@@ -685,12 +820,95 @@
                     missingFields() {
                         return this.fields.filter((field) => !this.mappings[field.key]);
                     },
+                    refreshIdCanvasSize() {
+                        if (!this.$refs.idBackground) {
+                            this.idCanvasWidth = Number(this.idTemplate?.width || this.idCanvasWidth || 0);
+                            this.idCanvasHeight = Number(this.idTemplate?.height || this.idCanvasHeight || 0);
+                            return;
+                        }
+
+                        const rect = this.$refs.idBackground.getBoundingClientRect();
+                        this.idCanvasWidth = rect.width ? rect.width / this.idZoom : Number(this.idTemplate?.width || this.idCanvasWidth || 0);
+                        this.idCanvasHeight = rect.height ? rect.height / this.idZoom : Number(this.idTemplate?.height || this.idCanvasHeight || 0);
+                    },
+                    idStageZoomStyle() {
+                        return `zoom: ${this.idZoom};`;
+                    },
+                    idPointerPoint(event) {
+                        const rect = this.$refs.idStage.getBoundingClientRect();
+
+                        return {
+                            x: (event.clientX - rect.left) / this.idZoom,
+                            y: (event.clientY - rect.top) / this.idZoom,
+                        };
+                    },
+                    zoomIdStage(delta) {
+                        this.idZoom = Math.max(0.4, Math.min(3, Number((this.idZoom + delta).toFixed(2))));
+                        this.$nextTick(() => this.refreshIdCanvasSize());
+                    },
+                    zoomIdStageAt(event) {
+                        if (!this.idTemplate) return;
+
+                        if (event.shiftKey && !event.ctrlKey) {
+                            event.preventDefault();
+                            event.currentTarget.scrollLeft += event.deltaY || event.deltaX;
+                            return;
+                        }
+
+                        if (!event.ctrlKey) return;
+
+                        event.preventDefault();
+                        const viewport = event.currentTarget;
+                        const rect = viewport.getBoundingClientRect();
+                        const offsetX = event.clientX - rect.left;
+                        const offsetY = event.clientY - rect.top;
+                        const oldZoom = this.idZoom;
+                        const nextZoom = Math.max(0.4, Math.min(3, Number((this.idZoom + (event.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
+
+                        if (nextZoom === oldZoom) return;
+
+                        const contentX = (viewport.scrollLeft + offsetX) / oldZoom;
+                        const contentY = (viewport.scrollTop + offsetY) / oldZoom;
+                        this.idZoom = nextZoom;
+
+                        this.$nextTick(() => {
+                            viewport.scrollLeft = (contentX * nextZoom) - offsetX;
+                            viewport.scrollTop = (contentY * nextZoom) - offsetY;
+                            this.refreshIdCanvasSize();
+                        });
+                    },
+                    resetIdZoom() {
+                        this.idZoom = 1;
+                        this.$nextTick(() => this.refreshIdCanvasSize());
+                    },
+                    toggleIdFullscreen() {
+                        this.idFullscreen = !this.idFullscreen;
+                        this.$nextTick(() => {
+                            this.refreshIdCanvasSize();
+                            window.lucide?.createIcons();
+                        });
+                    },
                     placeSelected(event) {
                         if (this.isDraggingMarker || this.suppressNextPlacement) return;
                         if (!this.selectedField || !this.template) return;
 
                         const rect = this.$refs.canvasWrap.getBoundingClientRect();
                         this.setMapping(this.selectedField, event.clientX - rect.left, event.clientY - rect.top);
+                    },
+                    placeSelectedIdField(event) {
+                        if (this.isDraggingIdMarker || this.suppressNextIdPlacement) return;
+                        if (!this.idTemplate) return;
+
+                        if (!this.selectedIdField) return;
+
+                        if (this.idMappings[this.selectedIdField]) {
+                            this.selectedIdField = null;
+                            return;
+                        }
+
+                        this.refreshIdCanvasSize();
+                        const point = this.idPointerPoint(event);
+                        this.setIdMapping(this.selectedIdField, point.x, point.y);
                     },
                     startDrag(event, key) {
                         event.preventDefault();
@@ -721,6 +939,104 @@
                         window.addEventListener('pointermove', move);
                         window.addEventListener('pointerup', stop);
                     },
+                    startIdDrag(event, key) {
+                        event.preventDefault();
+                        this.selectedIdField = key;
+                        this.isDraggingIdMarker = true;
+                        this.suppressNextIdPlacement = true;
+                        const markerRect = event.currentTarget.getBoundingClientRect();
+                        const grabOffsetX = event.clientX - markerRect.left;
+                        const grabOffsetY = event.clientY - markerRect.top;
+
+                        const move = (moveEvent) => {
+                            this.refreshIdCanvasSize();
+                            const point = this.idPointerPoint(moveEvent);
+                            this.setIdMapping(
+                                key,
+                                point.x - (grabOffsetX / this.idZoom),
+                                point.y - (grabOffsetY / this.idZoom)
+                            );
+                        };
+                        const stop = () => {
+                            window.removeEventListener('pointermove', move);
+                            window.removeEventListener('pointerup', stop);
+                            this.isDraggingIdMarker = false;
+                            setTimeout(() => {
+                                this.suppressNextIdPlacement = false;
+                            }, 0);
+                        };
+
+                        window.addEventListener('pointermove', move);
+                        window.addEventListener('pointerup', stop);
+                    },
+                    startIdResize(event, key, direction) {
+                        event.preventDefault();
+                        this.selectedIdField = key;
+                        this.isDraggingIdMarker = true;
+                        this.suppressNextIdPlacement = true;
+                        this.refreshIdCanvasSize();
+
+                        const startX = event.clientX;
+                        const startY = event.clientY;
+                        const start = { ...this.idMappings[key] };
+                        const minSize = 8;
+
+                        const move = (moveEvent) => {
+                            if (!this.idTemplate || !this.idCanvasWidth || !this.idCanvasHeight) return;
+
+                            const deltaX = (((moveEvent.clientX - startX) / this.idZoom) / this.idCanvasWidth) * this.idTemplate.width;
+                            const deltaY = (((moveEvent.clientY - startY) / this.idZoom) / this.idCanvasHeight) * this.idTemplate.height;
+                            let nextX = Number(start.x || 0);
+                            let nextY = Number(start.y || 0);
+                            let nextWidth = Number(start.width || 120);
+                            let nextHeight = Number(start.height || 140);
+
+                            if (direction.includes('e')) {
+                                nextWidth = Math.max(minSize, Number(start.width || 120) + deltaX);
+                            }
+
+                            if (direction.includes('s')) {
+                                nextHeight = Math.max(minSize, Number(start.height || 140) + deltaY);
+                            }
+
+                            if (direction.includes('w')) {
+                                nextWidth = Math.max(minSize, Number(start.width || 120) - deltaX);
+                                nextX = Number(start.x || 0) + (Number(start.width || 120) - nextWidth);
+                            }
+
+                            if (direction.includes('n')) {
+                                nextHeight = Math.max(minSize, Number(start.height || 140) - deltaY);
+                                nextY = Number(start.y || 0) + (Number(start.height || 140) - nextHeight);
+                            }
+
+                            nextX = Math.max(0, Math.min(nextX, this.idTemplate.width - minSize));
+                            nextY = Math.max(0, Math.min(nextY, this.idTemplate.height - minSize));
+                            nextWidth = Math.max(minSize, Math.min(nextWidth, this.idTemplate.width - nextX));
+                            nextHeight = Math.max(minSize, Math.min(nextHeight, this.idTemplate.height - nextY));
+
+                            this.idMappings = {
+                                ...this.idMappings,
+                                [key]: {
+                                    ...this.idMappings[key],
+                                    x: Number(nextX.toFixed(2)),
+                                    y: Number(nextY.toFixed(2)),
+                                    width: Number(nextWidth.toFixed(2)),
+                                    height: Number(nextHeight.toFixed(2)),
+                                },
+                            };
+                        };
+                        const stop = () => {
+                            window.removeEventListener('pointermove', move);
+                            window.removeEventListener('pointerup', stop);
+                            this.isDraggingIdMarker = false;
+                            setTimeout(() => {
+                                this.suppressNextIdPlacement = false;
+                            }, 0);
+                        };
+
+                        window.addEventListener('pointermove', move);
+                        window.addEventListener('pointerup', stop);
+                    },
                     setMapping(key, canvasX, canvasY) {
                         if (!this.template || !this.canvasWidth || !this.canvasHeight) return;
 
@@ -738,6 +1054,33 @@
                             font_size: this.selectedTextSize(),
                         };
                     },
+                    setIdMapping(key, canvasX, canvasY) {
+                        if (!this.idTemplate || !this.idCanvasWidth || !this.idCanvasHeight) return;
+
+                        const field = this.idFields.find((item) => item.key === key);
+                        const type = field?.type || 'text';
+                        const existing = this.idMappings[key] || {};
+                        const width = Number(existing.width || field?.width || (type === 'image' ? 120 : 180));
+                        const height = Number(existing.height || field?.height || (type === 'image' ? 140 : 28));
+                        const clampedX = Math.max(0, Math.min(canvasX, this.idCanvasWidth));
+                        const clampedY = Math.max(0, Math.min(canvasY, this.idCanvasHeight));
+
+                        this.idMappings[key] = {
+                            key,
+                            label: field?.label || key,
+                            type,
+                            x: Number(((clampedX / this.idCanvasWidth) * this.idTemplate.width).toFixed(2)),
+                            y: Number(((clampedY / this.idCanvasHeight) * this.idTemplate.height).toFixed(2)),
+                            width,
+                            height,
+                            font_size: Number(existing.font_size || field?.font_size || this.idGlobalTextSize),
+                            font_family: existing.font_family || field?.font_family || 'Arial',
+                            font_weight: existing.font_weight || field?.font_weight || '700',
+                            shape: field?.locked_shape ? 'rectangle' : (existing.shape || field?.shape || 'rectangle'),
+                            object_fit: existing.object_fit || field?.object_fit || 'cover',
+                            locked_shape: Boolean(existing.locked_shape || field?.locked_shape),
+                        };
+                    },
                     markerStyle(mapping) {
                         if (!this.template || !this.canvasWidth || !this.canvasHeight) return '';
 
@@ -750,9 +1093,67 @@
 
                         return `left: ${left}px; top: ${top}px; font-size: ${fontSize}px; line-height: 1;`;
                     },
+                    idMarkerStyle(mapping) {
+                        if (!this.idTemplate || !this.idCanvasWidth || !this.idCanvasHeight) return '';
+
+                        const left = (mapping.x / this.idTemplate.width) * this.idCanvasWidth;
+                        const top = (mapping.y / this.idTemplate.height) * this.idCanvasHeight;
+                        const width = (mapping.width / this.idTemplate.width) * this.idCanvasWidth;
+                        const height = (mapping.height / this.idTemplate.height) * this.idCanvasHeight;
+                        const fontSize = (Number(mapping.font_size || this.idGlobalTextSize) / this.idTemplate.height) * this.idCanvasHeight;
+                        const lineHeight = mapping.type === 'text' ? 1.12 : 1;
+
+                        return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: ${mapping.font_family || 'Arial'}; font-weight: ${mapping.font_weight || '700'};`;
+                    },
+                    idTextBoxStyle(mapping) {
+                        const selected = this.selectedIdField === mapping.key;
+
+                        return [
+                            'display: block',
+                            'width: 100%',
+                            'height: 100%',
+                            'overflow: hidden',
+                            'white-space: normal',
+                            'overflow-wrap: anywhere',
+                            'word-break: normal',
+                            'box-sizing: border-box',
+                            'padding: 1px 2px',
+                            `border: 1px ${selected ? 'solid rgba(21, 82, 212, 0.95)' : 'dashed rgba(21, 82, 212, 0.65)'}`,
+                            `background: ${selected ? 'rgba(21, 82, 212, 0.08)' : 'rgba(255, 255, 255, 0.12)'}`,
+                        ].join('; ');
+                    },
+                    idPhotoMaskStyle(mapping) {
+                        const shape = mapping.shape || 'rectangle';
+                        const fit = mapping.object_fit || 'cover';
+                        const styles = [`object-fit: ${fit}`];
+
+                        if (shape === 'rounded') {
+                            styles.push('border-radius: 14px');
+                        }
+
+                        if (shape === 'circle') {
+                            styles.push('border-radius: 9999px');
+                            styles.push('aspect-ratio: 1 / 1');
+                        }
+
+                        if (shape === 'oval') {
+                            styles.push('border-radius: 9999px');
+                        }
+
+                        if (shape === 'hexagon') {
+                            styles.push('clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)');
+                        }
+
+                        return styles.join('; ');
+                    },
                     removeMapping(key) {
                         this.mappings = Object.fromEntries(
                             Object.entries(this.mappings).filter(([mappingKey]) => mappingKey !== key)
+                        );
+                    },
+                    removeIdMapping(key) {
+                        this.idMappings = Object.fromEntries(
+                            Object.entries(this.idMappings).filter(([mappingKey]) => mappingKey !== key)
                         );
                     },
                     toggleFullscreen() {
@@ -777,6 +1178,21 @@
                             [this.selectedField]: {
                                 ...this.mappings[this.selectedField],
                                 font_size: size,
+                            },
+                        };
+                    },
+                    updateSelectedIdField(property, value) {
+                        if (!this.selectedIdField || !this.idMappings[this.selectedIdField]) return;
+                        if (property === 'shape' && this.idMappings[this.selectedIdField].locked_shape) return;
+
+                        const numericProperties = ['width', 'height', 'font_size'];
+                        const parsedValue = numericProperties.includes(property) ? Math.max(1, Number(value || 1)) : value;
+
+                        this.idMappings = {
+                            ...this.idMappings,
+                            [this.selectedIdField]: {
+                                ...this.idMappings[this.selectedIdField],
+                                [property]: parsedValue,
                             },
                         };
                     },
@@ -809,6 +1225,73 @@
                         window.dispatchEvent(new CustomEvent('dashboard-toast', {
                             detail: { type: 'success', title: 'Mappings saved', message: 'Template field positions were saved.' },
                         }));
+                    },
+                    async saveIdLayout() {
+                        this.persistCurrentIdLayout();
+                        const templatesToSave = this.changedIdTemplates();
+
+                        if (Object.values(this.idTemplates || {}).filter((template) => template?.save_url).length === 0) {
+                            window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                                detail: { type: 'error', title: 'No template uploaded', message: 'Upload a front or back ID template before saving.' },
+                            }));
+                            return;
+                        }
+
+                        if (templatesToSave.length === 0) {
+                            window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                                detail: { type: 'error', title: 'No new mapping detected', message: 'Add, move, resize, or remove a field before saving.' },
+                            }));
+                            return;
+                        }
+
+                        this.idSaving = true;
+                        const savedTemplates = [];
+
+                        try {
+                            for (const template of templatesToSave) {
+                                const response = await fetch(template.save_url, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({
+                                        width: template.width,
+                                        height: template.height,
+                                        fields: template.fields || [],
+                                    }),
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                });
+
+                                const data = await response.json().catch(() => ({}));
+
+                                if (!response.ok) {
+                                    throw new Error(data.message || 'Unable to save ID layouts.');
+                                }
+
+                                savedTemplates.push(data.template);
+                            }
+
+                            savedTemplates.forEach((template) => {
+                                this.idTemplates = {
+                                    ...this.idTemplates,
+                                    [template.side]: template,
+                                };
+                                this.idSavedLayoutSignatures[template.side] = this.idLayoutSignature(template);
+                            });
+                            this.idTemplate = this.idTemplates[this.idTemplateSide] || null;
+                            this.loadIdLayout();
+                            window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                                detail: {
+                                    type: 'success',
+                                    title: templatesToSave.length > 1 ? 'ID layouts saved' : 'ID layout saved',
+                                    message: `${templatesToSave.map((template) => template.side).join(' and ')} layout ${templatesToSave.length > 1 ? 'were' : 'was'} saved.`,
+                                },
+                            }));
+                        } finally {
+                            this.idSaving = false;
+                        }
                     },
                 };
             },
