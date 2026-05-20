@@ -443,9 +443,16 @@
                     </div>
                 </template>
                 <template x-if="!idPreview.loading && idPreview.image">
-                    <img :src="idPreview.image"
-                         alt="Generated ID preview"
-                         class="mx-auto max-h-[72vh] max-w-full rounded-2xl bg-white shadow-xl">
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <template x-for="side in idPreview.sides" :key="side.side">
+                            <div>
+                                <p class="mb-2 text-center text-xs font-bold uppercase tracking-wide text-slate-300" x-text="side.side"></p>
+                                <img :src="side.image"
+                                     :alt="`${side.side} ID preview`"
+                                     class="mx-auto max-h-[72vh] max-w-full rounded-2xl bg-white shadow-xl">
+                            </div>
+                        </template>
+                    </div>
                 </template>
             </div>
         </div>
@@ -463,6 +470,7 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
     @foreach($idFonts ?? [] as $font)
         @font-face {
@@ -505,6 +513,7 @@
                 open: false,
                 loading: false,
                 image: '',
+                sides: [],
             },
             subjectCount: {{ $subjects->count() }},
             addedSubjects: [],
@@ -827,7 +836,10 @@
                 const renderedSides = [];
 
                 for (const template of data.templates || []) {
-                    renderedSides.push(await this.renderIdSide(template, data.student));
+                    renderedSides.push({
+                        side: template.side || `side-${renderedSides.length + 1}`,
+                        canvas: await this.renderIdSide(template, data.student),
+                    });
                 }
 
                 if (renderedSides.length === 0) {
@@ -835,8 +847,8 @@
                 }
 
                 const gap = renderedSides.length > 1 ? 32 : 0;
-                const outputWidth = Math.max(...renderedSides.map((canvas) => canvas.width));
-                const outputHeight = renderedSides.reduce((sum, canvas) => sum + canvas.height, 0) + gap;
+                const outputWidth = Math.max(...renderedSides.map((item) => item.canvas.width));
+                const outputHeight = renderedSides.reduce((sum, item) => sum + item.canvas.height, 0) + gap;
                 const output = document.createElement('canvas');
                 output.width = outputWidth;
                 output.height = outputHeight;
@@ -845,14 +857,22 @@
                 context.fillRect(0, 0, output.width, output.height);
 
                 let y = 0;
-                renderedSides.forEach((canvas, index) => {
+                renderedSides.forEach(({ canvas }, index) => {
                     context.drawImage(canvas, (outputWidth - canvas.width) / 2, y);
                     y += canvas.height + (index === 0 ? gap : 0);
                 });
 
+                const baseFileName = (data.student?.file_name || 'student-id.jpg').replace(/\.jpe?g$/i, '');
+
                 return {
                     image: output.toDataURL('image/jpeg', 0.95),
-                    fileName: data.student?.file_name || 'student-id.jpg',
+                    fileName: `${baseFileName}.jpg`,
+                    baseFileName,
+                    sides: renderedSides.map(({ side, canvas }) => ({
+                        side,
+                        image: canvas.toDataURL('image/jpeg', 0.95),
+                        fileName: `${baseFileName}-${side}.jpg`,
+                    })),
                 };
             },
             async previewIdCard(url) {
@@ -864,6 +884,7 @@
                 try {
                     const output = await this.buildIdOutput(url);
                     this.idPreview.image = output.image;
+                    this.idPreview.sides = output.sides || [];
                 } catch (error) {
                     this.idPreview.open = false;
                     this.showToast('error', 'Preview failed', error.message);
@@ -875,14 +896,25 @@
                 this.idPreview.open = false;
                 this.idPreview.loading = false;
                 this.idPreview.image = '';
+                this.idPreview.sides = [];
             },
             async generateIdCard(url, markUrl = null, enrollmentId = null) {
                 try {
                     const output = await this.buildIdOutput(url);
-                    const link = document.createElement('a');
-                    link.href = output.image;
-                    link.download = output.fileName;
-                    link.click();
+                    const downloads = output.sides?.length ? output.sides : [{ image: output.image, fileName: output.fileName }];
+
+                    if (downloads.length > 1 && window.JSZip) {
+                        const zip = new window.JSZip();
+
+                        downloads.forEach((download) => {
+                            zip.file(download.fileName, this.dataUrlToBlob(download.image));
+                        });
+
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        this.downloadBlob(zipBlob, `${output.baseFileName || 'student-id'}.zip`);
+                    } else {
+                        this.downloadBlob(this.dataUrlToBlob(downloads[0].image), downloads[0].fileName);
+                    }
 
                     if (markUrl && enrollmentId) {
                         await this.markIdGenerated(markUrl, enrollmentId);
@@ -892,6 +924,26 @@
                 } catch (error) {
                     this.showToast('error', 'Generation failed', error.message);
                 }
+            },
+            dataUrlToBlob(dataUrl) {
+                const [header, data] = dataUrl.split(',');
+                const mime = header.match(/:(.*?);/)?.[1] || 'application/octet-stream';
+                const binary = atob(data);
+                const bytes = new Uint8Array(binary.length);
+
+                for (let index = 0; index < binary.length; index++) {
+                    bytes[index] = binary.charCodeAt(index);
+                }
+
+                return new Blob([bytes], { type: mime });
+            },
+            downloadBlob(blob, fileName) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
             },
             async renderIdSide(template, student) {
                 const canvas = document.createElement('canvas');
@@ -968,6 +1020,11 @@
                     // Browser canvas will fall back to Arial if the font cannot load.
                 }
             },
+            defaultIdTextAlign(key) {
+                return ['full_name', 'course_code', 'course_plain_name', 'course_short_name', 'course_full_name'].includes(key)
+                    ? 'center'
+                    : 'left';
+            },
             drawIdText(context, value, field) {
                 const text = String(value || '').trim();
                 if (!text) return;
@@ -988,6 +1045,7 @@
                 context.font = `${fontWeight} ${fontSize}px "${fontFamily}", Arial, sans-serif`;
                 context.fillStyle = field.font_color || '#111827';
                 context.textBaseline = 'top';
+                context.textAlign = field.text_align || this.defaultIdTextAlign(field.key);
 
                 const words = text.split(/\s+/);
                 const lines = [];
@@ -1005,8 +1063,11 @@
 
                 if (line) lines.push(line);
 
+                const align = field.text_align || this.defaultIdTextAlign(field.key);
+                const textX = align === 'center' ? x + (width / 2) : (align === 'right' ? x + width : x);
+
                 lines.slice(0, Math.max(1, Math.floor(height / lineHeight))).forEach((textLine, index) => {
-                    context.fillText(textLine, x, y + (index * lineHeight));
+                    context.fillText(textLine, textX, y + (index * lineHeight));
                 });
 
                 context.restore();
@@ -1622,6 +1683,7 @@
                             font_family: existing.font_family || field?.font_family || 'Arial',
                             font_weight: existing.font_weight || field?.font_weight || '700',
                             font_color: existing.font_color || field?.font_color || '#111827',
+                            text_align: existing.text_align || field?.text_align || this.defaultIdTextAlign(key),
                             shape: field?.locked_shape ? 'rectangle' : (existing.shape || field?.shape || 'rectangle'),
                             object_fit: existing.object_fit || field?.object_fit || 'cover',
                             locked_shape: Boolean(existing.locked_shape || field?.locked_shape),
@@ -1665,6 +1727,7 @@
                             'box-sizing: border-box',
                             'padding: 1px 2px',
                             `color: ${mapping.font_color || '#111827'}`,
+                            `text-align: ${mapping.text_align || this.defaultIdTextAlign(mapping.key)}`,
                             `border: 1px ${selected ? 'solid rgba(21, 82, 212, 0.95)' : 'dashed rgba(21, 82, 212, 0.65)'}`,
                             `background: ${selected ? 'rgba(21, 82, 212, 0.08)' : 'rgba(255, 255, 255, 0.12)'}`,
                         ].join('; ');
@@ -1742,6 +1805,11 @@
                                 [property]: parsedValue,
                             },
                         };
+                    },
+                    defaultIdTextAlign(key) {
+                        return ['full_name', 'course_code', 'course_plain_name', 'course_short_name', 'course_full_name'].includes(key)
+                            ? 'center'
+                            : 'left';
                     },
                     async saveMappings() {
                         if (!this.template?.save_url) return;

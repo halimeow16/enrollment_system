@@ -156,6 +156,8 @@ class DatabaseSeeder extends Seeder
 
             $enrollment->subjects()->sync($syncData);
         }
+
+        $this->call(PrebuiltTemplateSeeder::class);
     }
 
     private function curriculumSubjects(): array

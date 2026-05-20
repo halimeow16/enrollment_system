@@ -338,9 +338,11 @@ class AcademicConfigurationController extends Controller
 
     public function showEnrollmentTemplatePdf(EnrollmentTemplate $template)
     {
-        abort_unless(Storage::disk('public')->exists($template->file_path), 404);
+        $path = $this->templateAbsolutePath($template->file_path);
 
-        return response()->file(Storage::disk('public')->path($template->file_path), [
+        abort_unless($path, 404);
+
+        return response()->file($path, [
             'Content-Type' => 'application/pdf',
         ]);
     }
@@ -402,6 +404,7 @@ class AcademicConfigurationController extends Controller
             'fields.*.font_family' => ['nullable', 'string', 'max:80'],
             'fields.*.font_weight' => ['nullable', 'string', 'max:20'],
             'fields.*.font_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'fields.*.text_align' => ['nullable', Rule::in(['left', 'center', 'right'])],
             'fields.*.shape' => ['nullable', Rule::in(['rectangle', 'rounded', 'circle', 'oval', 'hexagon'])],
             'fields.*.object_fit' => ['nullable', Rule::in(['cover', 'contain'])],
             'fields.*.locked_shape' => ['nullable', 'boolean'],
@@ -423,6 +426,7 @@ class AcademicConfigurationController extends Controller
                     'font_family' => $field['font_family'] ?? 'Arial',
                     'font_weight' => $field['font_weight'] ?? '700',
                     'font_color' => $field['font_color'] ?? '#111827',
+                    'text_align' => $field['text_align'] ?? 'left',
                     'shape' => $field['shape'] ?? 'rectangle',
                     'object_fit' => $field['object_fit'] ?? 'cover',
                     'locked_shape' => (bool) ($field['locked_shape'] ?? false),
@@ -471,9 +475,28 @@ class AcademicConfigurationController extends Controller
 
     public function showIdTemplateBackground(IdTemplate $template)
     {
-        abort_unless($template->background_image_path && Storage::disk('public')->exists($template->background_image_path), 404);
+        $path = $this->templateAbsolutePath($template->background_image_path);
 
-        return response()->file(Storage::disk('public')->path($template->background_image_path));
+        abort_unless($path, 404);
+
+        return response()->file($path);
+    }
+
+    private function templateAbsolutePath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'templates/')) {
+            $publicPath = public_path($path);
+
+            return file_exists($publicPath) ? $publicPath : null;
+        }
+
+        return Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->path($path)
+            : null;
     }
 
     private function applyFixedSubjectUnits(array $data): array

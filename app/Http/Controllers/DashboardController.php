@@ -144,7 +144,7 @@ class DashboardController extends Controller
                 ])->all(),
             ];
         });
-        $activeEnrollmentTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+        $activeEnrollmentTemplate = $this->preferredEnrollmentTemplate();
         $enrollmentTemplatePayload = $activeEnrollmentTemplate ? [
             'id' => $activeEnrollmentTemplate->id,
             'name' => $activeEnrollmentTemplate->name,
@@ -155,12 +155,9 @@ class DashboardController extends Controller
             'pdf_url' => route('academic.templates.pdf', $activeEnrollmentTemplate),
             'save_url' => route('academic.templates.mappings.update', $activeEnrollmentTemplate),
         ] : null;
-        $idTemplates = IdTemplate::where('is_active', true)
-            ->whereIn('side', ['front', 'back'])
-            ->latest()
-            ->get()
-            ->unique('side')
-            ->keyBy('side');
+        $idTemplates = collect(['front', 'back'])->mapWithKeys(fn (string $side) => [
+            $side => $this->preferredIdTemplate($side),
+        ]);
         $idTemplatePayloads = collect(['front', 'back'])->mapWithKeys(function ($side) use ($idTemplates) {
             $template = $idTemplates->get($side);
 
@@ -245,10 +242,9 @@ class DashboardController extends Controller
             ], 422);
         }
 
-        $templates = IdTemplate::where('is_active', true)
-            ->whereIn('side', ['front', 'back'])
-            ->get()
-            ->unique('side')
+        $templates = collect(['front', 'back'])
+            ->map(fn (string $side) => $this->preferredIdTemplate($side))
+            ->filter()
             ->values()
             ->map(fn (IdTemplate $template) => $this->idTemplateGenerationPayload($template))
             ->filter(fn (?array $template) => $template && count($template['fields']) > 0)
@@ -428,7 +424,7 @@ class DashboardController extends Controller
 
     private function idTemplateGenerationPayload(IdTemplate $template): ?array
     {
-        if (! $template->background_image_path || ! Storage::disk('public')->exists($template->background_image_path)) {
+        if (! $this->templateAbsolutePath($template->background_image_path)) {
             return null;
         }
 
@@ -438,9 +434,33 @@ class DashboardController extends Controller
             'side' => $template->side,
             'width' => (int) round((float) ($layout['width'] ?? 540)),
             'height' => (int) round((float) ($layout['height'] ?? 340)),
-            'background' => $this->storageDataUrl($template->background_image_path),
+            'background' => $this->templateDataUrl($template->background_image_path),
             'fields' => $layout['fields'] ?? [],
         ];
+    }
+
+    private function preferredEnrollmentTemplate(): ?EnrollmentTemplate
+    {
+        return EnrollmentTemplate::where('is_active', true)
+            ->where('file_path', 'not like', 'templates/%')
+            ->latest()
+            ->first()
+            ?? EnrollmentTemplate::where('file_path', 'like', 'templates/%')
+                ->latest()
+                ->first();
+    }
+
+    private function preferredIdTemplate(string $side): ?IdTemplate
+    {
+        return IdTemplate::where('side', $side)
+            ->where('is_active', true)
+            ->where('background_image_path', 'not like', 'templates/%')
+            ->latest()
+            ->first()
+            ?? IdTemplate::where('side', $side)
+                ->where('background_image_path', 'like', 'templates/%')
+                ->latest()
+                ->first();
     }
 
     private function idStudentFields(Enrollment $enrollment): array
@@ -474,13 +494,19 @@ class DashboardController extends Controller
             'ACT' => 'Associate in Computer Technology',
         ];
         $courseCode = strtoupper((string) ($enrollment->course_code ?? ''));
+        $yearLabels = [
+            '1' => 'First Year',
+            '2' => 'Second Year',
+            '3' => 'Third Year',
+            '4' => 'Fourth Year',
+        ];
         $middleInitial = $enrollment->middle_name
             ? strtoupper(substr(trim($enrollment->middle_name), 0, 1)) . '.'
             : '';
         $fullName = trim(collect([
+            $enrollment->last_name ? rtrim($enrollment->last_name, ',') . ',' : '',
             $enrollment->first_name,
             $middleInitial,
-            $enrollment->last_name,
         ])->filter()->implode(' '));
 
         return [
@@ -493,7 +519,7 @@ class DashboardController extends Controller
             'course_plain_name' => $coursePlainNames[$courseCode] ?? ($enrollment->course_name ?? $enrollment->course_code ?? ''),
             'course_short_name' => $courseShortNames[$courseCode] ?? ($enrollment->course_name ?? $enrollment->course_code ?? ''),
             'course_full_name' => $courseFullNames[$courseCode] ?? ($enrollment->course_name ?? $enrollment->course_code ?? ''),
-            'year_level' => $enrollment->year_level ? $enrollment->year_level . ' Year' : '',
+            'year_level' => $yearLabels[(string) $enrollment->year_level] ?? ($enrollment->year_level ? $enrollment->year_level . ' Year' : ''),
             'date_of_birth' => $enrollment->date_of_birth?->format('M d, Y') ?? '',
             'school_year' => $enrollment->school_year ?? '',
             'present_address' => collect([
@@ -531,5 +557,34 @@ class DashboardController extends Controller
         $mime = $disk->mimeType($path) ?: 'application/octet-stream';
 
         return 'data:' . $mime . ';base64,' . base64_encode($disk->get($path));
+    }
+
+    private function templateAbsolutePath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'templates/')) {
+            $publicPath = public_path($path);
+
+            return file_exists($publicPath) ? $publicPath : null;
+        }
+
+        return Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->path($path)
+            : null;
+    }
+
+    private function templateDataUrl(string $path): string
+    {
+        if (str_starts_with($path, 'templates/')) {
+            $absolutePath = public_path($path);
+            $mime = mime_content_type($absolutePath) ?: 'application/octet-stream';
+
+            return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolutePath));
+        }
+
+        return $this->storageDataUrl($path);
     }
 }

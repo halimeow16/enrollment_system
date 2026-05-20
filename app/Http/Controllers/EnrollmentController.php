@@ -165,7 +165,7 @@ class EnrollmentController extends Controller
 
     private function fillExistingPDF($data)
     {
-        $activeTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+        $activeTemplate = $this->preferredEnrollmentTemplate();
 
         if ($activeTemplate && ! empty($activeTemplate->field_mappings)) {
             return $this->fillMappedPDF($data, $activeTemplate);
@@ -269,12 +269,12 @@ class EnrollmentController extends Controller
 
     private function hasAvailablePdfLayout(): bool
     {
-        $activeTemplate = EnrollmentTemplate::where('is_active', true)->latest()->first();
+        $activeTemplate = $this->preferredEnrollmentTemplate();
 
         if (
             $activeTemplate &&
             ! empty($activeTemplate->field_mappings) &&
-            Storage::disk('public')->exists($activeTemplate->file_path)
+            $this->templateAbsolutePath($activeTemplate->file_path)
         ) {
             return true;
         }
@@ -284,13 +284,14 @@ class EnrollmentController extends Controller
 
     private function fillMappedPDF($data, EnrollmentTemplate $template)
     {
-        if (! Storage::disk('public')->exists($template->file_path)) {
+        $templatePath = $this->templateAbsolutePath($template->file_path);
+
+        if (! $templatePath) {
             abort(500, 'Mapped PDF template file not found.');
         }
 
         $pdf = new Fpdi();
         $pdf->SetAutoPageBreak(false, 0);
-        $templatePath = Storage::disk('public')->path($template->file_path);
         $pageCount = $pdf->setSourceFile($templatePath);
 
         for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
@@ -346,6 +347,34 @@ class EnrollmentController extends Controller
         }
 
         return $pdf->Output('', 'S');
+    }
+
+    private function preferredEnrollmentTemplate(): ?EnrollmentTemplate
+    {
+        return EnrollmentTemplate::where('is_active', true)
+            ->where('file_path', 'not like', 'templates/%')
+            ->latest()
+            ->first()
+            ?? EnrollmentTemplate::where('file_path', 'like', 'templates/%')
+                ->latest()
+                ->first();
+    }
+
+    private function templateAbsolutePath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'templates/')) {
+            $publicPath = public_path($path);
+
+            return file_exists($publicPath) ? $publicPath : null;
+        }
+
+        return Storage::disk('public')->exists($path)
+            ? Storage::disk('public')->path($path)
+            : null;
     }
 
     private function mappedFieldValue(string $key, $data): string
