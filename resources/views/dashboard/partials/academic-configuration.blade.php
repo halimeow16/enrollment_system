@@ -98,9 +98,10 @@
 
                 <form action="{{ route('academic.academic-year.update') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-5 space-y-4"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active.`); })
+                          .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); markClean(); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active.`); })
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     @method('PUT')
@@ -116,7 +117,8 @@
                     </label>
 
                     <button type="submit"
-                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                            :disabled="!dirty"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                         <i data-lucide="save" class="h-4 w-4"></i>
                         Save Academic Year
                     </button>
@@ -147,8 +149,9 @@
 
                 <form action="{{ route('academic.subjects.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       @submit.prevent="submitSubjectForm($event.target)
-                          .then((subject) => { addLiveSubject(subject); subjectCount++; $event.target.reset(); showToast('success', 'Subject added', 'Subject was saved and added to the list.'); })
+                          .then((subject) => { addLiveSubject(subject); subjectCount++; $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Subject added', 'Subject was saved and added to the list.'); })
                           .catch(() => showToast('error', 'Save failed', 'Unable to add subject. Please check the fields.'))"
                       class="grid flex-1 grid-cols-1 content-between gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     @csrf
@@ -201,7 +204,7 @@
                         <p class="mt-1">Auto: 1 for Lab/Both, 0 for Lecture.</p>
                     </div>
                     <div class="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0]">
+                        <button :disabled="!dirty" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                             <i data-lucide="plus" class="h-4 w-4"></i>
                             Save Subject
                         </button>
@@ -315,8 +318,9 @@
 
                                                 <form :action="`{{ url('/academic-configuration/subjects') }}/${subject.id}`"
                                                       method="POST"
+                                                      x-data="dirtyForm()"
                                                       @submit.prevent="submitSubjectForm($event.target)
-                                                          .then((updatedSubject) => { Object.assign(subject, updatedSubject); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
+                                                          .then((updatedSubject) => { Object.assign(subject, updatedSubject); markClean(); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
                                                           .catch(() => showToast('error', 'Update failed', 'Unable to update subject. Please check the fields.'))"
                                                       class="grid grid-cols-2 gap-3">
                                                     @csrf
@@ -360,7 +364,7 @@
                                                                 class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
                                                             Cancel
                                                         </button>
-                                                        <button class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Update Subject</button>
+                                                        <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Update Subject</button>
                                                         </div>
                                                     </div>
                                                 </form>
@@ -471,8 +475,9 @@
 
                                                 <form action="{{ route('academic.subjects.update', $subject) }}"
                                                       method="POST"
+                                                      x-data="dirtyForm()"
                                                       @submit.prevent="submitSubjectForm($event.target)
-                                                          .then((subject) => { applySubject(subject); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
+                                                          .then((subject) => { applySubject(subject); markClean(); editingSubject = null; showToast('success', 'Subject updated', 'Subject changes were saved.'); })
                                                           .catch(() => showToast('error', 'Update failed', 'Unable to update subject. Please check the fields.'))"
                                                       class="grid grid-cols-2 gap-3">
                                                     @csrf
@@ -516,7 +521,7 @@
                                                                 class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
                                                             Cancel
                                                         </button>
-                                                        <button class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Update Subject</button>
+                                                        <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Update Subject</button>
                                                         </div>
                                                     </div>
                                                 </form>
@@ -564,39 +569,42 @@
 
                 <form action="{{ route('academic.days.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-4 flex gap-2"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedDays.push(data.day); $event.target.reset(); showToast('success', 'Day saved', 'Schedule day was saved.'); })
+                          .then((data) => { addedDays.push(data.day); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Day saved', 'Schedule day was saved.'); })
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input name="name" placeholder="Day, e.g. Monday" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button class="rounded-lg bg-[#1552d4] px-3 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Add</button>
+                    <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-3 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add</button>
                 </form>
 
                 <form action="{{ route('academic.time-slots.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-3 grid grid-cols-2 gap-2"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedTimeSlots.push(data.time_slot); $event.target.reset(); showToast('success', 'Time saved', 'Time slot was saved.'); })
+                          .then((data) => { addedTimeSlots.push(data.time_slot); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Time saved', 'Time slot was saved.'); })
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input name="label" placeholder="Label" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Add Time Slot</button>
+                    <button :disabled="!dirty" class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add Time Slot</button>
                 </form>
 
                 <form action="{{ route('academic.rooms.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-3 grid grid-cols-2 gap-2"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedRooms.push(data.room); $event.target.reset(); showToast('success', 'Room saved', 'Room was saved.'); })
+                          .then((data) => { addedRooms.push(data.room); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Room saved', 'Room was saved.'); })
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <input name="name" placeholder="Room" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input name="building" placeholder="Building" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input type="number" min="1" name="capacity" placeholder="Capacity" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0]">Add Room</button>
+                    <button :disabled="!dirty" class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add Room</button>
                 </form>
             </div>
 
@@ -606,9 +614,10 @@
 
                 <form action="{{ route('academic.schedules.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-4 space-y-3"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedSchedules.unshift(data.schedule); scheduleCount++; $event.target.reset(); showToast('success', 'Schedule assigned', 'Subject schedule was saved.'); })
+                          .then((data) => { addedSchedules.unshift(data.schedule); scheduleCount++; $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Schedule assigned', 'Subject schedule was saved.'); })
                           .catch((error) => showToast('error', 'Schedule failed', error.message))">
                     @csrf
                     <select name="subject_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -647,7 +656,7 @@
                             <option :value="room.id" x-text="room.name"></option>
                         </template>
                     </select>
-                    <button class="w-full rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white">Assign Schedule</button>
+                    <button :disabled="!dirty" class="w-full rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Assign Schedule</button>
                 </form>
             </div>
 
@@ -750,9 +759,10 @@
 
                 <form action="{{ route('academic.department-heads.store') }}"
                       method="POST"
+                      x-data="dirtyForm()"
                       class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1"
                       @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addDepartmentHead(data.department_head); $event.target.reset(); showToast('success', 'Department head saved', 'Department head was updated.'); })
+                          .then((data) => { addDepartmentHead(data.department_head); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Department head saved', 'Department head was updated.'); })
                           .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     <select name="course_code" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -762,7 +772,7 @@
                     </select>
                     <input name="name" placeholder="Department Head Name" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input name="title" placeholder="Title, optional" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2 lg:col-span-1">
-                    <button class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white sm:col-span-2 lg:col-span-1">Save Department Head</button>
+                    <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white sm:col-span-2 lg:col-span-1 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Save Department Head</button>
                 </form>
             </div>
 
@@ -818,9 +828,9 @@
                         <form action="{{ route('academic.fees.update') }}"
                               method="POST"
                               x-show="feeCourse === @js($feeRow['course_code'])"
-                              x-data="{ saving: false }"
+                              x-data="{ saving: false, ...dirtyFormState() }"
                               @submit.prevent="saving = true; submitAcademicForm($event.target)
-                                  .then(() => showToast('success', 'Fees updated', '{{ $feeRow['course_code'] }} fee configuration was saved.'))
+                                  .then(() => { markClean(); showToast('success', 'Fees updated', '{{ $feeRow['course_code'] }} fee configuration was saved.'); })
                                   .catch((error) => showToast('error', 'Save failed', error.message))
                                   .finally(() => saving = false)"
                               class="w-full max-w-4xl">
@@ -834,8 +844,8 @@
                                     <p class="mt-1 text-sm text-slate-300">Course fee configuration</p>
                                 </div>
                                 <button type="submit"
-                                        :disabled="saving"
-                                        class="inline-flex items-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-60">
+                                        :disabled="saving || !dirty"
+                                        class="inline-flex items-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                                     <i data-lucide="save" class="h-4 w-4"></i>
                                     <span x-text="saving ? 'Saving' : 'Save Fees'"></span>
                                 </button>
@@ -1006,12 +1016,13 @@
                 <form action="{{ route('academic.templates.store') }}"
                       method="POST"
                       enctype="multipart/form-data"
+                      x-data="dirtyForm()"
                       class="mt-4 space-y-3"
-                      @submit.prevent="uploadTemplate($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
+                      @submit.prevent="uploadTemplate($event.target).then(() => { $event.target.reset(); $nextTick(() => markClean()); }).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
                     @csrf
                     <input name="name" placeholder="Template name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <input type="file" name="template_pdf" accept="application/pdf" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                    <button :disabled="!dirty" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                         <i data-lucide="upload" class="h-4 w-4"></i>
                         Upload PDF
                     </button>
@@ -1090,7 +1101,7 @@
                         </button>
                         <button type="button"
                                 @click="saveMappings().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
-                                :disabled="!template || saving"
+                                :disabled="!template || saving || !isMappingDirty()"
                                 class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
                             <i data-lucide="save" class="h-4 w-4"></i>
                             <span x-text="saving ? 'Saving...' : 'Save Mapping'"></span>
@@ -1231,8 +1242,9 @@
                     <form action="{{ route('academic.id-templates.store') }}"
                           method="POST"
                           enctype="multipart/form-data"
+                          x-data="dirtyForm()"
                           class="mt-4 space-y-3"
-                          @submit.prevent="uploadIdTemplate($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
+                          @submit.prevent="uploadIdTemplate($event.target).then(() => { $nextTick(() => markClean()); }).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Upload failed', message: error.message } })))">
                         @csrf
                         <input name="name" placeholder="Template name" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <div class="grid grid-cols-2 gap-2">
@@ -1243,7 +1255,7 @@
                             <input name="school_year" placeholder="A.Y." class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         </div>
                         <input type="file" name="background_image" accept="image/png,image/jpeg,image/webp" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                        <button :disabled="!dirty" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                             <i data-lucide="upload" class="h-4 w-4"></i>
                             Upload Background
                         </button>
@@ -1252,15 +1264,16 @@
                     <form action="{{ route('academic.id-templates.fonts.store') }}"
                           method="POST"
                           enctype="multipart/form-data"
+                          x-data="dirtyForm()"
                           class="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3"
-                          @submit.prevent="uploadIdFont($event.target).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Font upload failed', message: error.message } })))">
+                          @submit.prevent="uploadIdFont($event.target).then(() => { $nextTick(() => markClean()); }).catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Font upload failed', message: error.message } })))">
                         @csrf
                         <div>
                             <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Font Style</p>
                             <p class="mt-1 text-xs text-slate-400">Upload TTF, OTF, WOFF, or WOFF2 files for ID text.</p>
                         </div>
                         <input type="file" name="font_file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15">
+                        <button :disabled="!dirty" class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                             <i data-lucide="type" class="h-4 w-4"></i>
                             Upload Font
                         </button>
@@ -1339,7 +1352,7 @@
                             </button>
                             <button type="button"
                                     @click="saveIdLayout().catch((error) => window.dispatchEvent(new CustomEvent('dashboard-toast', { detail: { type: 'error', title: 'Save failed', message: error.message } })))"
-                                    :disabled="!idTemplate || idSaving"
+                                    :disabled="!idTemplate || idSaving || !hasIdLayoutChanges()"
                                     class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:opacity-50">
                                 <i data-lucide="save" class="h-4 w-4"></i>
                                 <span x-text="idSaving ? 'Saving...' : 'Save ID Layouts'"></span>

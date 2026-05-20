@@ -493,6 +493,45 @@
         user: @json(auth()->user()),
     };
 
+    window.dirtyFormState = function () {
+        return {
+            initialSnapshot: '',
+            dirty: false,
+            init() {
+                this.$nextTick(() => this.markClean());
+                this.$el.addEventListener('input', () => this.refreshDirty());
+                this.$el.addEventListener('change', () => this.refreshDirty());
+            },
+            snapshot() {
+                const values = [];
+                const formData = new FormData(this.$el);
+
+                for (const [key, value] of formData.entries()) {
+                    if (['_token', '_method'].includes(key)) continue;
+
+                    if (value instanceof File) {
+                        values.push([key, value.name, value.size, value.lastModified]);
+                    } else {
+                        values.push([key, String(value)]);
+                    }
+                }
+
+                return JSON.stringify(values.sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+            },
+            refreshDirty() {
+                this.dirty = this.snapshot() !== this.initialSnapshot;
+            },
+            markClean() {
+                this.initialSnapshot = this.snapshot();
+                this.dirty = false;
+            },
+        };
+    };
+
+    window.dirtyForm = function () {
+        return window.dirtyFormState();
+    };
+
     window.dashboardFrame = function () {
         return {
             activeTab: 'overview',
@@ -1145,6 +1184,7 @@
                     loadingPdf: false,
                     saving: false,
                     idSaving: false,
+                    savedMappingSignature: '',
                     idSavedLayoutSignatures: {},
                     isFullscreen: false,
                     idFullscreen: false,
@@ -1164,6 +1204,7 @@
                     renderToken: 0,
                     init() {
                         this.loadMappings();
+                        this.captureMappingSignature();
                         this.loadIdLayout();
                         this.captureIdLayoutSignatures();
                         this.$watch('templateSection', (section) => {
@@ -1186,6 +1227,15 @@
                                 this.mappings[mapping.key] = { ...mapping, page: Number(mapping.page || 1) };
                             }
                         });
+                    },
+                    mappingSignature() {
+                        return JSON.stringify([...this.mappedFields()].sort((a, b) => a.key.localeCompare(b.key)));
+                    },
+                    captureMappingSignature() {
+                        this.savedMappingSignature = this.mappingSignature();
+                    },
+                    isMappingDirty() {
+                        return this.template?.save_url && this.mappingSignature() !== this.savedMappingSignature;
                     },
                     loadIdLayout() {
                         this.idMappings = {};
@@ -1223,6 +1273,19 @@
 
                             return this.idLayoutSignature(template) !== (this.idSavedLayoutSignatures[template.side] || '');
                         });
+                    },
+                    hasIdLayoutChanges() {
+                        if (!this.idTemplate?.save_url) {
+                            return this.changedIdTemplates().length > 0;
+                        }
+
+                        const currentSideSignature = this.idLayoutSignature({
+                            ...this.idTemplate,
+                            fields: this.mappedIdFields(),
+                        });
+
+                        return currentSideSignature !== (this.idSavedLayoutSignatures[this.idTemplate.side] || '')
+                            || this.changedIdTemplates().some((template) => template.side !== this.idTemplate.side);
                     },
                     persistCurrentIdLayout() {
                         if (!this.idTemplate?.side) return;
@@ -1265,6 +1328,7 @@
 
                         this.template = data.template;
                         this.loadMappings();
+                        this.captureMappingSignature();
                         form.reset();
                         await this.$nextTick();
                         await this.renderPdf();
@@ -1837,6 +1901,7 @@
 
                         this.template = data.template;
                         this.loadMappings();
+                        this.captureMappingSignature();
                         window.dispatchEvent(new CustomEvent('dashboard-toast', {
                             detail: { type: 'success', title: 'Mappings saved', message: 'Template field positions were saved.' },
                         }));

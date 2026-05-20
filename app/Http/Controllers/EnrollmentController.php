@@ -45,7 +45,7 @@ class EnrollmentController extends Controller
             'first_name'       => 'nullable|string|max:100',
             'middle_name'      => 'nullable|string|max:100',
             'last_name'        => 'nullable|string|max:100',
-            'cellphone'        => 'nullable|string|max:20',
+            'cellphone'        => ['nullable', 'regex:/^09\d{9}$/'],
             'email'            => 'nullable|email|max:100',
             'last_school'      => 'nullable|string|max:150',
             'present_address'  => 'nullable|string',
@@ -60,10 +60,10 @@ class EnrollmentController extends Controller
             'religion'         => 'nullable|string',
             'father_name'      => 'nullable|string',
             'father_address'   => 'nullable|string',
-            'father_cpNumber'  => 'nullable|string',
+            'father_cpNumber'  => ['nullable', 'regex:/^09\d{9}$/'],
             'mother_name'      => 'nullable|string',
             'mother_address'   => 'nullable|string',
-            'mother_cpNumber'  => 'nullable|string',
+            'mother_cpNumber'  => ['nullable', 'regex:/^09\d{9}$/'],
             'course_code'      => 'nullable|string',
             'course_name'      => 'nullable|string',
             'year_level'       => 'nullable|string',
@@ -73,6 +73,10 @@ class EnrollmentController extends Controller
             'subject_ids.*'    => 'integer|exists:subjects,id',
             'credentials'      => 'nullable|array',
             'credentials.*'    => 'string',
+        ], [
+            'cellphone.regex' => 'Enter a valid 11-digit cellphone number starting with 09.',
+            'father_cpNumber.regex' => 'Enter a valid father cellphone number starting with 09.',
+            'mother_cpNumber.regex' => 'Enter a valid mother cellphone number starting with 09.',
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
