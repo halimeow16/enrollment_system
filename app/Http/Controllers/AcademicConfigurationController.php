@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Day;
 use App\Models\AppSetting;
 use App\Models\DepartmentHead;
@@ -30,6 +31,9 @@ class AcademicConfigurationController extends Controller
         $data = $this->applyFixedSubjectUnits($data);
 
         $subject = Subject::create($data);
+        ActivityLog::record('subject_created', $subject, [], $subject->only([
+            'code', 'name', 'course_code', 'year_level', 'semester', 'type', 'lecture_units', 'laboratory_units', 'total_units',
+        ]), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -49,7 +53,13 @@ class AcademicConfigurationController extends Controller
             'academic_year.regex' => 'Use the format YYYY-YYYY, for example 2026-2027.',
         ]);
 
+        $oldAcademicYear = AppSetting::getValue('academic_year');
         AppSetting::setValue('academic_year', $data['academic_year']);
+        ActivityLog::record('academic_year_updated', null, [
+            'academic_year' => $oldAcademicYear,
+        ], [
+            'academic_year' => $data['academic_year'],
+        ], $request);
 
         return response()->json([
             'message' => 'Academic year updated.',
@@ -62,7 +72,11 @@ class AcademicConfigurationController extends Controller
         $data = $this->validateSubject($request, $subject);
         $data = $this->applyFixedSubjectUnits($data);
 
+        $oldValues = $subject->only(['code', 'name', 'course_code', 'year_level', 'semester', 'type', 'lecture_units', 'laboratory_units', 'total_units']);
         $subject->update($data);
+        ActivityLog::record('subject_updated', $subject, $oldValues, $subject->fresh()->only([
+            'code', 'name', 'course_code', 'year_level', 'semester', 'type', 'lecture_units', 'laboratory_units', 'total_units',
+        ]), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -76,7 +90,9 @@ class AcademicConfigurationController extends Controller
 
     public function destroySubject(Request $request, Subject $subject): RedirectResponse|JsonResponse
     {
+        $oldValues = $subject->only(['code', 'name', 'course_code', 'year_level', 'semester', 'type']);
         $subject->delete();
+        ActivityLog::record('subject_removed', $subject, $oldValues, [], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -94,6 +110,7 @@ class AcademicConfigurationController extends Controller
             ['name' => $request->validate(['name' => ['required', 'string', 'max:50']])['name']],
             ['is_active' => true, 'sort_order' => Day::max('sort_order') + 1]
         );
+        ActivityLog::record('schedule_day_saved', $day, [], $day->only(['name', 'is_active', 'sort_order']), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -114,6 +131,7 @@ class AcademicConfigurationController extends Controller
         ]);
 
         $room = Room::updateOrCreate(['name' => $data['name']], $data + ['is_active' => true]);
+        ActivityLog::record('schedule_room_saved', $room, [], $room->only(['name', 'building', 'capacity', 'is_active']), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -137,6 +155,7 @@ class AcademicConfigurationController extends Controller
             ['start_time' => $data['start_time'], 'end_time' => $data['end_time']],
             $data + ['is_active' => true]
         );
+        ActivityLog::record('schedule_time_slot_saved', $slot, [], $slot->only(['start_time', 'end_time', 'label', 'is_active']), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -177,6 +196,12 @@ class AcademicConfigurationController extends Controller
         }
 
         $schedule = SubjectSchedule::create($data)->load(['subject', 'day', 'timeSlot', 'room']);
+        ActivityLog::record('subject_schedule_assigned', $schedule, [], [
+            'subject' => $schedule->subject->code,
+            'day' => $schedule->day->name,
+            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'room' => $schedule->room->name,
+        ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -191,7 +216,15 @@ class AcademicConfigurationController extends Controller
     public function destroySchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
     {
         $id = $schedule->id;
+        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
+        $oldValues = [
+            'subject' => $schedule->subject->code,
+            'day' => $schedule->day->name,
+            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'room' => $schedule->room->name,
+        ];
         $schedule->delete();
+        ActivityLog::record('subject_schedule_removed', $schedule, $oldValues, [], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -215,6 +248,7 @@ class AcademicConfigurationController extends Controller
             DepartmentHead::where('course_code', $data['course_code'])->update(['is_active' => false]);
             return DepartmentHead::create($data + ['is_active' => true]);
         });
+        ActivityLog::record('department_head_saved', $head, [], $head->only(['course_code', 'name', 'title', 'is_active']), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -256,6 +290,12 @@ class AcademicConfigurationController extends Controller
                 ]
             );
         }
+        ActivityLog::record('fees_updated', null, [], [
+            'course_code' => $data['course_code'],
+            'fees' => collect($feeTypes)->mapWithKeys(fn ($feeType) => [
+                $feeType => (float) $data['fees'][$feeType],
+            ])->all(),
+        ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -294,6 +334,11 @@ class AcademicConfigurationController extends Controller
                 'is_active' => true,
             ]);
         });
+        ActivityLog::record('enrollment_template_uploaded', $template, [], [
+            'name' => $template->name,
+            'original_filename' => $template->original_filename,
+            'file_path' => $template->file_path,
+        ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -318,6 +363,7 @@ class AcademicConfigurationController extends Controller
             'mappings.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:40'],
         ]);
 
+        $oldValues = ['field_count' => count($template->field_mappings ?? [])];
         $template->update([
             'field_mappings' => collect($data['mappings'])->map(fn ($mapping) => [
                 'key' => $mapping['key'],
@@ -329,6 +375,10 @@ class AcademicConfigurationController extends Controller
                 'font_size' => round((float) ($mapping['font_size'] ?? 10), 1),
             ])->values()->all(),
         ]);
+        ActivityLog::record('enrollment_template_mapping_saved', $template, $oldValues, [
+            'field_count' => count($template->field_mappings ?? []),
+            'name' => $template->name,
+        ], $request);
 
         return response()->json([
             'message' => 'Template mapping saved.',
@@ -376,6 +426,11 @@ class AcademicConfigurationController extends Controller
                 'is_active' => true,
             ]);
         });
+        ActivityLog::record('id_template_uploaded', $template, [], [
+            'name' => $template->name,
+            'side' => $template->side,
+            'background_image_path' => $template->background_image_path,
+        ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -410,6 +465,11 @@ class AcademicConfigurationController extends Controller
             'fields.*.locked_shape' => ['nullable', 'boolean'],
         ]);
 
+        $oldValues = [
+            'field_count' => count($template->layout_config['fields'] ?? []),
+            'width' => $template->layout_config['width'] ?? null,
+            'height' => $template->layout_config['height'] ?? null,
+        ];
         $template->update([
             'layout_config' => [
                 'width' => round((float) $data['width'], 2),
@@ -433,6 +493,12 @@ class AcademicConfigurationController extends Controller
                 ])->values()->all(),
             ],
         ]);
+        ActivityLog::record('id_template_layout_saved', $template, $oldValues, [
+            'field_count' => count($template->layout_config['fields'] ?? []),
+            'width' => $template->layout_config['width'] ?? null,
+            'height' => $template->layout_config['height'] ?? null,
+            'side' => $template->side,
+        ], $request);
 
         return response()->json([
             'message' => 'ID template layout saved.',
@@ -462,6 +528,11 @@ class AcademicConfigurationController extends Controller
             ->limit(80, '')
             ->toString() ?: 'id-font';
         $path = $file->storeAs('id-template-fonts', $baseName . '.' . $extension, 'public');
+        ActivityLog::record('id_template_font_uploaded', null, [], [
+            'family' => Str::of($baseName)->headline()->toString(),
+            'path' => $path,
+            'extension' => $extension,
+        ], $request);
 
         return response()->json([
             'message' => 'Font uploaded.',

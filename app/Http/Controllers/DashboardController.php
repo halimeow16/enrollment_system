@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Enrollment;
 use App\Models\AppSetting;
 use App\Models\Day;
@@ -30,6 +31,7 @@ class DashboardController extends Controller
         $accountUsers = User::orderByRaw("FIELD(user_type, 'admin', 'registrar', 'department_head')")
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'user_type']);
+        $activityLogs = $this->activityLogPayloads();
 
         // Stat cards
         $stats = [
@@ -201,8 +203,16 @@ class DashboardController extends Controller
             'idTemplatePayload',
             'idFonts',
             'academicYear',
-            'accountUsers'
+            'accountUsers',
+            'activityLogs'
         ));
+    }
+
+    public function activityLogs(): JsonResponse
+    {
+        return response()->json([
+            'logs' => $this->activityLogPayloads(),
+        ]);
     }
 
     public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse
@@ -211,7 +221,15 @@ class DashboardController extends Controller
             'enrollment_status' => ['required', 'in:pending,enrolled,cancelled'],
         ]);
 
+        $oldStatus = $enrollment->enrollment_status;
         $enrollment->update($validated);
+
+        ActivityLog::record('enrollment_status_updated', $enrollment, [
+            'enrollment_status' => $oldStatus,
+        ], [
+            'enrollment_status' => $enrollment->enrollment_status,
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+        ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -312,6 +330,12 @@ class DashboardController extends Controller
             'generated_at' => now(),
         ])->save();
 
+        ActivityLog::record('student_id_generated', $studentId, [], [
+            'enrollment_id' => $enrollment->id,
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'status' => 'generated',
+        ], request());
+
         $enrollment->load('studentId');
 
         return response()->json([
@@ -338,6 +362,7 @@ class DashboardController extends Controller
         ]);
 
         $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $oldValues = ['photo_path' => $studentId->photo_path];
 
         if ($studentId->photo_path) {
             Storage::disk('public')->delete($studentId->photo_path);
@@ -352,6 +377,12 @@ class DashboardController extends Controller
             'status' => $studentId->status ?: 'draft',
             'submitted_at' => $studentId->submitted_at ?: now(),
         ])->save();
+
+        ActivityLog::record('student_photo_uploaded', $studentId, $oldValues, [
+            'enrollment_id' => $enrollment->id,
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'photo_path' => $studentId->photo_path,
+        ], $request);
 
         $enrollment->load('studentId');
 
@@ -379,6 +410,7 @@ class DashboardController extends Controller
         ]);
 
         $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $oldValues = ['signature_path' => $studentId->signature_path];
 
         if ($studentId->signature_path) {
             Storage::disk('public')->delete($studentId->signature_path);
@@ -393,6 +425,12 @@ class DashboardController extends Controller
             'status' => $studentId->status ?: 'draft',
             'submitted_at' => $studentId->submitted_at ?: now(),
         ])->save();
+
+        ActivityLog::record('student_signature_uploaded', $studentId, $oldValues, [
+            'enrollment_id' => $enrollment->id,
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'signature_path' => $studentId->signature_path,
+        ], $request);
 
         $enrollment->load('studentId');
 
@@ -425,6 +463,28 @@ class DashboardController extends Controller
             'generated_at' => $studentId?->generated_at?->format('M d, Y g:i A'),
             'status' => $studentId?->status ?? 'draft',
         ];
+    }
+
+    private function activityLogPayloads()
+    {
+        return ActivityLog::with('user')
+            ->latest('created_at')
+            ->limit(150)
+            ->get()
+            ->map(fn (ActivityLog $log) => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'label' => Str::of($log->action)->replace('_', ' ')->headline()->toString(),
+                'model_type' => $log->model_type,
+                'model_id' => $log->model_id,
+                'user' => $log->user?->name ?? 'System / Guest',
+                'user_role' => $log->user?->user_type ? str_replace('_', ' ', $log->user->user_type) : 'guest',
+                'old_values' => $log->old_values ?? [],
+                'new_values' => $log->new_values ?? [],
+                'ip_address' => $log->ip_address,
+                'created_at' => $log->created_at?->format('M d, Y g:i A'),
+                'created_date' => $log->created_at?->toDateString(),
+            ]);
     }
 
     private function idTemplateGenerationPayload(IdTemplate $template): ?array

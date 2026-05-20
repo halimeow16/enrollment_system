@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
+use App\Models\ActivityLog;
 use App\Models\AppSetting;
 use App\Models\Enrollment;
 use App\Models\DepartmentHead;
@@ -115,6 +116,15 @@ class EnrollmentController extends Controller
         });
 
         $enrollment->setRelation('subjects', $selectedSubjects);
+
+        ActivityLog::record('enrollment_created', $enrollment, [], [
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'student_number' => $enrollment->student_number,
+            'course_code' => $enrollment->course_code,
+            'year_level' => $enrollment->year_level,
+            'semester' => $enrollment->semester,
+            'subjects' => $selectedSubjects->pluck('code')->values()->all(),
+        ], $request);
 
         $pdfContent = $this->fillExistingPDF($enrollment);
 

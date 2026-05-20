@@ -8,6 +8,8 @@
                 'user_type' => auth()->user()->user_type ?? 'registrar',
             ]),
             users: @js(($accountUsers ?? collect())->values()),
+            logs: @js(($activityLogs ?? collect())->values()),
+            logsUrl: @js(route('activity-logs.index')),
             ownUpdateUrl: @js(route('account.update')),
             accountsStoreUrl: @js(route('accounts.store')),
             accountsBaseUrl: @js(url('/accounts')),
@@ -83,6 +85,7 @@
                             <i data-lucide="settings" class="h-4 w-4"></i> Settings
                         </button>
                         <button type="button"
+                                @click="open = false; openLogs()"
                                 class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-300 hover:bg-white/5">
                             <i data-lucide="clipboard-list" class="h-4 w-4"></i> Logs
                         </button>
@@ -288,6 +291,119 @@
         </div>
     </div>
     </template>
+
+    <template x-teleport="body">
+    <div x-show="logsOpen"
+         x-transition.opacity
+         x-cloak
+         class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
+         @click.self="logsOpen = false"
+         @keydown.escape.window="logsOpen = false">
+        <div class="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#101a2d] shadow-2xl shadow-black/40">
+            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                    <h2 class="text-lg font-extrabold text-white">Activity Logs</h2>
+                    <p class="mt-1 text-xs text-slate-400">Track sign-ins, account changes, enrollments, templates, ID actions, and academic setup updates.</p>
+                </div>
+                <button type="button"
+                        @click="logsOpen = false"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+
+            <div class="border-b border-white/10 p-4">
+                <div class="grid gap-3 md:grid-cols-[1fr_180px_180px]">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-3 h-4 w-4 text-slate-400"></i>
+                        <input type="search"
+                               x-model="logFilters.search"
+                               placeholder="Search activity, user, model, IP..."
+                               class="w-full rounded-2xl border border-white/10 bg-white/10 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-300/40">
+                    </div>
+                    <select x-model="logFilters.type"
+                            class="rounded-2xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-blue-300/40">
+                        <option class="text-slate-900" value="all">All Areas</option>
+                        <option class="text-slate-900" value="auth">Auth</option>
+                        <option class="text-slate-900" value="account">Accounts</option>
+                        <option class="text-slate-900" value="enrollment">Enrollments</option>
+                        <option class="text-slate-900" value="academic">Academic Setup</option>
+                        <option class="text-slate-900" value="template">Templates</option>
+                        <option class="text-slate-900" value="id">ID Generation</option>
+                    </select>
+                    <select x-model="logFilters.date"
+                            class="rounded-2xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-blue-300/40">
+                        <option class="text-slate-900" value="all">All Dates</option>
+                        <option class="text-slate-900" value="today">Today</option>
+                        <option class="text-slate-900" value="week">Last 7 Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="max-h-[68vh] overflow-y-auto p-4">
+                <div x-show="logsLoading" x-cloak class="mb-3 rounded-2xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-xs font-bold text-blue-100">
+                    Loading latest activity...
+                </div>
+
+                <template x-if="filteredLogs().length === 0">
+                    <div class="rounded-3xl border border-white/10 bg-white/5 px-5 py-10 text-center">
+                        <i data-lucide="clipboard-list" class="mx-auto h-8 w-8 text-slate-500"></i>
+                        <p class="mt-3 text-sm font-bold text-white">No logs found</p>
+                        <p class="mt-1 text-xs text-slate-400">Try changing the filters or search text.</p>
+                    </div>
+                </template>
+
+                <div class="space-y-3">
+                    <template x-for="log in filteredLogs()" :key="log.id">
+                        <article class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span :class="logBadgeClass(log)"
+                                              class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold capitalize">
+                                            <span x-text="logArea(log)"></span>
+                                        </span>
+                                        <h3 class="text-sm font-extrabold text-white" x-text="log.label"></h3>
+                                    </div>
+                                    <p class="mt-2 text-xs text-slate-400">
+                                        <span class="font-semibold text-slate-200" x-text="log.user"></span>
+                                        <span> updated </span>
+                                        <span x-text="log.model_type"></span>
+                                        <template x-if="log.model_id">
+                                            <span>#<span x-text="log.model_id"></span></span>
+                                        </template>
+                                    </p>
+                                    <p class="mt-1 text-[11px] text-slate-500">
+                                        <span x-text="log.created_at"></span>
+                                        <span class="mx-1">/</span>
+                                        <span x-text="log.ip_address || 'No IP'"></span>
+                                    </p>
+                                </div>
+                                <button type="button"
+                                        @click="log.open = !log.open; $nextTick(() => window.lucide?.createIcons())"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/10">
+                                    <i data-lucide="list-tree" class="h-4 w-4"></i>
+                                    Details
+                                </button>
+                            </div>
+
+                            <div x-show="log.open" x-transition class="mt-4 grid gap-3 md:grid-cols-2">
+                                <div class="rounded-2xl border border-white/10 bg-[#071224]/60 p-3">
+                                    <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Before</p>
+                                    <pre class="max-h-40 overflow-auto whitespace-pre-wrap text-xs text-slate-300" x-text="formatLogValues(log.old_values)"></pre>
+                                </div>
+                                <div class="rounded-2xl border border-white/10 bg-[#071224]/60 p-3">
+                                    <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">After</p>
+                                    <pre class="max-h-40 overflow-auto whitespace-pre-wrap text-xs text-slate-300" x-text="formatLogValues(log.new_values)"></pre>
+                                </div>
+                            </div>
+                        </article>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+    </template>
 </header>
 
 @push('scripts')
@@ -298,12 +414,21 @@
             activeTab: 'overview',
             academicYear: config.academicYear,
             settingsOpen: false,
+            logsOpen: false,
+            logsLoading: false,
             settingsTab: 'profile',
             currentUser: config.currentUser,
             users: config.users || [],
+            logs: (config.logs || []).map((log) => ({ ...log, open: false })),
+            logFilters: {
+                search: '',
+                type: 'all',
+                date: 'all',
+            },
             ownUpdateUrl: config.ownUpdateUrl,
             accountsStoreUrl: config.accountsStoreUrl,
             accountsBaseUrl: config.accountsBaseUrl,
+            logsUrl: config.logsUrl,
             isAdmin: config.isAdmin,
             async requestJson(url, form, method = 'POST') {
                 const formData = new FormData(form);
@@ -327,6 +452,104 @@
                 window.dispatchEvent(new CustomEvent('dashboard-toast', {
                     detail: { type, title, message },
                 }));
+            },
+            async openLogs() {
+                this.logsOpen = true;
+                await this.loadLogs();
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+            async loadLogs() {
+                this.logsLoading = true;
+
+                try {
+                    const response = await fetch(this.logsUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (! response.ok) {
+                        throw new Error(data.message || 'Unable to load logs.');
+                    }
+
+                    this.logs = (data.logs || []).map((log) => ({ ...log, open: false }));
+                } catch (error) {
+                    this.toast('error', 'Logs unavailable', error.message);
+                } finally {
+                    this.logsLoading = false;
+                }
+            },
+            logArea(log) {
+                const action = log.action || '';
+                if (action.includes('login') || action.includes('logout')) return 'auth';
+                if (action.includes('account')) return 'account';
+                if (action.includes('enrollment')) return 'enrollment';
+                if (action.includes('template') || action.includes('font')) return 'template';
+                if (action.includes('student_id') || action.includes('student_photo') || action.includes('student_signature') || action.includes('requirements')) return 'id';
+                return 'academic';
+            },
+            logBadgeClass(log) {
+                const area = this.logArea(log);
+                return {
+                    auth: 'border-violet-300/20 bg-violet-500/15 text-violet-100',
+                    account: 'border-blue-300/20 bg-blue-500/15 text-blue-100',
+                    enrollment: 'border-emerald-300/20 bg-emerald-500/15 text-emerald-100',
+                    template: 'border-amber-300/20 bg-amber-500/15 text-amber-100',
+                    id: 'border-cyan-300/20 bg-cyan-500/15 text-cyan-100',
+                    academic: 'border-slate-300/20 bg-slate-500/15 text-slate-100',
+                }[area];
+            },
+            filteredLogs() {
+                const search = this.logFilters.search.trim().toLowerCase();
+                const now = new Date();
+
+                return this.logs.filter((log) => {
+                    if (this.logFilters.type !== 'all' && this.logArea(log) !== this.logFilters.type) {
+                        return false;
+                    }
+
+                    if (this.logFilters.date !== 'all') {
+                        const created = log.created_date ? new Date(`${log.created_date}T00:00:00`) : null;
+                        if (! created) return false;
+
+                        if (this.logFilters.date === 'today' && created.toDateString() !== now.toDateString()) {
+                            return false;
+                        }
+
+                        if (this.logFilters.date === 'week') {
+                            const weekAgo = new Date(now);
+                            weekAgo.setDate(now.getDate() - 7);
+                            if (created < new Date(weekAgo.toDateString())) return false;
+                        }
+                    }
+
+                    if (! search) return true;
+
+                    const haystack = [
+                        log.label,
+                        log.action,
+                        log.model_type,
+                        log.model_id,
+                        log.user,
+                        log.user_role,
+                        log.ip_address,
+                        JSON.stringify(log.old_values || {}),
+                        JSON.stringify(log.new_values || {}),
+                    ].join(' ').toLowerCase();
+
+                    return haystack.includes(search);
+                });
+            },
+            formatLogValues(values) {
+                if (! values || Object.keys(values).length === 0) {
+                    return 'No captured values';
+                }
+
+                return Object.entries(values)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
             },
             async saveOwnAccount(form) {
                 try {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Enrollment;
 use App\Models\StudentId;
 use Illuminate\Http\RedirectResponse;
@@ -56,6 +57,13 @@ class IdRequirementController extends Controller
 
         $enrollment = $matches->first();
         $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $oldValues = $studentId->exists ? $studentId->only([
+            'emergency_contact_name',
+            'emergency_contact_relationship',
+            'emergency_contact_number',
+            'photo_path',
+            'signature_path',
+        ]) : [];
 
         if ($request->hasFile('photo')) {
             if ($studentId->photo_path) {
@@ -86,6 +94,16 @@ class IdRequirementController extends Controller
             'status' => $studentId->status ?: 'draft',
             'submitted_at' => now(),
         ])->save();
+
+        ActivityLog::record('id_requirements_submitted', $studentId, $oldValues, [
+            'enrollment_id' => $enrollment->id,
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'emergency_contact_name' => $studentId->emergency_contact_name,
+            'emergency_contact_relationship' => $studentId->emergency_contact_relationship,
+            'emergency_contact_number' => $studentId->emergency_contact_number,
+            'photo_uploaded' => (bool) $request->hasFile('photo'),
+            'signature_uploaded' => (bool) $request->hasFile('signature'),
+        ], $request);
 
         return back()->with('success', 'Your ID requirements were submitted successfully. The registrar will review them before ID generation.');
     }

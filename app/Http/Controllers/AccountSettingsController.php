@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,17 @@ class AccountSettingsController extends Controller
             $user->password = $data['password'];
         }
 
+        $oldValues = $user->getOriginal();
         $user->save();
+
+        ActivityLog::record('account_updated_self', $user, [
+            'name' => $oldValues['name'] ?? null,
+            'email' => $oldValues['email'] ?? null,
+        ], [
+            'name' => $user->name,
+            'email' => $user->email,
+            'password_changed' => ! empty($data['password']),
+        ], $request);
 
         return response()->json([
             'message' => 'Account updated.',
@@ -57,6 +68,12 @@ class AccountSettingsController extends Controller
         ]);
 
         $user = User::create($data);
+
+        ActivityLog::record('account_created', $user, [], [
+            'name' => $user->name,
+            'email' => $user->email,
+            'user_type' => $user->user_type,
+        ], $request);
 
         return response()->json([
             'message' => 'Account created.',
@@ -87,6 +104,8 @@ class AccountSettingsController extends Controller
             ], 422);
         }
 
+        $oldValues = $user->only(['name', 'email', 'user_type']);
+
         $user->fill([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -98,6 +117,13 @@ class AccountSettingsController extends Controller
         }
 
         $user->save();
+
+        ActivityLog::record('account_updated', $user, $oldValues, [
+            'name' => $user->name,
+            'email' => $user->email,
+            'user_type' => $user->user_type,
+            'password_changed' => ! empty($data['password']),
+        ], $request);
 
         return response()->json([
             'message' => 'Account updated.',
@@ -121,7 +147,10 @@ class AccountSettingsController extends Controller
             ], 422);
         }
 
+        $oldValues = $user->only(['name', 'email', 'user_type']);
         $user->delete();
+
+        ActivityLog::record('account_removed', $user, $oldValues, [], $request);
 
         return response()->json([
             'message' => 'Account removed.',

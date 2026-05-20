@@ -32,6 +32,8 @@ Route::post('/submit-id-requirements', [IdRequirementController::class, 'store']
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])
+        ->name('activity-logs.index');
 
     Route::put('/account', [AccountSettingsController::class, 'updateOwn'])
         ->name('account.update');
