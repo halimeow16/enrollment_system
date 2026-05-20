@@ -13,9 +13,7 @@
                 <th class="px-5 py-3 text-left font-semibold">Date Filed</th>
                 @unless($compact)
                     <th class="px-5 py-3 text-left font-semibold">Contact</th>
-                    @if(auth()->user()->user_type !== 'department_head')
-                        <th class="px-4 py-3 text-left font-semibold">Update</th>
-                    @endif
+                    <th class="px-4 py-3 text-left font-semibold">Update</th>
                 @endunless
             </tr>
         </thead>
@@ -97,42 +95,40 @@
                             <p>{{ $enrollment->cellphone ?? 'No phone' }}</p>
                             <p class="max-w-48 truncate">{{ $enrollment->email ?? 'No email' }}</p>
                         </td>
-                        @if(auth()->user()->user_type !== 'department_head')
-                            <td class="px-4 py-3.5">
-                                <form action="{{ route('enrollments.status.update', $enrollment) }}"
-                                      method="POST"
-                                      @submit.prevent="savingStatus = true; updateEnrollmentStatus($event.target, selectedStatus)
-                                          .then((status) => { setEnrollmentStatus({{ $enrollment->id }}, rowStatus, status); rowStatus = status; selectedStatus = status; showToast('success', 'Status updated', 'Enrollment status was saved.'); })
-                                          .catch(() => { selectedStatus = rowStatus; showToast('error', 'Update failed', 'Unable to update status. Please try again.'); })
-                                          .finally(() => { savingStatus = false; })"
-                                      class="flex min-w-[170px] items-center gap-1.5">
-                                    @csrf
-                                    @method('PATCH')
-                                    <select name="enrollment_status"
-                                            x-model="selectedStatus"
-                                            class="w-28 rounded-xl border border-white/10 bg-white/10 px-2.5 py-2 text-xs font-semibold text-white outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
-                                        <option class="text-slate-900" value="pending" @selected(($enrollment->enrollment_status ?? 'pending') === 'pending')>Pending</option>
-                                        <option class="text-slate-900" value="enrolled" @selected(($enrollment->enrollment_status ?? 'pending') === 'enrolled')>Enrolled</option>
-                                        <option class="text-slate-900" value="cancelled" @selected(($enrollment->enrollment_status ?? 'pending') === 'cancelled')>Cancelled</option>
-                                    </select>
-                                    <button x-show="selectedStatus !== rowStatus"
-                                            x-cloak
-                                            x-transition
-                                            :disabled="savingStatus"
-                                            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1552d4] text-white transition hover:bg-[#0f43b0]"
-                                            title="Update status"
-                                            type="submit">
-                                        <i x-show="!savingStatus" data-lucide="check" class="h-4 w-4"></i>
-                                        <i x-show="savingStatus" data-lucide="loader-2" class="h-4 w-4 animate-spin" x-cloak></i>
-                                    </button>
-                                </form>
-                            </td>
-                        @endif
+                        <td class="px-4 py-3.5">
+                            <form action="{{ route('enrollments.status.update', $enrollment) }}"
+                                  method="POST"
+                                  @submit.prevent="savingStatus = true; updateEnrollmentStatus($event.target, selectedStatus)
+                                      .then((status) => { setEnrollmentStatus({{ $enrollment->id }}, rowStatus, status); rowStatus = status; selectedStatus = status; showToast('success', 'Status updated', 'Enrollment status was saved.'); })
+                                      .catch(() => { selectedStatus = rowStatus; showToast('error', 'Update failed', 'Unable to update status. Please try again.'); })
+                                      .finally(() => { savingStatus = false; })"
+                                  class="flex min-w-[170px] items-center gap-1.5">
+                                @csrf
+                                @method('PATCH')
+                                <select name="enrollment_status"
+                                        x-model="selectedStatus"
+                                        class="w-28 rounded-xl border border-white/10 bg-white/10 px-2.5 py-2 text-xs font-semibold text-white outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20">
+                                    <option class="text-slate-900" value="pending" @selected(($enrollment->enrollment_status ?? 'pending') === 'pending')>Pending</option>
+                                    <option class="text-slate-900" value="enrolled" @selected(($enrollment->enrollment_status ?? 'pending') === 'enrolled')>Enrolled</option>
+                                    <option class="text-slate-900" value="cancelled" @selected(($enrollment->enrollment_status ?? 'pending') === 'cancelled')>Cancelled</option>
+                                </select>
+                                <button x-show="selectedStatus !== rowStatus"
+                                        x-cloak
+                                        x-transition
+                                        :disabled="savingStatus"
+                                        class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1552d4] text-white transition hover:bg-[#0f43b0]"
+                                        title="Update status"
+                                        type="submit">
+                                    <i x-show="!savingStatus" data-lucide="check" class="h-4 w-4"></i>
+                                    <i x-show="savingStatus" data-lucide="loader-2" class="h-4 w-4 animate-spin" x-cloak></i>
+                                </button>
+                            </form>
+                        </td>
                     @endunless
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $compact ? 5 : (auth()->user()->user_type !== 'department_head' ? 7 : 6) }}" class="px-5 py-12 text-center text-slate-300">
+                    <td colspan="{{ $compact ? 5 : 7 }}" class="px-5 py-12 text-center text-slate-300">
                         <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
                         <p class="text-sm">No enrollments yet.</p>
                     </td>

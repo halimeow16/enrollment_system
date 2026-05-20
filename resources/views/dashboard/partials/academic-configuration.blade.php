@@ -30,6 +30,10 @@
     }
 </style>
 
+@php
+    $canManageAdminConfiguration = in_array(auth()->user()?->user_type, ['admin', 'registrar'], true);
+@endphp
+
 <div x-data="{ section: 'settings', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null, academicYear: @js($academicYear ?? '2026-2027') }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
@@ -37,10 +41,10 @@
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Academic Setup</p>
                 <h2 class="mt-1 text-xl font-extrabold text-white">Configuration</h2>
-                <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, department heads, fees, and templates in one workspace.</p>
+                <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, templates, and permitted school settings in one workspace.</p>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 md:grid-cols-6">
+            <div class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 md:grid-cols-{{ $canManageAdminConfiguration ? '6' : '4' }}">
                 <button type="button"
                         @click="section = 'settings'"
                         :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -59,18 +63,20 @@
                         class="rounded-xl px-3 py-2 text-xs font-bold transition">
                     Scheduling
                 </button>
-                <button type="button"
-                        @click="section = 'heads'"
-                        :class="section === 'heads' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
-                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
-                    Dept. Heads
-                </button>
-                <button type="button"
-                        @click="section = 'fees'"
-                        :class="section === 'fees' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
-                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
-                    Fees
-                </button>
+                @if($canManageAdminConfiguration)
+                    <button type="button"
+                            @click="section = 'heads'"
+                            :class="section === 'heads' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                            class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                        Dept. Heads
+                    </button>
+                    <button type="button"
+                            @click="section = 'fees'"
+                            :class="section === 'fees' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                            class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                        Fees
+                    </button>
+                @endif
                 <button type="button"
                         @click="section = 'templates'"
                         :class="section === 'templates' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -736,6 +742,7 @@
             </div>
         </section>
 
+        @if($canManageAdminConfiguration)
         <section x-show="section === 'heads'" x-cloak class="grid grid-cols-12 gap-5">
             <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-5">
                 <h3 class="font-extrabold text-white">Department Head</h3>
@@ -852,6 +859,7 @@
                 </div>
             </div>
         </section>
+        @endif
         <section x-show="section === 'templates'"
                  x-cloak
                  x-data="templateMapper({

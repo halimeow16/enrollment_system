@@ -35,7 +35,7 @@
                         ['tab' => 'id-generation', 'label' => 'Generate IDs', 'icon' => 'badge'],
                     ];
 
-                    if (auth()->user()?->user_type === 'admin') {
+                    if (in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true)) {
                         $navItems[] = ['tab' => 'configuration', 'label' => 'Configurations', 'icon' => 'sliders-horizontal'];
                     }
                 @endphp
@@ -84,11 +84,13 @@
                                 class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-300 hover:bg-white/5">
                             <i data-lucide="settings" class="h-4 w-4"></i> Settings
                         </button>
-                        <button type="button"
-                                @click="open = false; openLogs()"
-                                class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-300 hover:bg-white/5">
-                            <i data-lucide="clipboard-list" class="h-4 w-4"></i> Logs
-                        </button>
+                        @if(auth()->user()?->user_type === 'admin')
+                            <button type="button"
+                                    @click="open = false; openLogs()"
+                                    class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-300 hover:bg-white/5">
+                                <i data-lucide="clipboard-list" class="h-4 w-4"></i> Logs
+                            </button>
+                        @endif
                         <form action="{{ route('logout') }}" method="POST">
                             @csrf
                             <button class="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/10">

@@ -243,7 +243,7 @@ class DashboardController extends Controller
 
     public function idCardData(Enrollment $enrollment): JsonResponse
     {
-        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar'], true), 403);
+        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
         if ($enrollment->enrollment_status !== 'enrolled') {
             return response()->json([
@@ -299,7 +299,7 @@ class DashboardController extends Controller
 
     public function idGenerationStatuses(): JsonResponse
     {
-        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar'], true), 403);
+        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
         $statuses = Enrollment::with('studentId')
             ->where('enrollment_status', 'enrolled')
@@ -315,7 +315,7 @@ class DashboardController extends Controller
 
     public function markIdGenerated(Enrollment $enrollment): JsonResponse
     {
-        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar'], true), 403);
+        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
         if ($enrollment->enrollment_status !== 'enrolled') {
             return response()->json([
@@ -346,7 +346,7 @@ class DashboardController extends Controller
 
     public function uploadIdPhoto(Request $request, Enrollment $enrollment): JsonResponse
     {
-        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar'], true), 403);
+        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
         if ($enrollment->enrollment_status !== 'enrolled') {
             return response()->json([
@@ -394,7 +394,7 @@ class DashboardController extends Controller
 
     public function uploadIdSignature(Request $request, Enrollment $enrollment): JsonResponse
     {
-        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar'], true), 403);
+        abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
         if ($enrollment->enrollment_status !== 'enrolled') {
             return response()->json([

@@ -61,21 +61,25 @@
     <div class="rounded-[28px] border border-white/10 bg-white/10 glass px-6 py-5 shadow-2xl">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Registrar Workspace</p>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">
+                    {{ match (auth()->user()->user_type ?? 'registrar') {
+                        'admin' => 'Admin Workspace',
+                        'department_head' => 'Dept. Head Workspace',
+                        default => 'Registrar Workspace',
+                    } }}
+                </p>
                 <h1 class="mt-2 text-3xl font-extrabold text-white" x-text="titles[activeTab]"></h1>
                 <p class="mt-1 text-sm text-slate-300">A.Y. <span x-text="academicYear"></span> - {{ now()->format('l, F j') }}</p>
 
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                @if(auth()->user()->user_type !== 'department_head')
-                    <button type="button"
-                            @click="openFormFrame()"
-                            class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#1552d4] to-[#0f43b0] px-5 py-3 text-sm font-bold text-white shadow-xl shadow-blue-950/20 transition hover:scale-[1.01]">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        New Enrollment
-                    </button>
-                @endif
+                <button type="button"
+                        @click="openFormFrame()"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#1552d4] to-[#0f43b0] px-5 py-3 text-sm font-bold text-white shadow-xl shadow-blue-950/20 transition hover:scale-[1.01]">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    New Enrollment
+                </button>
                 <button type="button"
                         @click="switchTab('enrollments')"
                         class="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">
@@ -100,15 +104,9 @@
                 Close
             </button>
         </div>
-        @if(auth()->user()->user_type !== 'department_head')
-            <iframe title="Enrollment form"
-                    src="{{ route('enrollment.create') }}"
-                    class="h-[calc(100vh-220px)] min-h-[680px] w-full bg-white"></iframe>
-        @else
-            <div class="p-10 text-center text-sm text-slate-500">
-                Department heads can review enrollment records but cannot create new enrollment forms.
-            </div>
-        @endif
+        <iframe title="Enrollment form"
+                src="{{ route('enrollment.create') }}"
+                class="h-[calc(100vh-220px)] min-h-[680px] w-full bg-white"></iframe>
     </section>
 
     {{-- Overview --}}
@@ -460,7 +458,7 @@
         </div>
     </div>
 
-    @if(auth()->user()->user_type === 'admin')
+    @if(in_array(auth()->user()->user_type, ['admin', 'registrar', 'department_head'], true))
         <section x-show="activeTab === 'configuration'" x-cloak>
             @include('dashboard.partials.academic-configuration')
         </section>

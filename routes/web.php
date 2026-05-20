@@ -33,12 +33,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
     Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])
+        ->middleware('role:admin')
         ->name('activity-logs.index');
 
     Route::put('/account', [AccountSettingsController::class, 'updateOwn'])
         ->name('account.update');
 
-    Route::middleware('role:admin,registrar')->group(function () {
+    Route::middleware('role:admin,registrar,department_head')->group(function () {
         Route::patch('/enrollments/{enrollment}/status', [DashboardController::class, 'updateEnrollmentStatus'])
             ->name('enrollments.status.update');
         Route::get('/enrollments/{enrollment}/id-card-data', [DashboardController::class, 'idCardData'])
@@ -68,7 +69,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{user}', [AccountSettingsController::class, 'destroy'])->name('destroy');
     });
 
-    Route::middleware('role:admin')->prefix('academic-configuration')->name('academic.')->group(function () {
+    Route::middleware('role:admin,registrar,department_head')->prefix('academic-configuration')->name('academic.')->group(function () {
         Route::put('/academic-year', [AcademicConfigurationController::class, 'updateAcademicYear'])->name('academic-year.update');
         Route::post('/subjects', [AcademicConfigurationController::class, 'storeSubject'])->name('subjects.store');
         Route::put('/subjects/{subject}', [AcademicConfigurationController::class, 'updateSubject'])->name('subjects.update');
@@ -78,8 +79,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/time-slots', [AcademicConfigurationController::class, 'storeTimeSlot'])->name('time-slots.store');
         Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
         Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
-        Route::post('/department-heads', [AcademicConfigurationController::class, 'storeDepartmentHead'])->name('department-heads.store');
-        Route::put('/fees', [AcademicConfigurationController::class, 'updateFees'])->name('fees.update');
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');
         Route::put('/templates/{template}/mappings', [AcademicConfigurationController::class, 'updateEnrollmentTemplateMappings'])->name('templates.mappings.update');
         Route::get('/templates/{template}/pdf', [AcademicConfigurationController::class, 'showEnrollmentTemplatePdf'])->name('templates.pdf');
@@ -87,5 +86,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/id-templates/fonts', [AcademicConfigurationController::class, 'storeIdTemplateFont'])->name('id-templates.fonts.store');
         Route::put('/id-templates/{template}/layout', [AcademicConfigurationController::class, 'updateIdTemplateLayout'])->name('id-templates.layout.update');
         Route::get('/id-templates/{template}/background', [AcademicConfigurationController::class, 'showIdTemplateBackground'])->name('id-templates.background');
+    });
+
+    Route::middleware('role:admin,registrar')->prefix('academic-configuration')->name('academic.')->group(function () {
+        Route::post('/department-heads', [AcademicConfigurationController::class, 'storeDepartmentHead'])->name('department-heads.store');
+        Route::put('/fees', [AcademicConfigurationController::class, 'updateFees'])->name('fees.update');
     });
 });
