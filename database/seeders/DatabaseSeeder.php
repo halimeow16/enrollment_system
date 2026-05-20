@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Registrar Staff',
                 'email' => 'registrar@comteq.test',
-                'user_type' => 'registrar',
+                'user_type' => 'staff',
             ],
             [
                 'name' => 'Department Head',

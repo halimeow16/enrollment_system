@@ -27,33 +27,35 @@
         </div>
     @endif
 
-    <div class="fixed bottom-6 right-6 z-[60] w-[min(360px,calc(100vw-2rem))] space-y-3">
-        <template x-for="toast in toasts" :key="toast.id">
-            <div x-show="toast.visible"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="translate-y-2 opacity-0"
-                 x-transition:enter-end="translate-y-0 opacity-100"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="translate-y-0 opacity-100"
-                 x-transition:leave-end="translate-y-2 opacity-0"
-                 :class="toast.type === 'success' ? 'border-emerald-300/20 bg-emerald-500/15 text-emerald-50' : 'border-red-300/20 bg-red-500/15 text-red-50'"
-                 class="rounded-2xl border px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
-                <div class="flex items-start gap-3">
-                    <span :class="toast.type === 'success' ? 'bg-emerald-300/20 text-emerald-100' : 'bg-red-300/20 text-red-100'"
-                          class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl">
-                        <i :data-lucide="toast.type === 'success' ? 'check' : 'alert-circle'" class="h-4 w-4"></i>
-                    </span>
-                    <div class="min-w-0 flex-1">
-                        <p class="text-sm font-bold" x-text="toast.title"></p>
-                        <p class="mt-0.5 text-xs opacity-80" x-text="toast.message"></p>
+    <template x-teleport="body">
+        <div class="fixed bottom-6 right-6 z-[1000] w-[min(360px,calc(100vw-2rem))] space-y-3 pointer-events-none">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div x-show="toast.visible"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="translate-y-2 opacity-0"
+                     x-transition:enter-end="translate-y-0 opacity-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="translate-y-0 opacity-100"
+                     x-transition:leave-end="translate-y-2 opacity-0"
+                     :class="toast.type === 'success' ? 'border-emerald-300/20 bg-emerald-500/15 text-emerald-50' : 'border-red-300/20 bg-red-500/15 text-red-50'"
+                     class="pointer-events-auto rounded-2xl border px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
+                    <div class="flex items-start gap-3">
+                        <span :class="toast.type === 'success' ? 'bg-emerald-300/20 text-emerald-100' : 'bg-red-300/20 text-red-100'"
+                              class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl">
+                            <i :data-lucide="toast.type === 'success' ? 'check' : 'alert-circle'" class="h-4 w-4"></i>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-bold" x-text="toast.title"></p>
+                            <p class="mt-0.5 text-xs opacity-80" x-text="toast.message"></p>
+                        </div>
+                        <button type="button" @click="dismissToast(toast.id)" class="text-white/60 transition hover:text-white">
+                            <i data-lucide="x" class="h-4 w-4"></i>
+                        </button>
                     </div>
-                    <button type="button" @click="dismissToast(toast.id)" class="text-white/60 transition hover:text-white">
-                        <i data-lucide="x" class="h-4 w-4"></i>
-                    </button>
                 </div>
-            </div>
-        </template>
-    </div>
+            </template>
+        </div>
+    </template>
 
     {{-- Shell header --}}
     <div class="rounded-[28px] border border-white/10 bg-white/10 glass px-6 py-5 shadow-2xl">

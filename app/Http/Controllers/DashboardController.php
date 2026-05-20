@@ -14,6 +14,7 @@ use App\Models\StudentId;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
 use App\Models\TimeSlot;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,9 @@ class DashboardController extends Controller
     public function index()
     {
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $accountUsers = User::orderByRaw("FIELD(user_type, 'admin', 'registrar', 'department_head')")
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'user_type']);
 
         // Stat cards
         $stats = [
@@ -196,7 +200,8 @@ class DashboardController extends Controller
             'idTemplatePayloads',
             'idTemplatePayload',
             'idFonts',
-            'academicYear'
+            'academicYear',
+            'accountUsers'
         ));
     }
 

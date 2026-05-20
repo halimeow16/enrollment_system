@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\IdRequirementController;
 use App\Http\Controllers\DashboardController;
@@ -32,6 +33,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
+    Route::put('/account', [AccountSettingsController::class, 'updateOwn'])
+        ->name('account.update');
+
     Route::middleware('role:admin,registrar')->group(function () {
         Route::patch('/enrollments/{enrollment}/status', [DashboardController::class, 'updateEnrollmentStatus'])
             ->name('enrollments.status.update');
@@ -54,6 +58,12 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
             ->name('enrollment.preview');
+    });
+
+    Route::middleware('role:admin')->prefix('accounts')->name('accounts.')->group(function () {
+        Route::post('/', [AccountSettingsController::class, 'store'])->name('store');
+        Route::put('/{user}', [AccountSettingsController::class, 'update'])->name('update');
+        Route::delete('/{user}', [AccountSettingsController::class, 'destroy'])->name('destroy');
     });
 
     Route::middleware('role:admin')->prefix('academic-configuration')->name('academic.')->group(function () {
