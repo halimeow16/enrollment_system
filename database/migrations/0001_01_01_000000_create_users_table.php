@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->enum('user_type', [
                 'admin',
-                'staff',
+                'registrar',
                 'department_head'
             ])->default('registrar');
             $table->rememberToken();
