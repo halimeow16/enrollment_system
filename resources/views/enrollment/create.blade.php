@@ -55,6 +55,7 @@
 
             <form id="enrollmentForm" action="{{ route('enrollment.store') }}" method="POST">
                 @csrf
+                <input type="hidden" name="replace_existing" id="replaceExistingEnrollment" value="0">
 
                 @include('enrollment.partials.basic-info')
                 @include('enrollment.partials.personal-info')
@@ -73,6 +74,37 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<div id="duplicateEnrollmentModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/45 px-6">
+    <div class="relative w-full max-w-[430px] rounded-[24px] bg-white px-7 pb-7 pt-6 text-center shadow-2xl shadow-slate-950/20">
+        <button type="button"
+                id="cancelDuplicateEnrollmentTop"
+                class="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="mx-auto mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+            <i class="fa-solid fa-rotate text-base"></i>
+        </div>
+        <h2 class="mt-4 text-lg font-extrabold text-slate-950">Enrollment Already Submitted</h2>
+        <p id="duplicateEnrollmentMessage" class="mt-2 text-sm leading-6 text-slate-500">
+            You already submitted an enrollment for this school year. Continuing will replace the previous submission with the details on this form.
+        </p>
+
+        <div class="mt-7 grid grid-cols-2 gap-3">
+            <button type="button"
+                    id="cancelDuplicateEnrollment"
+                    class="rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                Cancel
+            </button>
+            <button type="button"
+                    id="confirmDuplicateEnrollment"
+                    class="rounded-xl bg-black px-5 py-3.5 text-sm font-bold text-white transition hover:bg-slate-800">
+                Submit
+            </button>
         </div>
     </div>
 </div>
@@ -110,6 +142,7 @@
 
 <script>
     window.previewUrl = "{{ route('enrollment.preview') }}";
+    window.checkExistingEnrollmentUrl = "{{ route('enrollment.check-existing') }}";
     window.subjectCatalog = @json($subjectCatalog);
     window.departmentHeads = @json($departmentHeadMap);
 </script>

@@ -128,6 +128,113 @@ window.closeModal = closeModal;
 
 window.onload = populateCourses;
 
+function openDuplicateEnrollmentModal(message) {
+    const modal = document.getElementById('duplicateEnrollmentModal');
+    const messageBox = document.getElementById('duplicateEnrollmentMessage');
+
+    if (messageBox && message) {
+        messageBox.textContent = message;
+    }
+
+    modal?.classList.remove('hidden');
+    modal?.classList.add('flex');
+}
+
+function closeDuplicateEnrollmentModal() {
+    const modal = document.getElementById('duplicateEnrollmentModal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+}
+
+async function checkExistingEnrollment(form) {
+    const formData = new FormData(form);
+
+    const response = await fetch(window.checkExistingEnrollmentUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    });
+
+    if (!response.ok) {
+        return { exists: false };
+    }
+
+    return response.json();
+}
+
+function setupDuplicateEnrollmentCheck() {
+    const form = document.getElementById('enrollmentForm');
+    const replaceInput = document.getElementById('replaceExistingEnrollment');
+    const confirmButton = document.getElementById('confirmDuplicateEnrollment');
+    const cancelButtons = [
+        document.getElementById('cancelDuplicateEnrollment'),
+        document.getElementById('cancelDuplicateEnrollmentTop'),
+    ].filter(Boolean);
+
+    if (!form || !replaceInput) return;
+
+    let confirmedDuplicateSubmit = false;
+
+    form.addEventListener('submit', async (event) => {
+        if (confirmedDuplicateSubmit) {
+            confirmedDuplicateSubmit = false;
+            return;
+        }
+
+        event.preventDefault();
+        replaceInput.value = '0';
+
+        if (!form.reportValidity()) return;
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton?.innerHTML;
+
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Checking...';
+        }
+
+        try {
+            const result = await checkExistingEnrollment(form);
+
+            if (result.exists) {
+                const submittedText = result.submitted_at ? ` It was submitted on ${result.submitted_at}.` : '';
+                openDuplicateEnrollmentModal(`You already have an enrollment for A.Y. ${result.school_year}.${submittedText} Continuing will replace your previous submission with the details on this form.`);
+                return;
+            }
+
+            replaceInput.value = '0';
+            form.submit();
+        } catch (error) {
+            console.error('Existing enrollment check failed:', error);
+            form.submit();
+        } finally {
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        }
+    });
+
+    confirmButton?.addEventListener('click', () => {
+        replaceInput.value = '1';
+        confirmedDuplicateSubmit = true;
+        closeDuplicateEnrollmentModal();
+        form.requestSubmit();
+    });
+
+    cancelButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            replaceInput.value = '0';
+            closeDuplicateEnrollmentModal();
+        });
+    });
+}
+
 function updateDepartmentHead() {
     const input = document.getElementById('department_head_name');
     if (!input) return;
@@ -338,16 +445,22 @@ function setMaxDate() {
 
     const today = new Date();
     
+    // Minimum age: 15 years ago from today (Sets the 'max' allowable date attribute)
     const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
-    
     const formattedMaxDate = maxDate.toISOString().split('T')[0];
     dobInput.setAttribute('max', formattedMaxDate);
+
+    // Maximum age: 100 years ago from today (Sets the 'min' allowable date attribute)
+    const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+    const formattedMinDate = minDate.toISOString().split('T')[0];
+    dobInput.setAttribute('min', formattedMinDate);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     setMaxDate();
     updateDepartmentHead();
     renderSubjectList();
+    setupDuplicateEnrollmentCheck();
 
     document.getElementById('year_level')?.addEventListener('change', renderSubjectList);
     document.getElementById('semester')?.addEventListener('change', renderSubjectList);

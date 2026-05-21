@@ -27,8 +27,8 @@ class Enrollment extends Model
     ];
 
     protected $casts = [
-        'date_filed'    => 'date',
-        'date_of_birth' => 'date',
+        'date_filed'    => 'date:Y-m-d',
+        'date_of_birth' => 'date:Y-m-d',
         'age'           => 'integer',
         'credentials'   => 'array',
     ];

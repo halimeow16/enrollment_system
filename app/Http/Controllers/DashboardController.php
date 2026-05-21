@@ -34,15 +34,7 @@ class DashboardController extends Controller
         $activityLogs = $this->activityLogPayloads();
 
         // Stat cards
-        $stats = [
-            'total_enrolled' => Enrollment::where('enrollment_status', 'enrolled')->count(),
-            'pending'        => Enrollment::where('enrollment_status', 'pending')->count(),
-            'enrolled_today' => Enrollment::where('enrollment_status', 'enrolled')
-                                          ->whereDate('updated_at', today())
-                                          ->count(),
-            'courses'        => DB::table('enrollments')->distinct()->count('course_code'),
-            'subjects'       => DB::table('subjects')->where('is_active', true)->count(),
-        ];
+        $stats = $this->dashboardStats();
 
         // Course leaderboard
         $courseStats = DB::table('enrollments')
@@ -213,6 +205,39 @@ class DashboardController extends Controller
         return response()->json([
             'logs' => $this->activityLogPayloads(),
         ]);
+    }
+
+    public function liveEnrollments(): JsonResponse
+    {
+        $recentEnrollments = Enrollment::orderByDesc('created_at')->limit(8)->get();
+        $allEnrollments = Enrollment::with('studentId')->orderByDesc('created_at')->get();
+
+        return response()->json([
+            'recent_html' => view('dashboard.partials.enrollment-table', [
+                'enrollments' => $recentEnrollments,
+                'compact' => true,
+            ])->render(),
+            'all_html' => view('dashboard.partials.enrollment-table', [
+                'enrollments' => $allEnrollments,
+                'compact' => false,
+            ])->render(),
+            'total' => $allEnrollments->count(),
+            'statuses' => $allEnrollments->pluck('enrollment_status', 'id'),
+            'stats' => $this->dashboardStats(),
+        ]);
+    }
+
+    private function dashboardStats(): array
+    {
+        return [
+            'total_enrolled' => Enrollment::where('enrollment_status', 'enrolled')->count(),
+            'pending'        => Enrollment::where('enrollment_status', 'pending')->count(),
+            'enrolled_today' => Enrollment::where('enrollment_status', 'enrolled')
+                ->whereDate('updated_at', today())
+                ->count(),
+            'courses'        => DB::table('enrollments')->distinct()->count('course_code'),
+            'subjects'       => DB::table('subjects')->where('is_active', true)->count(),
+        ];
     }
 
     public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse

@@ -11,6 +11,7 @@ use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
 use App\Models\Subject;
+use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -73,6 +74,7 @@ class EnrollmentController extends Controller
             'subject_ids.*'    => 'integer|exists:subjects,id',
             'credentials'      => 'nullable|array',
             'credentials.*'    => 'string',
+            'replace_existing' => 'nullable|boolean',
         ], [
             'cellphone.regex' => 'Enter a valid 11-digit cellphone number starting with 09.',
             'father_cpNumber.regex' => 'Enter a valid father cellphone number starting with 09.',
@@ -80,6 +82,8 @@ class EnrollmentController extends Controller
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
+        $replaceExisting = (bool) ($validated['replace_existing'] ?? false);
+        unset($validated['replace_existing']);
 
         $selectedSubjectIds = collect($validated['subject_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
@@ -105,16 +109,27 @@ class EnrollmentController extends Controller
 
         unset($validated['subject_ids']);
 
-        $enrollment = DB::transaction(function () use ($validated, $selectedSubjects) {
-            $enrollment = Enrollment::create($validated);
+        $enrollment = DB::transaction(function () use ($validated, $selectedSubjects, $replaceExisting) {
+            $duplicate = $replaceExisting
+                ? $this->existingEnrollmentQuery($validated)->lockForUpdate()->first()
+                : null;
 
+            if ($duplicate) {
+                $duplicate->update($validated);
+                $enrollment = $duplicate;
+            } else {
+                $enrollment = Enrollment::create($validated);
+            }
+
+            $subjectPayload = [];
             foreach ($selectedSubjects as $subject) {
-                $enrollment->subjects()->attach($subject->id, [
+                $subjectPayload[$subject->id] = [
                     'lecture_units' => $subject->lecture_units,
                     'laboratory_units' => $subject->laboratory_units,
                     'total_units' => $subject->total_units,
-                ]);
+                ];
             }
+            $enrollment->subjects()->sync($subjectPayload);
 
             return $enrollment;
         });
@@ -137,6 +152,27 @@ class EnrollmentController extends Controller
         return response($pdfContent, 200)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    public function checkExisting(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'date_of_birth' => 'required|date_format:Y-m-d',
+            'year_level' => 'required|string',
+            'semester' => 'required|string',
+        ]);
+
+        $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
+        $enrollment = $this->existingEnrollmentQuery($validated)->first();
+
+        return response()->json([
+            'exists' => (bool) $enrollment,
+            'school_year' => $validated['school_year'],
+            'submitted_at' => $enrollment?->created_at?->format('F j, Y'),
+        ]);
     }
 
     public function preview(Request $request)
@@ -177,6 +213,27 @@ class EnrollmentController extends Controller
             ->header('Content-Type', 'application/pdf');
     }
 
+    private function existingEnrollmentQuery(array $data)
+    {
+        $middleName = trim((string) ($data['middle_name'] ?? ''));
+
+        return Enrollment::query()
+            ->whereRaw('LOWER(TRIM(first_name)) = ?', [strtolower(trim((string) ($data['first_name'] ?? '')))])
+            ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim((string) ($data['last_name'] ?? '')))])
+            ->whereDate('date_of_birth', $data['date_of_birth'] ?? null)
+            ->where('school_year', $data['school_year'] ?? AppSetting::getValue('academic_year', '2026-2027'))
+            ->where('year_level', $data['year_level'] ?? null)
+            ->where('semester', $data['semester'] ?? null)
+            ->when($middleName !== '', function ($query) use ($middleName) {
+                $query->whereRaw('LOWER(TRIM(middle_name)) = ?', [strtolower($middleName)]);
+            }, function ($query) {
+                $query->where(function ($middleQuery) {
+                    $middleQuery->whereNull('middle_name')
+                        ->orWhereRaw("TRIM(COALESCE(middle_name, '')) = ''");
+                });
+            });
+    }
+
     private function fillExistingPDF($data)
     {
         $activeTemplate = $this->preferredEnrollmentTemplate();
@@ -204,7 +261,7 @@ class EnrollmentController extends Controller
 
         // ==================== TEXT FIELDS ====================
         $pdf->SetXY(90, 37.5);   $pdf->Write(0, $data->student_number ?? '');
-        $pdf->SetXY(205, 37.5);  $pdf->Write(0, $data->date_filed ?? '');
+        $pdf->SetXY(205, 37.5);  $pdf->Write(0, $this->dateOnly($data->date_filed ?? ''));
         $pdf->SetXY(313, 37.5);  $pdf->Write(0, $data->school_year ?? '');
 
         $pdf->SetXY(98, 45);   $pdf->Write(0, $data->last_name ?? '');
@@ -233,7 +290,7 @@ class EnrollmentController extends Controller
         $pdf->SetXY(70, 291.5); $pdf->Write(0, $data->city ?? '');
         $pdf->SetXY(224, 291.5); $pdf->Write(0, $data->province ?? '');
 
-        $pdf->SetXY(77, 299); $pdf->Write(0, $data->date_of_birth ?? '');
+        $pdf->SetXY(77, 299); $pdf->Write(0, $this->dateOnly($data->date_of_birth ?? ''));
         $pdf->SetXY(200, 299); $pdf->Write(0, $data->age ?? '');
         $pdf->SetXY(261, 299); $pdf->Write(0, $data->civil_status ?? '');
 
@@ -407,11 +464,28 @@ class EnrollmentController extends Controller
 
         $value = data_get($data, $key, '');
 
+        if (in_array($key, ['date_filed', 'date_of_birth'], true)) {
+            return $this->dateOnly($value);
+        }
+
         if (is_array($value)) {
             return implode(', ', $value);
         }
 
         return (string) ($value ?? '');
+    }
+
+    private function dateOnly($value): string
+    {
+        if (! $value) {
+            return '';
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return preg_replace('/\s+\d{2}:\d{2}:\d{2}$/', '', (string) $value) ?? (string) $value;
     }
 
     private function mappedSubjectValue(string $field, int $position, $data): string

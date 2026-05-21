@@ -29,9 +29,23 @@ Route::get('/submit-id-requirements', [IdRequirementController::class, 'create']
 Route::post('/submit-id-requirements', [IdRequirementController::class, 'store'])
     ->name('id-requirements.store');
 
+Route::get('/enrollment', [EnrollmentController::class, 'create'])
+    ->name('enrollment.create');
+
+Route::post('/enrollment', [EnrollmentController::class, 'store'])
+    ->name('enrollment.store');
+
+Route::post('/enrollment/check-existing', [EnrollmentController::class, 'checkExisting'])
+    ->name('enrollment.check-existing');
+
+Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
+    ->name('enrollment.preview');
+
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('/dashboard/enrollments/live', [DashboardController::class, 'liveEnrollments'])
+        ->name('dashboard.enrollments.live');
     Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])
         ->middleware('role:admin')
         ->name('activity-logs.index');
@@ -53,14 +67,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/enrollments/{enrollment}/id-signature', [DashboardController::class, 'uploadIdSignature'])
             ->name('enrollments.id-signature');
 
-        Route::get('/enrollment', [EnrollmentController::class, 'create'])
-            ->name('enrollment.create');
-
-        Route::post('/enrollment', [EnrollmentController::class, 'store'])
-            ->name('enrollment.store');
-
-        Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
-            ->name('enrollment.preview');
+        
     });
 
     Route::middleware('role:admin')->prefix('accounts')->name('accounts.')->group(function () {

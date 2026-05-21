@@ -221,7 +221,9 @@
                         See all
                     </button>
                 </div>
-                @include('dashboard.partials.enrollment-table', ['enrollments' => $recentEnrollments, 'compact' => true])
+                <div x-ref="recentEnrollmentsTable">
+                    @include('dashboard.partials.enrollment-table', ['enrollments' => $recentEnrollments, 'compact' => true])
+                </div>
             </div>
         </div>
     </section>
@@ -231,7 +233,9 @@
         <div class="px-5 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/10">
             <div>
                 <h2 class="font-extrabold text-white">All Enrollments</h2>
-                <p class="text-xs text-slate-300 mt-0.5">{{ $allEnrollments->count() }} total records from the enrollment table.</p>
+                <p class="text-xs text-slate-300 mt-0.5">
+                    <span x-text="formatCount(enrollmentCount)"></span> total records from the enrollment table.
+                </p>
             </div>
             <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
                 <div class="relative w-full md:w-72">
@@ -250,7 +254,9 @@
                 </select>
             </div>
         </div>
-        @include('dashboard.partials.enrollment-table', ['enrollments' => $allEnrollments, 'compact' => false])
+        <div x-ref="allEnrollmentsTable">
+            @include('dashboard.partials.enrollment-table', ['enrollments' => $allEnrollments, 'compact' => false])
+        </div>
     </section>
 
     {{-- ID generation --}}
@@ -542,7 +548,10 @@
             idGenerationFilter: '',
             stats: @json($stats),
             academicYear: @json($academicYear),
+            enrollmentCount: {{ $allEnrollments->count() }},
             enrollmentStatuses: @json($allEnrollments->pluck('enrollment_status', 'id')),
+            enrollmentRefreshUrl: @json(route('dashboard.enrollments.live')),
+            enrollmentRefreshTimer: null,
             idGenerationStatuses: @json($idGenerationStatuses),
             idGenerationStatusUrl: @json(route('id-generation.statuses')),
             idGenerationRefreshTimer: null,
@@ -586,11 +595,19 @@
                 });
                 this.$watch('activeTab', (tab) => {
                     window.dispatchEvent(new CustomEvent('dashboard-tab-changed', { detail: { tab } }));
+                    if (['overview', 'enrollments'].includes(tab)) {
+                        this.refreshEnrollmentTables();
+                    }
                     if (tab === 'id-generation') {
                         this.refreshIdGenerationStatuses();
                     }
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
+                this.enrollmentRefreshTimer = setInterval(() => {
+                    if (['overview', 'enrollments'].includes(this.activeTab)) {
+                        this.refreshEnrollmentTables();
+                    }
+                }, 6000);
                 this.idGenerationRefreshTimer = setInterval(() => {
                     if (this.activeTab === 'id-generation') {
                         this.refreshIdGenerationStatuses();
@@ -673,6 +690,46 @@
 
                 const data = await response.json();
                 return data.status;
+            },
+            async refreshEnrollmentTables() {
+                try {
+                    const response = await fetch(this.enrollmentRefreshUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+
+                    if (this.$refs.recentEnrollmentsTable && data.recent_html) {
+                        this.$refs.recentEnrollmentsTable.innerHTML = data.recent_html;
+                        window.Alpine?.initTree(this.$refs.recentEnrollmentsTable);
+                    }
+
+                    if (this.$refs.allEnrollmentsTable && data.all_html) {
+                        this.$refs.allEnrollmentsTable.innerHTML = data.all_html;
+                        window.Alpine?.initTree(this.$refs.allEnrollmentsTable);
+                    }
+
+                    this.enrollmentCount = Number(data.total || 0);
+                    this.enrollmentStatuses = {
+                        ...(data.statuses || {}),
+                    };
+
+                    if (data.stats) {
+                        this.stats = {
+                            ...this.stats,
+                            ...data.stats,
+                        };
+                    }
+
+                    this.$nextTick(() => window.lucide?.createIcons());
+                } catch (error) {
+                    // Keep the current table visible if a background refresh fails.
+                }
             },
             async submitSubjectForm(form) {
                 const response = await fetch(form.action, {
