@@ -12,6 +12,7 @@ use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
 use App\Models\Subject;
 use DateTimeInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -43,9 +44,9 @@ class EnrollmentController extends Controller
             'student_number'   => 'nullable|string|max:50',
             'date_filed'       => 'nullable|date_format:Y-m-d',
             'school_year'      => 'nullable|string',
-            'first_name'       => 'nullable|string|max:100',
+            'first_name'       => 'required|string|max:100',
             'middle_name'      => 'nullable|string|max:100',
-            'last_name'        => 'nullable|string|max:100',
+            'last_name'        => 'required|string|max:100',
             'cellphone'        => ['nullable', 'regex:/^09\d{9}$/'],
             'email'            => 'nullable|email|max:100',
             'last_school'      => 'nullable|string|max:150',
@@ -53,7 +54,7 @@ class EnrollmentController extends Controller
             'barangay'         => 'nullable|string',
             'city'             => 'nullable|string',
             'province'         => 'nullable|string',
-            'date_of_birth'    => 'nullable|date_format:Y-m-d',
+            'date_of_birth'    => 'required|date_format:Y-m-d',
             'age'              => 'nullable|integer|min:1',
             'place_of_birth'   => 'nullable|string',
             'civil_status'     => 'nullable|string',
@@ -65,10 +66,10 @@ class EnrollmentController extends Controller
             'mother_name'      => 'nullable|string',
             'mother_address'   => 'nullable|string',
             'mother_cpNumber'  => ['nullable', 'regex:/^09\d{9}$/'],
-            'course_code'      => 'nullable|string',
-            'course_name'      => 'nullable|string',
-            'year_level'       => 'nullable|string',
-            'semester'         => 'nullable|string',
+            'course_code'      => 'required|string',
+            'course_name'      => 'required|string',
+            'year_level'       => 'required|string',
+            'semester'         => 'required|string',
             'department_head_name' => 'nullable|string|max:120',
             'subject_ids'      => 'nullable|array',
             'subject_ids.*'    => 'integer|exists:subjects,id',
@@ -84,6 +85,15 @@ class EnrollmentController extends Controller
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
         $replaceExisting = (bool) ($validated['replace_existing'] ?? false);
         unset($validated['replace_existing']);
+        $validated['enrollment_identity_hash'] = $this->enrollmentIdentityHash($validated);
+
+        if (! $replaceExisting && $this->existingEnrollmentQuery($validated)->exists()) {
+            return back()
+                ->withErrors([
+                    'duplicate' => 'An enrollment for this student, school year, year level, and semester already exists. Please confirm replacement before submitting again.',
+                ])
+                ->withInput();
+        }
 
         $selectedSubjectIds = collect($validated['subject_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
@@ -109,30 +119,38 @@ class EnrollmentController extends Controller
 
         unset($validated['subject_ids']);
 
-        $enrollment = DB::transaction(function () use ($validated, $selectedSubjects, $replaceExisting) {
-            $duplicate = $replaceExisting
-                ? $this->existingEnrollmentQuery($validated)->lockForUpdate()->first()
-                : null;
+        try {
+            $enrollment = DB::transaction(function () use ($validated, $selectedSubjects, $replaceExisting) {
+                $duplicate = $replaceExisting
+                    ? $this->existingEnrollmentQuery($validated)->lockForUpdate()->first()
+                    : null;
 
-            if ($duplicate) {
-                $duplicate->update($validated);
-                $enrollment = $duplicate;
-            } else {
-                $enrollment = Enrollment::create($validated);
-            }
+                if ($duplicate) {
+                    $duplicate->update($validated);
+                    $enrollment = $duplicate;
+                } else {
+                    $enrollment = Enrollment::create($validated);
+                }
 
-            $subjectPayload = [];
-            foreach ($selectedSubjects as $subject) {
-                $subjectPayload[$subject->id] = [
-                    'lecture_units' => $subject->lecture_units,
-                    'laboratory_units' => $subject->laboratory_units,
-                    'total_units' => $subject->total_units,
-                ];
-            }
-            $enrollment->subjects()->sync($subjectPayload);
+                $subjectPayload = [];
+                foreach ($selectedSubjects as $subject) {
+                    $subjectPayload[$subject->id] = [
+                        'lecture_units' => $subject->lecture_units,
+                        'laboratory_units' => $subject->laboratory_units,
+                        'total_units' => $subject->total_units,
+                    ];
+                }
+                $enrollment->subjects()->sync($subjectPayload);
 
-            return $enrollment;
-        });
+                return $enrollment;
+            });
+        } catch (UniqueConstraintViolationException) {
+            return back()
+                ->withErrors([
+                    'duplicate' => 'An enrollment for this student, school year, year level, and semester already exists. Please refresh the form and confirm replacement if you need to update it.',
+                ])
+                ->withInput();
+        }
 
         $enrollment->setRelation('subjects', $selectedSubjects);
 
@@ -145,7 +163,13 @@ class EnrollmentController extends Controller
             'subjects' => $selectedSubjects->pluck('code')->values()->all(),
         ], $request);
 
-        $pdfContent = $this->fillExistingPDF($enrollment);
+        try {
+            $pdfContent = $this->fillExistingPDF($enrollment);
+        } catch (Throwable) {
+            return back()
+                ->with('success', 'Enrollment was saved, but the PDF could not be generated. Please ask the admin to check the enrollment form template.')
+                ->withInput();
+        }
 
         $filename = 'Enrollment_' . ($enrollment->student_number ?? 'Unknown') . '_' . now()->format('YmdHis') . '.pdf';
 
@@ -166,6 +190,7 @@ class EnrollmentController extends Controller
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
+        $validated['enrollment_identity_hash'] = $this->enrollmentIdentityHash($validated);
         $enrollment = $this->existingEnrollmentQuery($validated)->first();
 
         return response()->json([
@@ -215,10 +240,25 @@ class EnrollmentController extends Controller
 
     private function existingEnrollmentQuery(array $data)
     {
-        $middleName = trim((string) ($data['middle_name'] ?? ''));
+        if (! empty($data['enrollment_identity_hash'])) {
+            return Enrollment::query()
+                ->where('enrollment_identity_hash', $data['enrollment_identity_hash'])
+                ->orWhere(function ($query) use ($data) {
+                    $this->applyLegacyEnrollmentIdentityQuery($query, $data);
+                });
+        }
 
         return Enrollment::query()
-            ->whereRaw('LOWER(TRIM(first_name)) = ?', [strtolower(trim((string) ($data['first_name'] ?? '')))])
+            ->where(function ($query) use ($data) {
+                $this->applyLegacyEnrollmentIdentityQuery($query, $data);
+            });
+    }
+
+    private function applyLegacyEnrollmentIdentityQuery($query, array $data): void
+    {
+        $middleName = trim((string) ($data['middle_name'] ?? ''));
+
+        $query->whereRaw('LOWER(TRIM(first_name)) = ?', [strtolower(trim((string) ($data['first_name'] ?? '')))])
             ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim((string) ($data['last_name'] ?? '')))])
             ->whereDate('date_of_birth', $data['date_of_birth'] ?? null)
             ->where('school_year', $data['school_year'] ?? AppSetting::getValue('academic_year', '2026-2027'))
@@ -232,6 +272,25 @@ class EnrollmentController extends Controller
                         ->orWhereRaw("TRIM(COALESCE(middle_name, '')) = ''");
                 });
             });
+    }
+
+    private function enrollmentIdentityHash(array $data): ?string
+    {
+        $normalized = [
+            strtolower(trim((string) ($data['first_name'] ?? ''))),
+            strtolower(trim((string) ($data['middle_name'] ?? ''))),
+            strtolower(trim((string) ($data['last_name'] ?? ''))),
+            strtolower(trim((string) ($data['date_of_birth'] ?? ''))),
+            strtolower(trim((string) ($data['school_year'] ?? AppSetting::getValue('academic_year', '2026-2027')))),
+            strtolower(trim((string) ($data['year_level'] ?? ''))),
+            strtolower(trim((string) ($data['semester'] ?? ''))),
+        ];
+
+        if (in_array('', [$normalized[0], $normalized[2], $normalized[3], $normalized[4], $normalized[5], $normalized[6]], true)) {
+            return null;
+        }
+
+        return hash('sha256', implode('|', $normalized));
     }
 
     private function fillExistingPDF($data)

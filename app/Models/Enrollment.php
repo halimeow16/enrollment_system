@@ -21,6 +21,7 @@ class Enrollment extends Model
         'father_name', 'father_address', 'father_cpNumber',
         'mother_name', 'mother_address', 'mother_cpNumber',
         'course_code', 'course_name', 'year_level', 'semester',
+        'enrollment_identity_hash',
         'department_head_name',
         'enrollment_status',
         'credentials',

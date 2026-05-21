@@ -16,6 +16,7 @@ use App\Models\Subject;
 use App\Models\SubjectSchedule;
 use App\Models\TimeSlot;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -348,7 +349,7 @@ class DashboardController extends Controller
             ], 422);
         }
 
-        $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $studentId = $this->studentIdForEnrollment($enrollment);
         $studentId->fill([
             'school_year' => $enrollment->school_year,
             'status' => 'generated',
@@ -386,7 +387,7 @@ class DashboardController extends Controller
             'photo.image' => 'The student photo must be a valid image file.',
         ]);
 
-        $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $studentId = $this->studentIdForEnrollment($enrollment);
         $oldValues = ['photo_path' => $studentId->photo_path];
 
         if ($studentId->photo_path) {
@@ -434,7 +435,7 @@ class DashboardController extends Controller
             'signature.image' => 'The signature must be a valid image file.',
         ]);
 
-        $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $studentId = $this->studentIdForEnrollment($enrollment);
         $oldValues = ['signature_path' => $studentId->signature_path];
 
         if ($studentId->signature_path) {
@@ -463,6 +464,22 @@ class DashboardController extends Controller
             'message' => 'Signature uploaded.',
             'status' => $this->idGenerationStatusPayload($enrollment),
         ]);
+    }
+
+    private function studentIdForEnrollment(Enrollment $enrollment): StudentId
+    {
+        try {
+            return StudentId::firstOrCreate(
+                ['enrollment_id' => $enrollment->id],
+                [
+                    'school_year' => $enrollment->school_year,
+                    'status' => 'draft',
+                    'requirements_status' => 'pending',
+                ]
+            );
+        } catch (UniqueConstraintViolationException) {
+            return StudentId::where('enrollment_id', $enrollment->id)->firstOrFail();
+        }
     }
 
     private function idGenerationStatusPayload(Enrollment $enrollment): array

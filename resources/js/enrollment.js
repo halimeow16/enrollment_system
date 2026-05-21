@@ -299,7 +299,7 @@ async function loadProvinces() {
     provinceSelect.innerHTML = '<option value="">Select Province</option>';
 
     try {
-        const res = await fetch('https://psgc.cloud/api/provinces');
+        const res = await fetch(window.addressDataUrls?.provinces || '/address-data/provinces');
         const json = await res.json();
         const provinces = json.data ?? json;
 
@@ -310,9 +310,11 @@ async function loadProvinces() {
             option.textContent = p.name || 'Unknown Province';
             provinceSelect.appendChild(option);
         });
+        appendOtherOption(provinceSelect, 'Other / Not listed');
 
     } catch (error) {
-        console.error("Failed to load provinces:", error);
+        console.error("Failed to load local provinces:", error);
+        appendOtherOption(provinceSelect, 'Other / Not listed');
     }
 }
 
@@ -330,7 +332,7 @@ async function loadCities(provinceCode) {
 
     try {
         const res = await fetch(
-            `https://psgc.cloud/api/provinces/${provinceCode}/cities-municipalities`
+            `${window.addressDataUrls?.cities || '/address-data/provinces'}/${provinceCode}/cities`
         );
         const json = await res.json();
         const cities = json.data ?? json;
@@ -343,10 +345,13 @@ async function loadCities(provinceCode) {
             citySelect.appendChild(option);
         });
 
+        appendOtherOption(citySelect, 'Other / Not listed');
         citySelect.disabled = false;
 
     } catch (error) {
-        console.error("Failed to load cities:", error);
+        console.error("Failed to load local cities:", error);
+        appendOtherOption(citySelect, 'Other / Not listed');
+        citySelect.disabled = false;
     }
 }
 
@@ -361,7 +366,7 @@ async function loadBarangays(cityCode) {
 
     try {
         const res = await fetch(
-            `https://psgc.cloud/api/cities-municipalities/${cityCode}/barangays`
+            `${window.addressDataUrls?.barangays || '/address-data/cities'}/${cityCode}/barangays`
         );
 
         const json = await res.json();
@@ -374,14 +379,26 @@ async function loadBarangays(cityCode) {
             barangaySelect.appendChild(option);
         });
 
+        appendOtherOption(barangaySelect, 'Other / Not listed');
         barangaySelect.disabled = false;
 
     } catch (error) {
-        console.error("Failed to load barangays:", error);
+        console.error("Failed to load local barangays:", error);
+        appendOtherOption(barangaySelect, 'Other / Not listed');
         barangaySelect.disabled = false;
     }
 }
 
+function appendOtherOption(select, label) {
+    if (!select || Array.from(select.options).some(option => option.value === 'Other / Not listed')) {
+        return;
+    }
+
+    const option = document.createElement('option');
+    option.value = 'Other / Not listed';
+    option.textContent = label;
+    select.appendChild(option);
+}
 
 function getSelectedAddress() {
     const provinceSelect = document.getElementById('province');

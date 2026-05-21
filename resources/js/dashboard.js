@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
         });
 
-        let chart = new Chart(ctx, chartConfig(
+        let chart = new window.Chart(ctx, chartConfig(
             semesterData.labels,
             semesterData.enrolled,
             semesterData.pending

@@ -44,7 +44,7 @@
                 <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, templates, and permitted school settings in one workspace.</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 md:grid-cols-{{ $canManageAdminConfiguration ? '6' : '4' }}">
+            <div class="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 xl:w-auto {{ $canManageAdminConfiguration ? 'md:grid-cols-6 xl:min-w-[680px]' : 'md:grid-cols-4 xl:min-w-[480px]' }}">
                 <button type="button"
                         @click="section = 'settings'"
                         :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"

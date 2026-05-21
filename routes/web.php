@@ -41,6 +41,39 @@ Route::post('/enrollment/check-existing', [EnrollmentController::class, 'checkEx
 Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
     ->name('enrollment.preview');
 
+Route::prefix('address-data')->name('address-data.')->group(function () {
+    Route::get('/provinces', function () {
+        return response()->json(collect(config('address_data.provinces'))
+            ->map(fn ($province) => [
+                'code' => $province['code'],
+                'name' => $province['name'],
+            ])
+            ->values());
+    })->name('provinces');
+
+    Route::get('/provinces/{provinceCode}/cities', function (string $provinceCode) {
+        $province = collect(config('address_data.provinces'))
+            ->firstWhere('code', $provinceCode);
+
+        return response()->json(collect($province['cities'] ?? [])
+            ->map(fn ($city) => [
+                'code' => $city['code'],
+                'name' => $city['name'],
+            ])
+            ->values());
+    })->name('cities');
+
+    Route::get('/cities/{cityCode}/barangays', function (string $cityCode) {
+        $city = collect(config('address_data.provinces'))
+            ->flatMap(fn ($province) => $province['cities'] ?? [])
+            ->firstWhere('code', $cityCode);
+
+        return response()->json(collect($city['barangays'] ?? [])
+            ->map(fn ($name) => ['name' => $name])
+            ->values());
+    })->name('barangays');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Enrollment;
 use App\Models\StudentId;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -56,7 +57,7 @@ class IdRequirementController extends Controller
         }
 
         $enrollment = $matches->first();
-        $studentId = StudentId::firstOrNew(['enrollment_id' => $enrollment->id]);
+        $studentId = $this->studentIdForEnrollment($enrollment);
         $oldValues = $studentId->exists ? $studentId->only([
             'emergency_contact_name',
             'emergency_contact_relationship',
@@ -122,5 +123,21 @@ class IdRequirementController extends Controller
     private function normalizeContact(string $value): string
     {
         return preg_replace('/\D+/', '', $value) ?? '';
+    }
+
+    private function studentIdForEnrollment(Enrollment $enrollment): StudentId
+    {
+        try {
+            return StudentId::firstOrCreate(
+                ['enrollment_id' => $enrollment->id],
+                [
+                    'school_year' => $enrollment->school_year,
+                    'status' => 'draft',
+                    'requirements_status' => 'pending',
+                ]
+            );
+        } catch (UniqueConstraintViolationException) {
+            return StudentId::where('enrollment_id', $enrollment->id)->firstOrFail();
+        }
     }
 }

@@ -113,8 +113,6 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
-
 @php
     $subjectCatalog = $subjects->map(function ($subject) {
         return [
@@ -143,6 +141,11 @@
 <script>
     window.previewUrl = "{{ route('enrollment.preview') }}";
     window.checkExistingEnrollmentUrl = "{{ route('enrollment.check-existing') }}";
+    window.addressDataUrls = {
+        provinces: "{{ route('address-data.provinces') }}",
+        cities: "{{ url('/address-data/provinces') }}",
+        barangays: "{{ url('/address-data/cities') }}",
+    };
     window.subjectCatalog = @json($subjectCatalog);
     window.departmentHeads = @json($departmentHeadMap);
 </script>
