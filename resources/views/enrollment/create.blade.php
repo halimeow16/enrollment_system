@@ -62,13 +62,13 @@
                 @include('enrollment.partials.academic-program')
                 @include('enrollment.partials.required-credentials')
 
-                <div class="mt-12 flex justify-center gap-4">
+                <div class="mt-10 flex flex-col justify-center gap-3 sm:mt-12 sm:flex-row sm:gap-4">
                     <button type="button" onclick="generatePreview()" 
-                            class="px-8 py-5 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-3xl">
+                            class="rounded-2xl bg-slate-600 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 sm:rounded-3xl sm:px-8 sm:py-5 sm:text-base">
                         Preview
                     </button>
                     <button type="submit"
-                            class="px-12 py-5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg rounded-3xl flex items-center gap-3">
+                            class="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 sm:gap-3 sm:rounded-3xl sm:px-12 sm:py-5 sm:text-lg">
                         <i class="fa-solid fa-file-pdf"></i>
                         Submit & Generate PDF
                     </button>

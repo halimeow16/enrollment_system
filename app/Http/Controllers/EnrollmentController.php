@@ -345,9 +345,9 @@ class EnrollmentController extends Controller
         $pdf->Cell($maxWidth, 5, $address, 0, 0, 'L');
         $pdf->SetFont('Helvetica', '', $initialFontSize);
 
-        $pdf->SetXY(224, 284); $pdf->Write(0, $data->barangay ?? '');
-        $pdf->SetXY(70, 291.5); $pdf->Write(0, $data->city ?? '');
-        $pdf->SetXY(224, 291.5); $pdf->Write(0, $data->province ?? '');
+        $pdf->SetXY(224, 284); $pdf->Write(0, $this->printableAddressValue($data->barangay ?? ''));
+        $pdf->SetXY(70, 291.5); $pdf->Write(0, $this->printableAddressValue($data->city ?? ''));
+        $pdf->SetXY(224, 291.5); $pdf->Write(0, $this->printableAddressValue($data->province ?? ''));
 
         $pdf->SetXY(77, 299); $pdf->Write(0, $this->dateOnly($data->date_of_birth ?? ''));
         $pdf->SetXY(200, 299); $pdf->Write(0, $data->age ?? '');
@@ -527,11 +527,22 @@ class EnrollmentController extends Controller
             return $this->dateOnly($value);
         }
 
+        if (in_array($key, ['province', 'city', 'barangay'], true)) {
+            return $this->printableAddressValue($value);
+        }
+
         if (is_array($value)) {
             return implode(', ', $value);
         }
 
         return (string) ($value ?? '');
+    }
+
+    private function printableAddressValue($value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return strtolower($value) === 'other / not listed' ? '' : $value;
     }
 
     private function dateOnly($value): string

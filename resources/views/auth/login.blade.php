@@ -60,6 +60,8 @@
 
                     <p class="mt-6 text-base leading-8 text-slate-300">
                         Authorized personnel portal for the COMTEQ Enrollment Management System.
+                        <br>
+                        <br>
                     </p>
                 </div>
 
@@ -165,25 +167,6 @@
                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm outline-none transition duration-200 focus:border-[#1552d4] focus:bg-white focus:ring-4 focus:ring-blue-100">
                         </div>
 
-                        <!-- Remember -->
-                        <div class="flex items-center justify-between">
-
-                            <label class="flex items-center gap-3 text-sm text-slate-600">
-                                <input type="checkbox"
-                                       name="remember"
-                                       value="1"
-                                       class="rounded border-slate-300 text-[#1552d4] focus:ring-[#1552d4]">
-
-                                Remember me
-                            </label>
-
-                            <a href="#"
-                               class="text-sm font-semibold text-[#1552d4] hover:underline">
-                                Forgot password?
-                            </a>
-
-                        </div>
-
                         <!-- Button -->
                         <button type="submit"
                                 class="w-full rounded-2xl bg-gradient-to-r from-[#071224] to-[#0f43b0] px-5 py-4 text-sm font-bold tracking-wide text-white shadow-xl transition duration-300 hover:scale-[1.01] hover:shadow-blue-200">
@@ -191,47 +174,6 @@
                         </button>
 
                     </form>
-
-                    <!-- Test Accounts -->
-                    <div class="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-bold text-slate-800">
-                                Test Accounts
-                            </h3>
-
-                            <span class="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#1552d4]">
-                                Development
-                            </span>
-                        </div>
-
-                        <div class="mt-4 space-y-3 text-xs text-slate-600">
-
-                            <div class="flex items-center justify-between rounded-xl bg-white px-4 py-3 border border-slate-100">
-                                <span class="font-semibold text-slate-800">Admin</span>
-                                <span>admin@comteq.test</span>
-                            </div>
-
-                            <div class="flex items-center justify-between rounded-xl bg-white px-4 py-3 border border-slate-100">
-                                <span class="font-semibold text-slate-800">Registrar</span>
-                                <span>registrar@comteq.test</span>
-                            </div>
-
-                            <div class="flex items-center justify-between rounded-xl bg-white px-4 py-3 border border-slate-100">
-                                <span class="font-semibold text-slate-800">Dept. Head</span>
-                                <span>department.head@comteq.test</span>
-                            </div>
-
-                            <div class="rounded-xl bg-[#0b172f] px-4 py-3 text-center text-slate-200">
-                                Password for all:
-                                <span class="font-mono font-bold text-white">
-                                    password
-                                </span>
-                            </div>
-
-                        </div>
-
-                    </div>
 
                 </div>
 

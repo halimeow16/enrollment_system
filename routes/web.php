@@ -12,7 +12,7 @@ use App\Http\Controllers\AcademicConfigurationController;
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
-        : view('auth.login');
+        : redirect()->route('enrollment.create');
 });
 
 Route::middleware('guest')->group(function () {

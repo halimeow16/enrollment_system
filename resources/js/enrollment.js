@@ -299,9 +299,10 @@ async function loadProvinces() {
     provinceSelect.innerHTML = '<option value="">Select Province</option>';
 
     try {
-        const res = await fetch(window.addressDataUrls?.provinces || '/address-data/provinces');
-        const json = await res.json();
-        const provinces = json.data ?? json;
+        const provinces = await fetchAddressOptions([
+            'https://psgc.cloud/api/provinces',
+            window.addressDataUrls?.provinces || '/address-data/provinces',
+        ]);
 
         provinces.forEach(p => {
             const option = document.createElement('option');
@@ -313,7 +314,7 @@ async function loadProvinces() {
         appendOtherOption(provinceSelect, 'Other / Not listed');
 
     } catch (error) {
-        console.error("Failed to load local provinces:", error);
+        console.error("Failed to load provinces:", error);
         appendOtherOption(provinceSelect, 'Other / Not listed');
     }
 }
@@ -331,11 +332,10 @@ async function loadCities(provinceCode) {
     if (!provinceCode) return;
 
     try {
-        const res = await fetch(
-            `${window.addressDataUrls?.cities || '/address-data/provinces'}/${provinceCode}/cities`
-        );
-        const json = await res.json();
-        const cities = json.data ?? json;
+        const cities = await fetchAddressOptions([
+            `https://psgc.cloud/api/provinces/${provinceCode}/cities-municipalities`,
+            `${window.addressDataUrls?.cities || '/address-data/provinces'}/${provinceCode}/cities`,
+        ]);
 
         cities.forEach(city => {
             const option = document.createElement('option');
@@ -349,7 +349,7 @@ async function loadCities(provinceCode) {
         citySelect.disabled = false;
 
     } catch (error) {
-        console.error("Failed to load local cities:", error);
+        console.error("Failed to load cities:", error);
         appendOtherOption(citySelect, 'Other / Not listed');
         citySelect.disabled = false;
     }
@@ -365,12 +365,10 @@ async function loadBarangays(cityCode) {
     if (!cityCode) return;
 
     try {
-        const res = await fetch(
-            `${window.addressDataUrls?.barangays || '/address-data/cities'}/${cityCode}/barangays`
-        );
-
-        const json = await res.json();
-        const barangays = json.data ?? json;
+        const barangays = await fetchAddressOptions([
+            `https://psgc.cloud/api/cities-municipalities/${cityCode}/barangays`,
+            `${window.addressDataUrls?.barangays || '/address-data/cities'}/${cityCode}/barangays`,
+        ]);
 
         barangays.forEach(b => {
             const option = document.createElement('option');
@@ -387,6 +385,30 @@ async function loadBarangays(cityCode) {
         appendOtherOption(barangaySelect, 'Other / Not listed');
         barangaySelect.disabled = false;
     }
+}
+
+async function fetchAddressOptions(urls) {
+    for (const url of urls.filter(Boolean)) {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 2500);
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+
+            if (!response.ok) continue;
+
+            const json = await response.json();
+            const items = json.data ?? json;
+
+            if (Array.isArray(items) && items.length > 0) {
+                return items;
+            }
+        } catch (error) {
+            // Try the next source. Online PSGC failures should fall back locally.
+        }
+    }
+
+    return [];
 }
 
 function appendOtherOption(select, label) {

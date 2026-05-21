@@ -106,7 +106,7 @@ class IdRequirementController extends Controller
             'signature_uploaded' => (bool) $request->hasFile('signature'),
         ], $request);
 
-        return back()->with('success', 'Your ID requirements were submitted successfully. The registrar will review them before ID generation.');
+        return back()->with('success', 'Your ID requirements were submitted successfully. The admin will review them before ID generation.');
     }
 
     private function contactMatches(Enrollment $enrollment, string $contact): bool
