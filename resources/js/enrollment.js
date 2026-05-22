@@ -233,6 +233,12 @@ function setupDuplicateEnrollmentCheck() {
             closeDuplicateEnrollmentModal();
         });
     });
+
+    if (window.pendingDuplicateEnrollment) {
+        const duplicate = window.pendingDuplicateEnrollment;
+        const submittedText = duplicate.submitted_at ? ` It was submitted on ${duplicate.submitted_at}.` : '';
+        openDuplicateEnrollmentModal(`You already have an enrollment for A.Y. ${duplicate.school_year}.${submittedText} Continuing will replace your previous submission with the details on this form.`);
+    }
 }
 
 function updateDepartmentHead() {

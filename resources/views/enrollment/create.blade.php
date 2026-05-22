@@ -141,6 +141,7 @@
 <script>
     window.previewUrl = "{{ route('enrollment.preview') }}";
     window.checkExistingEnrollmentUrl = "{{ route('enrollment.check-existing') }}";
+    window.pendingDuplicateEnrollment = @json(session('duplicate_enrollment'));
     window.addressDataUrls = {
         provinces: "{{ route('address-data.provinces') }}",
         cities: "{{ url('/address-data/provinces') }}",

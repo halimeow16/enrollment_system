@@ -88,11 +88,7 @@ class EnrollmentController extends Controller
         $validated['enrollment_identity_hash'] = $this->enrollmentIdentityHash($validated);
 
         if (! $replaceExisting && $this->existingEnrollmentQuery($validated)->exists()) {
-            return back()
-                ->withErrors([
-                    'duplicate' => 'An enrollment for this student, school year, year level, and semester already exists. Please confirm replacement before submitting again.',
-                ])
-                ->withInput();
+            return $this->backWithDuplicateConfirmation($validated);
         }
 
         $selectedSubjectIds = collect($validated['subject_ids'] ?? [])
@@ -145,11 +141,7 @@ class EnrollmentController extends Controller
                 return $enrollment;
             });
         } catch (UniqueConstraintViolationException) {
-            return back()
-                ->withErrors([
-                    'duplicate' => 'An enrollment for this student, school year, year level, and semester already exists. Please refresh the form and confirm replacement if you need to update it.',
-                ])
-                ->withInput();
+            return $this->backWithDuplicateConfirmation($validated);
         }
 
         $enrollment->setRelation('subjects', $selectedSubjects);
@@ -252,6 +244,18 @@ class EnrollmentController extends Controller
             ->where(function ($query) use ($data) {
                 $this->applyLegacyEnrollmentIdentityQuery($query, $data);
             });
+    }
+
+    private function backWithDuplicateConfirmation(array $data)
+    {
+        $existingEnrollment = $this->existingEnrollmentQuery($data)->first();
+
+        return back()
+            ->with('duplicate_enrollment', [
+                'school_year' => $data['school_year'] ?? AppSetting::getValue('academic_year', '2026-2027'),
+                'submitted_at' => $existingEnrollment?->created_at?->format('F j, Y'),
+            ])
+            ->withInput();
     }
 
     private function applyLegacyEnrollmentIdentityQuery($query, array $data): void

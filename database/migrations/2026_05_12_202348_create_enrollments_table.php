@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('enrollments', function (Blueprint $table) {
             $table->id();
             
-            $table->string('student_number')->unique()->nullable();
+            $table->string('student_number')->nullable();
             $table->date('date_filed')->nullable();
             $table->string('school_year')->nullable();
 
