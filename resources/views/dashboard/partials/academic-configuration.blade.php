@@ -44,7 +44,7 @@
                 <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, templates, and permitted school settings in one workspace.</p>
             </div>
 
-            <div class="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 xl:w-auto {{ $canManageAdminConfiguration ? 'md:grid-cols-6 xl:min-w-[680px]' : 'md:grid-cols-4 xl:min-w-[480px]' }}">
+            <div class="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 xl:w-auto {{ $canManageAdminConfiguration ? 'md:grid-cols-5 xl:min-w-[580px]' : 'md:grid-cols-3 xl:min-w-[380px]' }}">
                 <button type="button"
                         @click="section = 'settings'"
                         :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
@@ -56,12 +56,6 @@
                         :class="section === 'subjects' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
                         class="rounded-xl px-3 py-2 text-xs font-bold transition">
                     Subjects
-                </button>
-                <button type="button"
-                        @click="section = 'scheduling'"
-                        :class="section === 'scheduling' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
-                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
-                    Scheduling
                 </button>
                 @if($canManageAdminConfiguration)
                     <button type="button"
@@ -558,195 +552,6 @@
                             @endforelse
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </section>
-
-        <section x-show="section === 'scheduling'" x-cloak class="grid grid-cols-12 gap-5">
-            <div class="col-span-12 h-[430px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-4">
-                <h3 class="font-extrabold text-white">Schedule Options</h3>
-                <p class="mt-1 text-xs text-slate-300">Add the day, time, and room choices used in subject schedules.</p>
-
-                <form action="{{ route('academic.days.store') }}"
-                      method="POST"
-                      x-data="dirtyForm()"
-                      class="mt-4 flex gap-2"
-                      @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedDays.push(data.day); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Day saved', 'Schedule day was saved.'); })
-                          .catch((error) => showToast('error', 'Save failed', error.message))">
-                    @csrf
-                    <input name="name" placeholder="Day, e.g. Monday" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-3 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add</button>
-                </form>
-
-                <form action="{{ route('academic.time-slots.store') }}"
-                      method="POST"
-                      x-data="dirtyForm()"
-                      class="mt-3 grid grid-cols-2 gap-2"
-                      @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedTimeSlots.push(data.time_slot); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Time saved', 'Time slot was saved.'); })
-                          .catch((error) => showToast('error', 'Save failed', error.message))">
-                    @csrf
-                    <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <input name="label" placeholder="Label" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button :disabled="!dirty" class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add Time Slot</button>
-                </form>
-
-                <form action="{{ route('academic.rooms.store') }}"
-                      method="POST"
-                      x-data="dirtyForm()"
-                      class="mt-3 grid grid-cols-2 gap-2"
-                      @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedRooms.push(data.room); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Room saved', 'Room was saved.'); })
-                          .catch((error) => showToast('error', 'Save failed', error.message))">
-                    @csrf
-                    <input name="name" placeholder="Room" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <input name="building" placeholder="Building" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <input type="number" min="1" name="capacity" placeholder="Capacity" class="col-span-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <button :disabled="!dirty" class="col-span-2 rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Add Room</button>
-                </form>
-            </div>
-
-            <div class="col-span-12 h-[430px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-4">
-                <h3 class="font-extrabold text-white">Assign Schedule</h3>
-                <p class="mt-1 text-xs text-slate-300">Saving is blocked when a room already has the selected day and time.</p>
-
-                <form action="{{ route('academic.schedules.store') }}"
-                      method="POST"
-                      x-data="dirtyForm()"
-                      class="mt-4 space-y-3"
-                      @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { addedSchedules.unshift(data.schedule); scheduleCount++; $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Schedule assigned', 'Subject schedule was saved.'); })
-                          .catch((error) => showToast('error', 'Schedule failed', error.message))">
-                    @csrf
-                    <select name="subject_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <option value="">Select subject</option>
-                        @foreach($subjects as $subject)
-                            <option value="{{ $subject->id }}">{{ $subject->code }} - {{ $subject->name }}</option>
-                        @endforeach
-                        <template x-for="subject in addedSubjects" :key="`subject-option-${subject.id}`">
-                            <option :value="subject.id" x-text="`${subject.code} - ${subject.name}`"></option>
-                        </template>
-                    </select>
-                    <select name="day_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <option value="">Select day</option>
-                        @foreach($days as $day)
-                            <option value="{{ $day->id }}">{{ $day->name }}</option>
-                        @endforeach
-                        <template x-for="day in addedDays" :key="`day-option-${day.id}`">
-                            <option :value="day.id" x-text="day.name"></option>
-                        </template>
-                    </select>
-                    <select name="time_slot_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <option value="">Select time</option>
-                        @foreach($timeSlots as $slot)
-                            <option value="{{ $slot->id }}">{{ $slot->label ?? ($slot->start_time . ' - ' . $slot->end_time) }}</option>
-                        @endforeach
-                        <template x-for="slot in addedTimeSlots" :key="`slot-option-${slot.id}`">
-                            <option :value="slot.id" x-text="slot.label"></option>
-                        </template>
-                    </select>
-                    <select name="room_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                        <option value="">Select room</option>
-                        @foreach($rooms as $room)
-                            <option value="{{ $room->id }}">{{ $room->name }}</option>
-                        @endforeach
-                        <template x-for="room in addedRooms" :key="`room-option-${room.id}`">
-                            <option :value="room.id" x-text="room.name"></option>
-                        </template>
-                    </select>
-                    <button :disabled="!dirty" class="w-full rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">Assign Schedule</button>
-                </form>
-            </div>
-
-            <div class="col-span-12 h-[430px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h3 class="font-extrabold text-white">Assigned Schedules</h3>
-                        <p class="mt-1 text-xs text-slate-300"><span x-text="scheduleCount"></span> current schedule entries.</p>
-                    </div>
-                    <div class="relative w-40 shrink-0">
-                        <i data-lucide="search" class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400"></i>
-                        <input type="search"
-                               x-model="scheduleSearch"
-                               placeholder="Search"
-                               class="w-full rounded-lg border border-slate-200 pl-8 pr-2 py-2 text-xs">
-                    </div>
-                </div>
-
-                <div class="mt-4 h-[350px] space-y-2 overflow-y-auto pr-1">
-                    <template x-for="schedule in addedSchedules" :key="`schedule-${schedule.id}`">
-                        <div x-show="!scheduleSearch || `${schedule.subject.code} ${schedule.subject.name} ${schedule.day} ${schedule.time} ${schedule.room}`.toLowerCase().includes(scheduleSearch.toLowerCase())"
-                             class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
-                            <p class="font-bold text-white" x-text="`${schedule.subject.code} - ${schedule.subject.name}`"></p>
-                            <p class="mt-1 text-xs text-slate-300" x-text="`${schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
-                            <button type="button"
-                                    @click="confirmingScheduleRemoval = schedule.id"
-                                    class="mt-2 text-xs font-bold text-red-300 hover:text-red-100">
-                                Remove schedule
-                            </button>
-                            <form :action="`{{ url('/academic-configuration/schedules') }}/${schedule.id}`"
-                                  method="POST"
-                                  x-show="confirmingScheduleRemoval === schedule.id"
-                                  x-transition
-                                  class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
-                                  @submit.prevent="deleteAcademicItem($event.target)
-                                      .then(() => { addedSchedules = addedSchedules.filter((item) => item.id !== schedule.id); scheduleCount = Math.max(0, scheduleCount - 1); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
-                                      .catch(() => showToast('error', 'Remove failed', 'Unable to remove schedule.'))">
-                                @csrf
-                                @method('DELETE')
-                                <p class="text-xs font-semibold text-red-100">Remove this schedule?</p>
-                                <div class="mt-3 flex justify-end gap-2">
-                                    <button type="button"
-                                            @click="confirmingScheduleRemoval = null"
-                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
-                                        Cancel
-                                    </button>
-                                    <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
-                                        Confirm
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </template>
-                    @forelse($subjectSchedules as $schedule)
-                        <div x-data="{ removed: false, searchText: @js($schedule->subject->code . ' ' . $schedule->subject->name . ' ' . $schedule->day->name . ' ' . ($schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time)) . ' ' . $schedule->room->name) }"
-                             x-show="!removed && (!scheduleSearch || searchText.toLowerCase().includes(scheduleSearch.toLowerCase()))"
-                             class="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
-                            <p class="font-bold text-white">{{ $schedule->subject->code }} - {{ $schedule->subject->name }}</p>
-                            <p class="mt-1 text-xs text-slate-300">{{ $schedule->day->name }} / {{ $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time) }} / {{ $schedule->room->name }}</p>
-                            <button type="button"
-                                    @click="confirmingScheduleRemoval = {{ $schedule->id }}"
-                                    class="mt-2 text-xs font-bold text-red-300 hover:text-red-100">
-                                Remove schedule
-                            </button>
-                            <form action="{{ route('academic.schedules.destroy', $schedule) }}"
-                                  method="POST"
-                                  x-show="confirmingScheduleRemoval === {{ $schedule->id }}"
-                                  x-transition
-                                  class="mt-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
-                                  @submit.prevent="deleteAcademicItem($event.target)
-                                      .then(() => { removed = true; scheduleCount = Math.max(0, scheduleCount - 1); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
-                                      .catch(() => showToast('error', 'Remove failed', 'Unable to remove schedule.'))">
-                                @csrf
-                                @method('DELETE')
-                                <p class="text-xs font-semibold text-red-100">Remove this schedule?</p>
-                                <div class="mt-3 flex justify-end gap-2">
-                                    <button type="button"
-                                            @click="confirmingScheduleRemoval = null"
-                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
-                                        Cancel
-                                    </button>
-                                    <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
-                                        Confirm
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    @empty
-                        <p x-show="addedSchedules.length === 0" class="text-sm text-slate-300">No schedules assigned yet.</p>
-                    @endforelse
                 </div>
             </div>
         </section>

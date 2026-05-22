@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as $index => $day) {
+        foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as $index => $day) {
             Day::updateOrCreate(['name' => $day], ['sort_order' => $index + 1, 'is_active' => true]);
         }
 

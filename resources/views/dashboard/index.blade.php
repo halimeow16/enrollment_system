@@ -464,6 +464,25 @@
         </div>
     </div>
 
+    {{-- Scheduling --}}
+    <section x-show="activeTab === 'scheduling'" x-cloak>
+        <div class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
+            <div class="border-b border-white/10 px-5 py-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Academic Setup</p>
+                    <h2 class="mt-1 text-xl font-extrabold text-white">Scheduling</h2>
+                    <p class="mt-1 text-xs text-slate-300">Manage schedule options, subject schedules, rooms, and assigned schedules.</p>
+                </div>
+            </div>
+
+            <div class="p-5">
+                <section class="grid grid-cols-12 gap-5">
+                    @include('dashboard.partials.academic-scheduling')
+                </section>
+            </div>
+        </div>
+    </section>
+
     @if(in_array(auth()->user()->user_type, ['admin', 'registrar', 'department_head'], true))
         <section x-show="activeTab === 'configuration'" x-cloak>
             @include('dashboard.partials.academic-configuration')
@@ -562,7 +581,16 @@
             addedRooms: [],
             addedTimeSlots: [],
             addedSchedules: [],
+            scheduleRows: @json($scheduleRows),
             scheduleCount: {{ $subjectSchedules->count() }},
+            scheduleSearch: '',
+            scheduleLiveSearch: '',
+            scheduleCourseFilter: '',
+            scheduleYearFilter: '',
+            scheduleSemesterFilter: '',
+            scheduleDayFilter: '',
+            confirmingScheduleRemoval: null,
+            editingSchedule: null,
             addedDepartmentHeads: [],
             activeDepartmentHeadCourses: @json($departmentHeads->pluck('course_code')->values()),
             departmentHeadCount: {{ $departmentHeads->count() }},
@@ -571,6 +599,7 @@
                 overview: 'Dashboard',
                 enrollments: 'Enrollments',
                 'id-generation': 'ID Generation',
+                scheduling: 'Scheduling',
                 configuration: 'Academic Configuration',
                 form: 'New Enrollment',
             },
@@ -816,6 +845,47 @@
                     || (this.idGenerationFilter === 'pending' && !idStatus.generated);
 
                 return status === 'enrolled' && matchesText && matchesGeneratedFilter;
+            },
+            allScheduleRows() {
+                return [
+                    ...(this.addedSchedules || []),
+                    ...(this.scheduleRows || []),
+                ];
+            },
+            filteredScheduleRows() {
+                const search = this.scheduleLiveSearch.trim().toLowerCase();
+
+                return this.allScheduleRows()
+                    .filter((schedule) => {
+                        const subject = schedule.subject || {};
+                        if (this.scheduleCourseFilter && subject.course_code !== this.scheduleCourseFilter) return false;
+                        if (this.scheduleYearFilter && subject.year_level !== this.scheduleYearFilter) return false;
+                        if (this.scheduleSemesterFilter && subject.semester !== this.scheduleSemesterFilter) return false;
+                        if (this.scheduleDayFilter && schedule.day !== this.scheduleDayFilter) return false;
+
+                        if (!search) return true;
+
+                        return [
+                            subject.code,
+                            subject.name,
+                            subject.course_code,
+                            subject.year_level,
+                            subject.semester,
+                            schedule.day,
+                            schedule.time,
+                            schedule.room,
+                            schedule.instructor,
+                        ].join(' ').toLowerCase().includes(search);
+                    })
+                    .sort((a, b) => `${a.day || ''} ${a.start_time || ''} ${a.subject?.code || ''}`.localeCompare(`${b.day || ''} ${b.start_time || ''} ${b.subject?.code || ''}`));
+            },
+            upsertSchedule(schedule) {
+                this.addedSchedules = (this.addedSchedules || []).map((item) => item.id === schedule.id ? schedule : item);
+                this.scheduleRows = (this.scheduleRows || []).map((item) => item.id === schedule.id ? schedule : item);
+
+                if (!this.addedSchedules.some((item) => item.id === schedule.id) && !this.scheduleRows.some((item) => item.id === schedule.id)) {
+                    this.addedSchedules.unshift(schedule);
+                }
             },
             idStatusFor(enrollmentId) {
                 return this.idGenerationStatuses[enrollmentId] || {

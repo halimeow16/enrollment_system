@@ -148,12 +148,14 @@ class AcademicConfigurationController extends Controller
         $data = $request->validate([
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'label' => ['nullable', 'string', 'max:80'],
         ]);
 
         $slot = TimeSlot::updateOrCreate(
             ['start_time' => $data['start_time'], 'end_time' => $data['end_time']],
-            $data + ['is_active' => true]
+            $data + [
+                'label' => null,
+                'is_active' => true,
+            ]
         );
         ActivityLog::record('schedule_time_slot_saved', $slot, [], $slot->only(['start_time', 'end_time', 'label', 'is_active']), $request);
 
@@ -175,42 +177,227 @@ class AcademicConfigurationController extends Controller
         $data = $request->validate([
             'subject_id' => ['required', 'exists:subjects,id'],
             'day_id' => ['required', 'exists:days,id'],
-            'time_slot_id' => ['required', 'exists:time_slots,id'],
-            'room_id' => ['required', 'exists:rooms,id'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'room_name' => ['required', 'string', 'max:80'],
+            'instructor' => ['required', 'string', 'max:120'],
         ]);
 
-        $roomConflict = SubjectSchedule::query()
-            ->where('day_id', $data['day_id'])
-            ->where('time_slot_id', $data['time_slot_id'])
-            ->where('room_id', $data['room_id'])
-            ->exists();
+        $subject = Subject::findOrFail($data['subject_id']);
+        $timeSlot = TimeSlot::updateOrCreate(
+            [
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+            ],
+            [
+                'label' => null,
+                'is_active' => true,
+            ]
+        );
+        $room = Room::updateOrCreate(
+            ['name' => trim($data['room_name'])],
+            ['is_active' => true]
+        );
 
-        if ($roomConflict) {
+        $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->where('day_id', $data['day_id'])
+            ->whereHas('timeSlot', function ($query) use ($timeSlot) {
+                $query->where('start_time', '<', $timeSlot->end_time)
+                    ->where('end_time', '>', $timeSlot->start_time);
+            })
+            ->get();
+
+        $conflicts = $overlappingSchedules
+            ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room) {
+                if ((int) $schedule->room_id === (int) $room->id) {
+                    return "Room {$schedule->room->name} is already used by {$schedule->subject->code}.";
+                }
+
+                if (strtolower(trim((string) $schedule->instructor)) === strtolower(trim($data['instructor']))) {
+                    return "{$data['instructor']} is already assigned to {$schedule->subject->code}.";
+                }
+
+                if ((int) $schedule->subject_id === (int) $data['subject_id']) {
+                    return "{$subject->code} already has an overlapping schedule.";
+                }
+
+                $scheduledSubject = $schedule->subject;
+                if (
+                    $scheduledSubject
+                    && $scheduledSubject->course_code === $subject->course_code
+                    && $scheduledSubject->year_level === $subject->year_level
+                    && $scheduledSubject->semester === $subject->semester
+                ) {
+                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} already has {$scheduledSubject->code} at that time.";
+                }
+
+                return null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($conflicts->isNotEmpty()) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'That room is already assigned for the selected day and time.',
+                    'message' => $conflicts->implode(' '),
                 ], 422);
             }
 
-            return back()->withErrors(['schedule' => 'That room is already assigned for the selected day and time.'])->withInput();
+            return back()->withErrors(['schedule' => $conflicts->implode(' ')])->withInput();
         }
 
-        $schedule = SubjectSchedule::create($data)->load(['subject', 'day', 'timeSlot', 'room']);
+        $schedule = SubjectSchedule::create([
+            'subject_id' => $data['subject_id'],
+            'day_id' => $data['day_id'],
+            'time_slot_id' => $timeSlot->id,
+            'room_id' => $room->id,
+            'instructor' => $data['instructor'],
+        ])->load(['subject', 'day', 'timeSlot', 'room']);
         ActivityLog::record('subject_schedule_assigned', $schedule, [], [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
             'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
             'room' => $schedule->room->name,
+            'instructor' => $schedule->instructor,
         ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Schedule assigned.',
                 'schedule' => $this->schedulePayload($schedule),
+                'room' => [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                ],
+                'time_slot' => [
+                    'id' => $timeSlot->id,
+                    'label' => $timeSlot->label ?? ($timeSlot->start_time . ' - ' . $timeSlot->end_time),
+                ],
             ], 201);
         }
 
         return back()->with('success', 'Schedule assigned.');
+    }
+
+    public function updateSchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate([
+            'subject_id' => ['required', 'exists:subjects,id'],
+            'day_id' => ['required', 'exists:days,id'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'room_name' => ['required', 'string', 'max:80'],
+            'instructor' => ['required', 'string', 'max:120'],
+        ]);
+
+        $subject = Subject::findOrFail($data['subject_id']);
+        $timeSlot = TimeSlot::updateOrCreate(
+            [
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+            ],
+            [
+                'label' => null,
+                'is_active' => true,
+            ]
+        );
+        $room = Room::updateOrCreate(
+            ['name' => trim($data['room_name'])],
+            ['is_active' => true]
+        );
+
+        $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereKeyNot($schedule->id)
+            ->where('day_id', $data['day_id'])
+            ->whereHas('timeSlot', function ($query) use ($timeSlot) {
+                $query->where('start_time', '<', $timeSlot->end_time)
+                    ->where('end_time', '>', $timeSlot->start_time);
+            })
+            ->get();
+
+        $conflicts = $overlappingSchedules
+            ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room) {
+                if ((int) $existingSchedule->room_id === (int) $room->id) {
+                    return "Room {$existingSchedule->room->name} is already used by {$existingSchedule->subject->code}.";
+                }
+
+                if (strtolower(trim((string) $existingSchedule->instructor)) === strtolower(trim($data['instructor']))) {
+                    return "{$data['instructor']} is already assigned to {$existingSchedule->subject->code}.";
+                }
+
+                if ((int) $existingSchedule->subject_id === (int) $data['subject_id']) {
+                    return "{$subject->code} already has an overlapping schedule.";
+                }
+
+                $scheduledSubject = $existingSchedule->subject;
+                if (
+                    $scheduledSubject
+                    && $scheduledSubject->course_code === $subject->course_code
+                    && $scheduledSubject->year_level === $subject->year_level
+                    && $scheduledSubject->semester === $subject->semester
+                ) {
+                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} already has {$scheduledSubject->code} at that time.";
+                }
+
+                return null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($conflicts->isNotEmpty()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $conflicts->implode(' '),
+                ], 422);
+            }
+
+            return back()->withErrors(['schedule' => $conflicts->implode(' ')])->withInput();
+        }
+
+        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
+        $oldValues = [
+            'subject' => $schedule->subject->code,
+            'day' => $schedule->day->name,
+            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'room' => $schedule->room->name,
+            'instructor' => $schedule->instructor,
+        ];
+
+        $schedule->update([
+            'subject_id' => $data['subject_id'],
+            'day_id' => $data['day_id'],
+            'time_slot_id' => $timeSlot->id,
+            'room_id' => $room->id,
+            'instructor' => $data['instructor'],
+        ]);
+        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
+
+        ActivityLog::record('subject_schedule_updated', $schedule, $oldValues, [
+            'subject' => $schedule->subject->code,
+            'day' => $schedule->day->name,
+            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'room' => $schedule->room->name,
+            'instructor' => $schedule->instructor,
+        ], $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Schedule updated.',
+                'schedule' => $this->schedulePayload($schedule),
+                'room' => [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                ],
+                'time_slot' => [
+                    'id' => $timeSlot->id,
+                    'label' => $timeSlot->label ?? ($timeSlot->start_time . ' - ' . $timeSlot->end_time),
+                ],
+            ]);
+        }
+
+        return back()->with('success', 'Schedule updated.');
     }
 
     public function destroySchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
@@ -222,6 +409,7 @@ class AcademicConfigurationController extends Controller
             'day' => $schedule->day->name,
             'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
             'room' => $schedule->room->name,
+            'instructor' => $schedule->instructor,
         ];
         $schedule->delete();
         ActivityLog::record('subject_schedule_removed', $schedule, $oldValues, [], $request);
@@ -620,12 +808,23 @@ class AcademicConfigurationController extends Controller
         return [
             'id' => $schedule->id,
             'subject' => [
+                'id' => $schedule->subject->id,
                 'code' => $schedule->subject->code,
                 'name' => $schedule->subject->name,
+                'course_code' => $schedule->subject->course_code,
+                'year_level' => $schedule->subject->year_level,
+                'semester' => $schedule->subject->semester,
             ],
+            'day_id' => $schedule->day_id,
             'day' => $schedule->day->name,
             'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'start_time' => substr((string) $schedule->timeSlot->start_time, 0, 5),
+            'end_time' => substr((string) $schedule->timeSlot->end_time, 0, 5),
+            'room_id' => $schedule->room_id,
             'room' => $schedule->room->name,
+            'instructor' => $schedule->instructor ?: 'Unassigned',
+            'update_url' => route('academic.schedules.update', $schedule),
+            'delete_url' => route('academic.schedules.destroy', $schedule),
         ];
     }
 

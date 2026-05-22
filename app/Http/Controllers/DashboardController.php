@@ -110,6 +110,27 @@ class DashboardController extends Controller
         $subjectSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->latest()
             ->get();
+        $scheduleRows = $subjectSchedules->map(fn (SubjectSchedule $schedule) => [
+            'id' => $schedule->id,
+            'subject' => [
+                'id' => $schedule->subject?->id,
+                'code' => $schedule->subject?->code,
+                'name' => $schedule->subject?->name,
+                'course_code' => $schedule->subject?->course_code,
+                'year_level' => $schedule->subject?->year_level,
+                'semester' => $schedule->subject?->semester,
+            ],
+            'day_id' => $schedule->day_id,
+            'day' => $schedule->day?->name,
+            'time' => $schedule->timeSlot?->label ?? trim(($schedule->timeSlot?->start_time ?? '') . ' - ' . ($schedule->timeSlot?->end_time ?? ''), ' -'),
+            'start_time' => $schedule->timeSlot?->start_time ? substr((string) $schedule->timeSlot->start_time, 0, 5) : null,
+            'end_time' => $schedule->timeSlot?->end_time ? substr((string) $schedule->timeSlot->end_time, 0, 5) : null,
+            'room_id' => $schedule->room_id,
+            'room' => $schedule->room?->name,
+            'instructor' => $schedule->instructor ?: 'Unassigned',
+            'update_url' => route('academic.schedules.update', $schedule),
+            'delete_url' => route('academic.schedules.destroy', $schedule),
+        ])->values();
         $departmentHeads = DepartmentHead::where('is_active', true)
             ->orderBy('course_code')
             ->get();
@@ -187,6 +208,7 @@ class DashboardController extends Controller
             'rooms',
             'timeSlots',
             'subjectSchedules',
+            'scheduleRows',
             'departmentHeads',
             'feeRows',
             'feeTypes',

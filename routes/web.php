@@ -118,6 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/rooms', [AcademicConfigurationController::class, 'storeRoom'])->name('rooms.store');
         Route::post('/time-slots', [AcademicConfigurationController::class, 'storeTimeSlot'])->name('time-slots.store');
         Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
+        Route::put('/schedules/{schedule}', [AcademicConfigurationController::class, 'updateSchedule'])->name('schedules.update');
         Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');
         Route::put('/templates/{template}/mappings', [AcademicConfigurationController::class, 'updateEnrollmentTemplateMappings'])->name('templates.mappings.update');
