@@ -122,7 +122,7 @@ class DashboardController extends Controller
             ],
             'day_id' => $schedule->day_id,
             'day' => $schedule->day?->name,
-            'time' => $schedule->timeSlot?->label ?? trim(($schedule->timeSlot?->start_time ?? '') . ' - ' . ($schedule->timeSlot?->end_time ?? ''), ' -'),
+            'time' => $this->scheduleTimeLabel($schedule),
             'start_time' => $schedule->timeSlot?->start_time ? substr((string) $schedule->timeSlot->start_time, 0, 5) : null,
             'end_time' => $schedule->timeSlot?->end_time ? substr((string) $schedule->timeSlot->end_time, 0, 5) : null,
             'room_id' => $schedule->room_id,
@@ -715,5 +715,21 @@ class DashboardController extends Controller
         }
 
         return $this->storageDataUrl($path);
+    }
+
+    private function scheduleTimeLabel(SubjectSchedule $schedule): string
+    {
+        if ($schedule->timeSlot?->label) {
+            return $schedule->timeSlot->label;
+        }
+
+        $start = $schedule->timeSlot?->start_time;
+        $end = $schedule->timeSlot?->end_time;
+
+        if (! $start || ! $end) {
+            return '';
+        }
+
+        return date('g:i A', strtotime((string) $start)) . ' - ' . date('g:i A', strtotime((string) $end));
     }
 }

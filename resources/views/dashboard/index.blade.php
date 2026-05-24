@@ -576,6 +576,10 @@
                 sides: [],
             },
             subjectCount: {{ $subjects->count() }},
+            scheduleSubjectOptions: @json($subjects->map(fn ($subject) => [
+                'id' => $subject->id,
+                'label' => "{$subject->code} - {$subject->name} / {$subject->course_code} / {$subject->year_level} / {$subject->semester}",
+            ])->values()),
             addedSubjects: [],
             addedDays: [],
             addedRooms: [],
@@ -878,6 +882,23 @@
                         ].join(' ').toLowerCase().includes(search);
                     })
                     .sort((a, b) => `${a.day || ''} ${a.start_time || ''} ${a.subject?.code || ''}`.localeCompare(`${b.day || ''} ${b.start_time || ''} ${b.subject?.code || ''}`));
+            },
+            allScheduleSubjectOptions() {
+                const liveSubjects = (this.addedSubjects || []).map((subject) => ({
+                    id: subject.id,
+                    label: `${subject.code} - ${subject.name} / ${subject.course_code} / ${subject.year_level} / ${subject.semester}`,
+                }));
+
+                return [
+                    ...(this.scheduleSubjectOptions || []),
+                    ...liveSubjects.filter((subject) => !(this.scheduleSubjectOptions || []).some((item) => item.id === subject.id)),
+                ];
+            },
+            resolveScheduleSubjectId(label) {
+                return this.allScheduleSubjectOptions().find((subject) => subject.label === label)?.id || '';
+            },
+            scheduleSubjectLabel(subjectId) {
+                return this.allScheduleSubjectOptions().find((subject) => Number(subject.id) === Number(subjectId))?.label || '';
             },
             upsertSchedule(schedule) {
                 this.addedSchedules = (this.addedSchedules || []).map((item) => item.id === schedule.id ? schedule : item);

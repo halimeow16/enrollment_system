@@ -11,15 +11,20 @@
                                   .then((data) => { addedSchedules.unshift(data.schedule); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); if (data.time_slot && !addedTimeSlots.some((slot) => slot.id === data.time_slot.id)) addedTimeSlots.push(data.time_slot); scheduleCount++; $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Schedule assigned', 'No conflicts detected.'); })
                                   .catch((error) => showToast('error', 'Schedule conflict', error.message))">
                             @csrf
-                            <select name="subject_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
-                                <option value="">Select subject</option>
-                                @foreach($subjects as $subject)
-                                    <option value="{{ $subject->id }}">{{ $subject->code }} - {{ $subject->name }} / {{ $subject->course_code }} / {{ $subject->year_level }} / {{ $subject->semester }}</option>
-                                @endforeach
-                                <template x-for="subject in addedSubjects" :key="`subject-option-${subject.id}`">
-                                    <option :value="subject.id" x-text="`${subject.code} - ${subject.name} / ${subject.course_code} / ${subject.year_level} / ${subject.semester}`"></option>
-                                </template>
-                            </select>
+                            <div class="lg:col-span-2">
+                                <input type="hidden"
+                                       name="subject_id"
+                                       required
+                                       x-ref="scheduleSubjectId">
+                                <input type="search"
+                                       list="schedule-subject-options"
+                                       required
+                                       placeholder="Search or select subject"
+                                       autocomplete="off"
+                                       class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                       @input="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value)"
+                                       @change="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value)">
+                            </div>
                             <input name="instructor" required placeholder="Instructor, e.g. Ms. Reyes" class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
                             <label class="grid grid-cols-2 gap-2 lg:col-span-2">
                                 <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -43,6 +48,11 @@
                                 @endforeach
                                 <template x-for="room in addedRooms" :key="`room-datalist-${room.id}`">
                                     <option :value="room.name"></option>
+                                </template>
+                            </datalist>
+                            <datalist id="schedule-subject-options">
+                                <template x-for="subject in allScheduleSubjectOptions()" :key="`schedule-subject-option-${subject.id}`">
+                                    <option :value="subject.label"></option>
                                 </template>
                             </datalist>
                             <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-6">Assign Schedule</button>
@@ -146,20 +156,23 @@
                                                 <td colspan="8" class="px-4 py-3">
                                                     <form :action="schedule.update_url"
                                                           method="POST"
+                                                          x-data="{ subjectQuery: scheduleSubjectLabel(schedule.subject?.id), selectedSubjectId: schedule.subject?.id }"
                                                           class="grid gap-3 rounded-2xl border border-blue-300/20 bg-blue-500/10 p-3 lg:grid-cols-6"
                                                           @submit.prevent="submitAcademicForm($event.target)
                                                               .then((data) => { upsertSchedule(data.schedule); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); editingSchedule = null; showToast('success', 'Schedule updated', 'No conflicts detected.'); })
                                                               .catch((error) => showToast('error', 'Update failed', error.message))">
                                                         @csrf
                                                         @method('PUT')
-                                                        <select name="subject_id" required x-init="$el.value = schedule.subject?.id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
-                                                            @foreach($subjects as $subject)
-                                                                <option value="{{ $subject->id }}">{{ $subject->code }} - {{ $subject->name }}</option>
-                                                            @endforeach
-                                                            <template x-for="subject in addedSubjects" :key="`edit-subject-option-${schedule.id}-${subject.id}`">
-                                                                <option :value="subject.id" x-text="`${subject.code} - ${subject.name}`"></option>
-                                                            </template>
-                                                        </select>
+                                                        <div class="lg:col-span-2">
+                                                            <input type="hidden" name="subject_id" x-model="selectedSubjectId">
+                                                            <input type="search"
+                                                                   list="schedule-subject-options"
+                                                                   required
+                                                                   x-model="subjectQuery"
+                                                                   class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                                                   @input="selectedSubjectId = resolveScheduleSubjectId(subjectQuery)"
+                                                                   @change="selectedSubjectId = resolveScheduleSubjectId(subjectQuery)">
+                                                        </div>
                                                         <input name="instructor" required :value="schedule.instructor" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
                                                         <select name="day_id" required x-init="$el.value = schedule.day_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
                                                             @foreach($days as $day)

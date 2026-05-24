@@ -257,7 +257,7 @@ class AcademicConfigurationController extends Controller
         ActivityLog::record('subject_schedule_assigned', $schedule, [], [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
         ], $request);
@@ -360,7 +360,7 @@ class AcademicConfigurationController extends Controller
         $oldValues = [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
         ];
@@ -377,7 +377,7 @@ class AcademicConfigurationController extends Controller
         ActivityLog::record('subject_schedule_updated', $schedule, $oldValues, [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
         ], $request);
@@ -407,7 +407,7 @@ class AcademicConfigurationController extends Controller
         $oldValues = [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
         ];
@@ -817,7 +817,7 @@ class AcademicConfigurationController extends Controller
             ],
             'day_id' => $schedule->day_id,
             'day' => $schedule->day->name,
-            'time' => $schedule->timeSlot->label ?? ($schedule->timeSlot->start_time . ' - ' . $schedule->timeSlot->end_time),
+            'time' => $this->scheduleTimeLabel($schedule),
             'start_time' => substr((string) $schedule->timeSlot->start_time, 0, 5),
             'end_time' => substr((string) $schedule->timeSlot->end_time, 0, 5),
             'room_id' => $schedule->room_id,
@@ -826,6 +826,22 @@ class AcademicConfigurationController extends Controller
             'update_url' => route('academic.schedules.update', $schedule),
             'delete_url' => route('academic.schedules.destroy', $schedule),
         ];
+    }
+
+    private function scheduleTimeLabel(SubjectSchedule $schedule): string
+    {
+        if ($schedule->timeSlot?->label) {
+            return $schedule->timeSlot->label;
+        }
+
+        $start = $schedule->timeSlot?->start_time;
+        $end = $schedule->timeSlot?->end_time;
+
+        if (! $start || ! $end) {
+            return '';
+        }
+
+        return date('g:i A', strtotime((string) $start)) . ' - ' . date('g:i A', strtotime((string) $end));
     }
 
     private function pdfFirstPageSize(string $path): array
