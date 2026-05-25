@@ -424,6 +424,46 @@ class AcademicConfigurationController extends Controller
         return back()->with('success', 'Schedule removed.');
     }
 
+    public function downloadSchedulePdf(Request $request)
+    {
+        $data = $request->validate([
+            'course_code' => ['required', 'string', 'max:30'],
+            'year_level' => ['required', 'string', 'max:20'],
+            'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+        ]);
+
+        $schedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereHas('subject', fn ($query) => $query
+                ->where('course_code', $data['course_code'])
+                ->where('year_level', $data['year_level'])
+                ->where('semester', $data['semester']))
+            ->join('days', 'subject_schedules.day_id', '=', 'days.id')
+            ->join('time_slots', 'subject_schedules.time_slot_id', '=', 'time_slots.id')
+            ->orderBy('days.sort_order')
+            ->orderBy('time_slots.start_time')
+            ->select('subject_schedules.*')
+            ->get();
+
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $courseName = $this->scheduleCourseName($data['course_code']);
+        $fileName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule.pdf')
+            ->replace([' ', '/'], '-')
+            ->lower()
+            ->toString();
+
+        $pdfContent = $this->buildSchedulePdf(
+            $academicYear,
+            $courseName,
+            $this->scheduleYearLabel($data['year_level']),
+            $this->scheduleSemesterLabel($data['semester']),
+            $schedules
+        );
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+    }
+
     public function storeDepartmentHead(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
@@ -842,6 +882,169 @@ class AcademicConfigurationController extends Controller
         }
 
         return date('g:i A', strtotime((string) $start)) . ' - ' . date('g:i A', strtotime((string) $end));
+    }
+
+    private function scheduleDayLabel(SubjectSchedule $schedule): string
+    {
+        return match (strtolower((string) $schedule->day?->name)) {
+            'monday' => 'M',
+            'tuesday' => 'T',
+            'wednesday' => 'W',
+            'thursday' => 'TH',
+            'friday' => 'F',
+            'saturday' => 'SAT',
+            'sunday' => 'SUN',
+            default => strtoupper((string) $schedule->day?->name),
+        };
+    }
+
+    private function scheduleYearLabel(string $yearLevel): string
+    {
+        return match ((string) $yearLevel) {
+            '1' => 'FIRST YEAR',
+            '2' => 'SECOND YEAR',
+            '3' => 'THIRD YEAR',
+            '4' => 'FOURTH YEAR',
+            default => strtoupper($yearLevel),
+        };
+    }
+
+    private function scheduleSemesterLabel(string $semester): string
+    {
+        return match ($semester) {
+            '1st' => 'FIRST SEMESTER',
+            '2nd' => 'SECOND SEMESTER',
+            'Summer' => 'SUMMER',
+            default => strtoupper($semester),
+        };
+    }
+
+    private function scheduleCourseName(string $courseCode): string
+    {
+        return [
+            'BSIT' => 'BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY',
+            'BSCS' => 'BACHELOR OF SCIENCE IN COMPUTER SCIENCE',
+            'ACT' => 'ASSOCIATE IN COMPUTER TECHNOLOGY',
+            'BSA' => 'BACHELOR OF SCIENCE IN ACCOUNTANCY',
+            'BSBA' => 'BACHELOR OF SCIENCE IN BUSINESS ADMINISTRATION',
+            'BSOM' => 'BACHELOR OF SCIENCE IN OFFICE MANAGEMENT',
+        ][strtoupper($courseCode)] ?? strtoupper($courseCode);
+    }
+
+    private function buildSchedulePdf(
+        string $academicYear,
+        string $courseName,
+        string $yearLabel,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('COMTEQ Enrollment System');
+        $pdf->SetTitle('Class Schedule');
+        $pdf->SetMargins(7, 7, 7);
+        $pdf->SetAutoPageBreak(true, 8);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+
+        $drawHeader = function () use ($pdf, $academicYear, $courseName, $yearLabel, $semesterLabel): void {
+            $pdf->SetY(6);
+            $pdf->SetTextColor(92, 128, 220);
+            $pdf->SetFont('helvetica', '', 30);
+            $pdf->SetXY(7, 4);
+            $pdf->Cell(57, 13, 'COMT', 0, 0, 'L');
+            $pdf->SetTextColor(230, 0, 0);
+            $pdf->SetFont('times', 'I', 32);
+            $pdf->Cell(9, 13, 'e', 0, 0, 'L');
+            $pdf->SetTextColor(92, 128, 220);
+            $pdf->SetFont('helvetica', '', 30);
+            $pdf->Cell(18, 13, 'Q', 0, 0, 'L');
+            $pdf->SetTextColor(80, 80, 80);
+            $pdf->SetFont('helvetica', '', 7);
+            $pdf->SetXY(8, 20);
+            $pdf->Cell(70, 4, 'COMPUTER & BUSINESS COLLEGE, INC.', 0, 0, 'L');
+
+            $pdf->SetTextColor(132, 151, 210);
+            $pdf->SetFont('helvetica', 'B', 20);
+            $pdf->SetXY(88, 5);
+            $pdf->Cell(200, 8, 'COMTEQ COMPUTER AND BUSINESS COLLEGE, INC.', 0, 1, 'L');
+
+            $pdf->SetTextColor(110, 110, 110);
+            $pdf->SetFont('helvetica', 'B', 12);
+            $pdf->SetX(88);
+            $pdf->Cell(200, 6, '#63 Fendler st., East Tapinac, Olongapo City, Philippines', 0, 1, 'L');
+            $pdf->SetX(88);
+            $pdf->Cell(200, 6, 'Mobile no.: 09428197810 | Tel No.: (047) 602-4778 | www.comteq.edu.ph', 0, 1, 'L');
+
+            $pdf->SetDrawColor(120, 120, 120);
+            $pdf->SetLineWidth(0.7);
+            $pdf->Line(7, 29, 290, 29);
+
+            $pdf->SetY(37);
+            $pdf->SetFont('times', 'B', 18);
+            $pdf->SetTextColor(230, 0, 0);
+            $pdf->Cell(101, 8, $yearLabel, 0, 0, 'R');
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->Cell(8, 8, '|', 0, 0, 'C');
+            $pdf->SetTextColor(8, 34, 86);
+            $pdf->Cell(64, 8, $semesterLabel, 0, 0, 'C');
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->Cell(8, 8, '|', 0, 0, 'C');
+            $pdf->Cell(65, 8, 'AY ' . $academicYear, 0, 1, 'L');
+
+            $pdf->SetFont('times', 'B', 15);
+            $pdf->Cell(0, 7, $courseName, 0, 1, 'C');
+            $pdf->Ln(5);
+        };
+
+        $drawTableHeader = function () use ($pdf): void {
+            $pdf->SetFillColor(0, 0, 0);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetDrawColor(0, 0, 0);
+            $pdf->SetLineWidth(0.3);
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->Cell(24, 9, 'Code', 1, 0, 'C', true);
+            $pdf->Cell(139, 9, 'Subjects', 1, 0, 'C', true);
+            $pdf->Cell(16, 9, 'Day', 1, 0, 'C', true);
+            $pdf->Cell(51, 9, 'Time', 1, 0, 'C', true);
+            $pdf->Cell(18, 9, 'Room', 1, 0, 'C', true);
+            $pdf->Cell(35, 9, 'Instructor', 1, 1, 'C', true);
+            $pdf->SetTextColor(0, 0, 0);
+        };
+
+        $pdf->AddPage();
+        $drawHeader();
+        $drawTableHeader();
+
+        $pdf->SetFont('helvetica', '', 10.5);
+        if ($schedules->isEmpty()) {
+            $pdf->Cell(283, 9, 'No schedules found for this class.', 1, 1, 'C');
+
+            return $pdf->Output('', 'S');
+        }
+
+        foreach ($schedules as $schedule) {
+            if ($pdf->GetY() > 190) {
+                $pdf->AddPage();
+                $drawHeader();
+                $drawTableHeader();
+                $pdf->SetFont('helvetica', '', 10.5);
+            }
+
+            $subjectName = (string) $schedule->subject->name;
+            $lineCount = max(1, (int) ceil($pdf->GetStringWidth($subjectName) / 132));
+            $rowHeight = max(8, $lineCount * 6);
+            $x = $pdf->GetX();
+            $y = $pdf->GetY();
+
+            $pdf->MultiCell(24, $rowHeight, $schedule->subject->code, 1, 'C', false, 0, $x, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(139, $rowHeight, $subjectName, 1, 'L', false, 0, $x + 24, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(16, $rowHeight, $this->scheduleDayLabel($schedule), 1, 'C', false, 0, $x + 163, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(51, $rowHeight, $this->scheduleTimeLabel($schedule), 1, 'C', false, 0, $x + 179, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(18, $rowHeight, $schedule->room->name, 1, 'C', false, 0, $x + 230, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(35, $rowHeight, $schedule->instructor ?: '', 1, 'L', false, 1, $x + 248, $y, true, 0, false, true, $rowHeight, 'M');
+        }
+
+        return $pdf->Output('', 'S');
     }
 
     private function pdfFirstPageSize(string $path): array

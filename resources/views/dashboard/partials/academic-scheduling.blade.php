@@ -57,6 +57,34 @@
                             </datalist>
                             <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-6">Assign Schedule</button>
                         </form>
+
+                        <form action="{{ route('academic.schedules.pdf') }}"
+                              method="GET"
+                              target="_blank"
+                              class="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+                            <select name="course_code" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Course</option>
+                                @foreach($subjects->pluck('course_code')->filter()->unique()->sort()->values() as $courseCode)
+                                    <option value="{{ $courseCode }}">{{ $courseCode }}</option>
+                                @endforeach
+                            </select>
+                            <select name="year_level" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Year</option>
+                                @foreach($subjects->pluck('year_level')->filter()->unique()->sort()->values() as $yearLevel)
+                                    <option value="{{ $yearLevel }}">Year {{ $yearLevel }}</option>
+                                @endforeach
+                            </select>
+                            <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Semester</option>
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                            <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/15 px-4 py-2 text-sm font-bold text-blue-100 transition hover:bg-blue-500/25">
+                                <i data-lucide="file-down" class="h-4 w-4"></i>
+                                PDF
+                            </button>
+                        </form>
                     </div>
 
                     <div class="h-[575px] overflow-hidden rounded-2xl border border-white/10 bg-white/5">
