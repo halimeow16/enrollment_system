@@ -122,7 +122,7 @@ class DatabaseSeeder extends Seeder
                 ['student_number' => $row['student_number']],
                 $row + [
                     'date_filed' => now()->subDays(8 - $index)->toDateString(),
-                    'school_year' => '2026-2027',
+                    'school_year' => '2025-2026',
                     'department_head_name' => $head?->name,
                     'cellphone' => '09' . str_pad((string) (170000000 + $index), 9, '0', STR_PAD_LEFT),
                     'email' => strtolower($row['first_name'] . '.' . $row['last_name'] . '@student.comteq.test'),

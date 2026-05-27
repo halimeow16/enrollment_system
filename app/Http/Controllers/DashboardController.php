@@ -41,6 +41,8 @@ class DashboardController extends Controller
         $courseStats = DB::table('enrollments')
             ->select('course_code', DB::raw('COUNT(*) as total'))
             ->whereNotNull('course_code')
+            ->whereNull('archived_at')
+            ->where('school_year', $academicYear)
             ->groupBy('course_code')
             ->orderByDesc('total')
             ->limit(6)
@@ -52,6 +54,8 @@ class DashboardController extends Controller
                 DB::raw("SUM(enrollment_status = 'enrolled') as enrolled"),
                 DB::raw("SUM(enrollment_status = 'pending')  as pending"))
             ->whereNotNull('semester')
+            ->whereNull('archived_at')
+            ->where('school_year', $academicYear)
             ->groupBy('school_year', 'semester')
             ->orderBy('school_year')
             ->orderByRaw("FIELD(semester, '1st', '2nd', 'Summer')")
@@ -67,6 +71,8 @@ class DashboardController extends Controller
                 DB::raw("SUM(enrollment_status = 'enrolled') as enrolled"),
                 DB::raw("SUM(enrollment_status = 'pending')  as pending"))
             ->whereNotNull('school_year')
+            ->whereNull('archived_at')
+            ->where('school_year', $academicYear)
             ->groupBy('school_year')
             ->orderBy('school_year')
             ->get();
@@ -93,8 +99,14 @@ class DashboardController extends Controller
         ];
 
         // Recent enrollments
-        $recentEnrollments = Enrollment::orderByDesc('created_at')->limit(8)->get();
-        $allEnrollments = Enrollment::with('studentId')->orderByDesc('created_at')->get();
+        $recentEnrollments = $this->activeEnrollmentQuery($academicYear)->orderByDesc('created_at')->limit(8)->get();
+        $allEnrollments = $this->activeEnrollmentQuery($academicYear)->with('studentId')->orderByDesc('created_at')->get();
+        $archivedEnrollmentYears = Enrollment::whereNotNull('archived_at')
+            ->whereNotNull('archived_school_year')
+            ->distinct()
+            ->orderByDesc('archived_school_year')
+            ->pluck('archived_school_year')
+            ->values();
         $idGenerationStatuses = $allEnrollments->mapWithKeys(fn (Enrollment $enrollment) => [
             $enrollment->id => $this->idGenerationStatusPayload($enrollment),
         ]);
@@ -107,9 +119,22 @@ class DashboardController extends Controller
         $days = Day::orderBy('sort_order')->orderBy('name')->get();
         $rooms = Room::orderBy('name')->get();
         $timeSlots = TimeSlot::orderBy('start_time')->get();
-        $subjectSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+        $subjectSchedules = $this->activeScheduleQuery($academicYear)
+            ->with(['subject', 'day', 'timeSlot', 'room'])
             ->latest()
             ->get();
+        $archivedScheduleYears = SubjectSchedule::whereNotNull('archived_at')
+            ->whereNotNull('archived_school_year')
+            ->distinct()
+            ->orderByDesc('archived_school_year')
+            ->pluck('archived_school_year')
+            ->values();
+        $archivedScheduleRows = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereNotNull('archived_at')
+            ->latest()
+            ->get()
+            ->map(fn (SubjectSchedule $schedule) => $this->schedulePayload($schedule))
+            ->values();
         $scheduleRows = $subjectSchedules->map(fn (SubjectSchedule $schedule) => [
             'id' => $schedule->id,
             'subject' => [
@@ -130,6 +155,9 @@ class DashboardController extends Controller
             'room' => $schedule->room?->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
             'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'school_year' => $schedule->school_year,
+            'archived_school_year' => $schedule->archived_school_year,
+            'archived_at' => $schedule->archived_at?->toDateTimeString(),
             'subject_display_name' => $this->scheduleSubjectName($schedule),
             'update_url' => route('academic.schedules.update', $schedule),
             'delete_url' => route('academic.schedules.destroy', $schedule),
@@ -216,6 +244,7 @@ class DashboardController extends Controller
             'chartData',
             'recentEnrollments',
             'allEnrollments',
+            'archivedEnrollmentYears',
             'idGenerationStatuses',
             'subjects',
             'days',
@@ -223,6 +252,8 @@ class DashboardController extends Controller
             'timeSlots',
             'subjectSchedules',
             'scheduleRows',
+            'archivedScheduleRows',
+            'archivedScheduleYears',
             'scheduleSubjectOptions',
             'departmentHeads',
             'feeRows',
@@ -247,8 +278,16 @@ class DashboardController extends Controller
 
     public function liveEnrollments(): JsonResponse
     {
-        $recentEnrollments = Enrollment::orderByDesc('created_at')->limit(8)->get();
-        $allEnrollments = Enrollment::with('studentId')->orderByDesc('created_at')->get();
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $archiveYear = request('archived_year');
+        $recentEnrollments = $this->activeEnrollmentQuery($academicYear)->orderByDesc('created_at')->limit(8)->get();
+        $allEnrollments = $archiveYear
+            ? Enrollment::with('studentId')
+                ->whereNotNull('archived_at')
+                ->where('archived_school_year', $archiveYear)
+                ->orderByDesc('created_at')
+                ->get()
+            : $this->activeEnrollmentQuery($academicYear)->with('studentId')->orderByDesc('created_at')->get();
 
         return response()->json([
             'recent_html' => view('dashboard.partials.enrollment-table', [
@@ -267,19 +306,43 @@ class DashboardController extends Controller
 
     private function dashboardStats(): array
     {
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+
         return [
-            'total_enrolled' => Enrollment::where('enrollment_status', 'enrolled')->count(),
-            'pending'        => Enrollment::where('enrollment_status', 'pending')->count(),
-            'enrolled_today' => Enrollment::where('enrollment_status', 'enrolled')
+            'total_enrolled' => $this->activeEnrollmentQuery($academicYear)->where('enrollment_status', 'enrolled')->count(),
+            'pending'        => $this->activeEnrollmentQuery($academicYear)->where('enrollment_status', 'pending')->count(),
+            'enrolled_today' => $this->activeEnrollmentQuery($academicYear)->where('enrollment_status', 'enrolled')
                 ->whereDate('updated_at', today())
                 ->count(),
-            'courses'        => DB::table('enrollments')->distinct()->count('course_code'),
+            'courses'        => DB::table('enrollments')
+                ->whereNull('archived_at')
+                ->where('school_year', $academicYear)
+                ->distinct()
+                ->count('course_code'),
             'subjects'       => DB::table('subjects')->where('is_active', true)->count(),
         ];
     }
 
+    private function activeEnrollmentQuery(string $academicYear)
+    {
+        return Enrollment::query()
+            ->whereNull('archived_at')
+            ->where('school_year', $academicYear);
+    }
+
+    private function activeScheduleQuery(string $academicYear)
+    {
+        return SubjectSchedule::query()
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query
+                ->where('school_year', $academicYear)
+                ->orWhereNull('school_year'));
+    }
+
     public function updateEnrollmentStatus(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse
     {
+        abort_if($enrollment->archived_at, 403);
+
         $validated = $request->validate([
             'enrollment_status' => ['required', 'in:pending,enrolled,cancelled'],
         ]);
@@ -306,6 +369,8 @@ class DashboardController extends Controller
 
     public function updateEnrollment(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse
     {
+        abort_if($enrollment->archived_at, 403);
+
         $validated = $request->validate([
             'student_number' => ['nullable', 'string', 'max:50'],
             'date_filed' => ['nullable', 'date_format:Y-m-d'],
@@ -449,7 +514,8 @@ class DashboardController extends Controller
     {
         abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
 
-        $statuses = Enrollment::with('studentId')
+        $statuses = $this->activeEnrollmentQuery(AppSetting::getValue('academic_year', '2026-2027'))
+            ->with('studentId')
             ->where('enrollment_status', 'enrolled')
             ->get()
             ->mapWithKeys(fn (Enrollment $enrollment) => [
@@ -896,5 +962,36 @@ class DashboardController extends Controller
         $type = $schedule->schedule_type ?: ($schedule->subject?->type === 'LAB' ? 'LAB' : 'LEC');
 
         return ($schedule->subject?->name ?? 'No subject') . ' - ' . $type;
+    }
+
+    private function schedulePayload(SubjectSchedule $schedule): array
+    {
+        return [
+            'id' => $schedule->id,
+            'subject' => [
+                'id' => $schedule->subject?->id,
+                'code' => $schedule->subject?->code,
+                'name' => $schedule->subject?->name,
+                'course_code' => $schedule->subject?->course_code,
+                'year_level' => $schedule->subject?->year_level,
+                'semester' => $schedule->subject?->semester,
+                'type' => $schedule->subject?->type,
+            ],
+            'day_id' => $schedule->day_id,
+            'day' => $schedule->day?->name,
+            'time' => $this->scheduleTimeLabel($schedule),
+            'start_time' => $schedule->timeSlot?->start_time ? substr((string) $schedule->timeSlot->start_time, 0, 5) : null,
+            'end_time' => $schedule->timeSlot?->end_time ? substr((string) $schedule->timeSlot->end_time, 0, 5) : null,
+            'room_id' => $schedule->room_id,
+            'room' => $schedule->room?->name,
+            'instructor' => $schedule->instructor ?: 'Unassigned',
+            'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'school_year' => $schedule->school_year,
+            'archived_school_year' => $schedule->archived_school_year,
+            'archived_at' => $schedule->archived_at?->toDateTimeString(),
+            'subject_display_name' => $this->scheduleSubjectName($schedule),
+            'update_url' => route('academic.schedules.update', $schedule),
+            'delete_url' => route('academic.schedules.destroy', $schedule),
+        ];
     }
 }

@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Day;
 use App\Models\AppSetting;
 use App\Models\DepartmentHead;
+use App\Models\Enrollment;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
 use App\Models\IdTemplate;
@@ -53,17 +54,45 @@ class AcademicConfigurationController extends Controller
             'academic_year.regex' => 'Use the format YYYY-YYYY, for example 2026-2027.',
         ]);
 
-        $oldAcademicYear = AppSetting::getValue('academic_year');
-        AppSetting::setValue('academic_year', $data['academic_year']);
+        $oldAcademicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $archiveCounts = ['enrollments' => 0, 'schedules' => 0];
+
+        DB::transaction(function () use ($data, $oldAcademicYear, &$archiveCounts): void {
+            if ($oldAcademicYear && $oldAcademicYear !== $data['academic_year']) {
+                $archiveCounts['enrollments'] = Enrollment::whereNull('archived_at')
+                    ->where('school_year', $oldAcademicYear)
+                    ->update([
+                        'archived_at' => now(),
+                        'archived_school_year' => $oldAcademicYear,
+                    ]);
+
+                $archiveCounts['schedules'] = SubjectSchedule::whereNull('archived_at')
+                    ->where(fn ($query) => $query
+                        ->where('school_year', $oldAcademicYear)
+                        ->orWhereNull('school_year'))
+                    ->update([
+                        'school_year' => $oldAcademicYear,
+                        'archived_at' => now(),
+                        'archived_school_year' => $oldAcademicYear,
+                    ]);
+            }
+
+            AppSetting::setValue('academic_year', $data['academic_year']);
+        });
+
         ActivityLog::record('academic_year_updated', null, [
             'academic_year' => $oldAcademicYear,
         ], [
             'academic_year' => $data['academic_year'],
+            'archived_enrollments' => $archiveCounts['enrollments'],
+            'archived_schedules' => $archiveCounts['schedules'],
         ], $request);
 
         return response()->json([
             'message' => 'Academic year updated.',
             'academic_year' => $data['academic_year'],
+            'archived_enrollments' => $archiveCounts['enrollments'],
+            'archived_schedules' => $archiveCounts['schedules'],
         ]);
     }
 
@@ -185,6 +214,7 @@ class AcademicConfigurationController extends Controller
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
         ]);
         $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
 
         $subject = Subject::findOrFail($data['subject_id']);
         $timeSlot = TimeSlot::updateOrCreate(
@@ -204,6 +234,8 @@ class AcademicConfigurationController extends Controller
         $existingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $data['subject_id'])
             ->where('schedule_type', $data['schedule_type'])
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->get();
         $existingSchedule = $existingSchedules->first();
         $shouldOverwrite = $request->boolean('overwrite_schedule');
@@ -224,6 +256,8 @@ class AcademicConfigurationController extends Controller
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->when($existingSchedules->isNotEmpty() && $shouldOverwrite, fn ($query) => $query->whereNotIn('id', $existingSchedules->pluck('id')))
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->whereIn('day_id', $dayIds)
             ->whereHas('timeSlot', function ($query) use ($timeSlot) {
                 $query->where('start_time', '<', $timeSlot->end_time)
@@ -301,6 +335,7 @@ class AcademicConfigurationController extends Controller
                 'room_id' => $room->id,
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
+                'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
         $schedule = $schedules->first();
@@ -348,12 +383,15 @@ class AcademicConfigurationController extends Controller
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
         ]);
         $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
 
         $subject = Subject::findOrFail($data['subject_id']);
         $schedule->load(['subject', 'day', 'timeSlot', 'room']);
         $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $schedule->subject_id)
             ->where('schedule_type', $schedule->schedule_type)
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->get();
         $relatedScheduleIds = $relatedSchedules->pluck('id');
         $timeSlot = TimeSlot::updateOrCreate(
@@ -373,6 +411,8 @@ class AcademicConfigurationController extends Controller
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->whereNotIn('id', $relatedScheduleIds)
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->whereIn('day_id', $dayIds)
             ->whereHas('timeSlot', function ($query) use ($timeSlot) {
                 $query->where('start_time', '<', $timeSlot->end_time)
@@ -439,6 +479,7 @@ class AcademicConfigurationController extends Controller
                 'room_id' => $room->id,
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
+                'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
         $schedule = $schedules->first();
@@ -481,6 +522,10 @@ class AcademicConfigurationController extends Controller
             ->where('time_slot_id', $schedule->time_slot_id)
             ->where('room_id', $schedule->room_id)
             ->where('instructor', $schedule->instructor)
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query
+                ->where('school_year', AppSetting::getValue('academic_year', '2026-2027'))
+                ->orWhereNull('school_year'))
             ->get();
         $ids = $relatedSchedules->pluck('id')->values()->all();
         $oldValues = $relatedSchedules->map(fn (SubjectSchedule $schedule) => [
@@ -513,7 +558,10 @@ class AcademicConfigurationController extends Controller
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
         ]);
 
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
         $schedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->whereHas('subject', fn ($query) => $query
                 ->where('course_code', $data['course_code'])
                 ->where('year_level', $data['year_level'])
@@ -525,7 +573,6 @@ class AcademicConfigurationController extends Controller
             ->select('subject_schedules.*')
             ->get();
 
-        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
         $courseName = $this->scheduleCourseName($data['course_code']);
         $fileName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule.pdf')
             ->replace([' ', '/'], '-')
@@ -946,6 +993,9 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
             'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'school_year' => $schedule->school_year,
+            'archived_school_year' => $schedule->archived_school_year,
+            'archived_at' => $schedule->archived_at?->toDateTimeString(),
             'subject_display_name' => $this->scheduleSubjectName($schedule),
             'update_url' => route('academic.schedules.update', $schedule),
             'delete_url' => route('academic.schedules.destroy', $schedule),

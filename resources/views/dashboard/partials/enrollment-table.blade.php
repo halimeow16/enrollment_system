@@ -21,6 +21,7 @@
         <tbody class="divide-y divide-white/10">
             @forelse ($enrollments as $enrollment)
                 @php
+                    $isArchived = $enrollment->archived_at !== null;
                     $name = trim(($enrollment->last_name ?? '') . ', ' . ($enrollment->first_name ?? ''));
                     $name = $name === ',' ? 'Unnamed student' : $name;
                         $rowText = strtolower(implode(' ', [
@@ -131,6 +132,11 @@
                             <p class="truncate">{{ $enrollment->email ?? 'No email' }}</p>
                         </td>
                         <td class="px-4 py-3.5">
+                            @if($isArchived)
+                                <span class="inline-flex rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+                                    Archived
+                                </span>
+                            @else
                             <form action="{{ route('enrollments.status.update', $enrollment) }}"
                                   method="POST"
                                   @submit.prevent="savingStatus = true; updateEnrollmentStatus($event.target, selectedStatus)
@@ -158,15 +164,18 @@
                                     <i x-show="savingStatus" data-lucide="loader-2" class="h-4 w-4 animate-spin" x-cloak></i>
                                 </button>
                             </form>
+                            @endif
                         </td>
                         <td class="px-4 py-3.5">
                             <div class="flex justify-end gap-2">
-                                <button type="button"
+                                @unless($isArchived)
+                                    <button type="button"
                                         @click="$dispatch('edit-enrollment', { url: @js(route('enrollments.update', $enrollment)), enrollment: @js($editPayload) })"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-500/10 text-emerald-100 transition hover:bg-emerald-500/20"
                                         title="Edit student data">
-                                    <i data-lucide="pencil" class="h-4 w-4"></i>
-                                </button>
+                                        <i data-lucide="pencil" class="h-4 w-4"></i>
+                                    </button>
+                                @endunless
                                 <a href="{{ route('enrollments.form.show', $enrollment) }}"
                                    target="_blank"
                                    rel="noopener"

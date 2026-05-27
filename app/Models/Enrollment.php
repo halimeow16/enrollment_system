@@ -24,12 +24,15 @@ class Enrollment extends Model
         'enrollment_identity_hash',
         'department_head_name',
         'enrollment_status',
+        'archived_at',
+        'archived_school_year',
         'credentials',
     ];
 
     protected $casts = [
         'date_filed'    => 'date:Y-m-d',
         'date_of_birth' => 'date:Y-m-d',
+        'archived_at'   => 'datetime',
         'age'           => 'integer',
         'credentials'   => 'array',
     ];

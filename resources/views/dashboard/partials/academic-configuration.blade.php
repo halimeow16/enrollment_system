@@ -92,11 +92,12 @@
 
                 <form action="{{ route('academic.academic-year.update') }}"
                       method="POST"
-                      x-data="dirtyForm()"
+                      x-data="{ ...dirtyFormState(), confirmingNewAcademicYear: false }"
                       class="mt-5 space-y-4"
-                      @submit.prevent="submitAcademicForm($event.target)
-                          .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); markClean(); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active.`); })
-                          .catch((error) => showToast('error', 'Save failed', error.message))">
+                      @submit.prevent="if (!confirmingNewAcademicYear) { confirmingNewAcademicYear = true; return; }
+                          submitAcademicForm($event.target)
+                              .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); confirmingNewAcademicYear = false; markClean(); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active. Archived ${data.archived_enrollments || 0} enrollments and ${data.archived_schedules || 0} schedules.`); })
+                              .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     @method('PUT')
 
@@ -114,8 +115,31 @@
                             :disabled="!dirty"
                             class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
                         <i data-lucide="save" class="h-4 w-4"></i>
-                        Save Academic Year
+                        Start New Academic Year
                     </button>
+
+                    <div x-show="confirmingNewAcademicYear"
+                         x-cloak
+                         x-transition
+                         class="rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4">
+                        <p class="text-sm font-extrabold text-amber-100">Start a new academic year?</p>
+                        <p class="mt-1 text-xs leading-5 text-amber-100/80">
+                            Current enrollments and schedules for A.Y. <span class="font-bold">{{ $academicYear ?? 'current year' }}</span>
+                            will be moved to archive. Subjects, fees, templates, rooms, accounts, and settings will remain.
+                        </p>
+
+                        <div class="mt-4 flex justify-end gap-2">
+                            <button type="button"
+                                    @click="confirmingNewAcademicYear = false"
+                                    class="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/15">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="rounded-xl bg-amber-400 px-4 py-2 text-xs font-extrabold text-slate-950 transition hover:bg-amber-300">
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -129,6 +153,10 @@
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
                         <p class="text-xs font-bold text-slate-300">Enrollment Form</p>
                         <p class="mt-2 text-sm font-semibold text-slate-200">School year is read-only.</p>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p class="text-xs font-bold text-slate-300">Archives</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-200">Old enrollments and schedules are kept.</p>
                     </div>
                 </div>
             </div>

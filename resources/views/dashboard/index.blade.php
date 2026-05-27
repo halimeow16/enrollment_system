@@ -151,7 +151,7 @@
                     <div class="rounded-3xl border border-blue-300/20 bg-gradient-to-br from-[#0f43b0]/95 to-[#071224]/95 p-5 shadow-2xl shadow-blue-950/20">
                         <i data-lucide="book-open" class="w-5 h-5 text-blue-100"></i>
                         <p class="text-2xl font-extrabold text-white mt-3">{{ $stats['courses'] }}</p>
-                        <p class="text-xs text-blue-100/70 mt-0.5">Courses</p>
+                        <p class="text-xs text-blue-100/70 mt-0.5">Enrolled Courses</p>
                     </div>
                     <div class="rounded-3xl border border-red-300/20 bg-gradient-to-br from-[#7f1d1d]/95 to-[#071224]/95 p-5 shadow-2xl shadow-red-950/20">
                         <i data-lucide="layers" class="w-5 h-5 text-red-100"></i>
@@ -235,7 +235,8 @@
             <div>
                 <h2 class="font-extrabold text-white">All Enrollments</h2>
                 <p class="text-xs text-slate-300 mt-0.5">
-                    <span x-text="formatCount(enrollmentCount)"></span> total records from the enrollment table.
+                    <span x-text="formatCount(enrollmentCount)"></span>
+                    <span x-text="archivedEnrollmentYear ? `archived records from A.Y. ${archivedEnrollmentYear}` : 'active records from the current academic year'"></span>.
                 </p>
             </div>
             <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
@@ -252,6 +253,14 @@
                     <option class="text-slate-900" value="pending">Pending</option>
                     <option class="text-slate-900" value="enrolled">Enrolled</option>
                     <option class="text-slate-900" value="cancelled">Cancelled</option>
+                </select>
+                <select x-model="archivedEnrollmentYear"
+                        @change="refreshEnrollmentTables()"
+                        class="w-full rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-blue-300/40 focus:ring-2 focus:ring-blue-400/20 sm:w-52">
+                    <option class="text-slate-900" value="">Current A.Y.</option>
+                    <template x-for="year in archivedEnrollmentYears" :key="`enrollment-archive-${year}`">
+                        <option class="text-slate-900" :value="year" x-text="`Archive ${year}`"></option>
+                    </template>
                 </select>
             </div>
         </div>
@@ -762,6 +771,8 @@
             search: '',
             idSearch: '',
             statusFilter: '',
+            archivedEnrollmentYear: '',
+            archivedEnrollmentYears: @json($archivedEnrollmentYears),
             idGenerationFilter: '',
             stats: @json($stats),
             academicYear: @json($academicYear),
@@ -794,9 +805,12 @@
             addedTimeSlots: [],
             addedSchedules: [],
             scheduleRows: @json($scheduleRows),
+            archivedScheduleRows: @json($archivedScheduleRows),
+            archivedScheduleYears: @json($archivedScheduleYears),
             scheduleCount: {{ $subjectSchedules->count() }},
             scheduleSearch: '',
             scheduleLiveSearch: '',
+            scheduleArchiveYear: '',
             scheduleCourseFilter: '',
             scheduleYearFilter: '',
             scheduleSemesterFilter: '',
@@ -972,7 +986,12 @@
             },
             async refreshEnrollmentTables() {
                 try {
-                    const response = await fetch(this.enrollmentRefreshUrl, {
+                    const url = new URL(this.enrollmentRefreshUrl, window.location.origin);
+                    if (this.archivedEnrollmentYear) {
+                        url.searchParams.set('archived_year', this.archivedEnrollmentYear);
+                    }
+
+                    const response = await fetch(url.toString(), {
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
@@ -1044,9 +1063,15 @@
                 return response.json();
             },
             async submitAcademicForm(form) {
-                const response = await fetch(form.action, {
+                const targetForm = form instanceof HTMLFormElement ? form : form?.form;
+
+                if (!(targetForm instanceof HTMLFormElement)) {
+                    throw new Error('Unable to find the form. Please refresh the page and try again.');
+                }
+
+                const response = await fetch(targetForm.action, {
                     method: 'POST',
-                    body: new FormData(form),
+                    body: new FormData(targetForm),
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
@@ -1091,7 +1116,26 @@
                 return data;
             },
             setAcademicYear(value) {
+                const previousAcademicYear = this.academicYear;
                 this.academicYear = value;
+
+                if (previousAcademicYear && previousAcademicYear !== value) {
+                    if (!this.archivedEnrollmentYears.includes(previousAcademicYear)) {
+                        this.archivedEnrollmentYears = [previousAcademicYear, ...this.archivedEnrollmentYears];
+                    }
+
+                    if (!this.archivedScheduleYears.includes(previousAcademicYear)) {
+                        this.archivedScheduleYears = [previousAcademicYear, ...this.archivedScheduleYears];
+                    }
+
+                    this.archivedEnrollmentYear = '';
+                    this.scheduleArchiveYear = '';
+                    this.addedSchedules = [];
+                    this.scheduleRows = [];
+                    this.scheduleCount = 0;
+                    this.refreshEnrollmentTables();
+                }
+
                 window.dispatchEvent(new CustomEvent('academic-year-updated', {
                     detail: { academicYear: value },
                 }));
@@ -1134,6 +1178,11 @@
                 return status === 'enrolled' && matchesText && matchesGeneratedFilter;
             },
             allScheduleRows() {
+                if (this.scheduleArchiveYear) {
+                    return (this.archivedScheduleRows || [])
+                        .filter((schedule) => schedule.archived_school_year === this.scheduleArchiveYear);
+                }
+
                 return [
                     ...(this.addedSchedules || []),
                     ...(this.scheduleRows || []),

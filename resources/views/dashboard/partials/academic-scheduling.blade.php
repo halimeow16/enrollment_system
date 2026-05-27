@@ -141,8 +141,14 @@
                                     <h3 class="font-extrabold text-white">Live Schedule View</h3>
                                     <p class="mt-1 text-xs text-slate-300"><span x-text="scheduleCount"></span> entries. Review and remove schedules from this table.</p>
                                 </div>
-                                <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                                <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
                                     <input type="search" x-model="scheduleLiveSearch" placeholder="Search" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                                    <select x-model="scheduleArchiveYear" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                                        <option value="">Current A.Y.</option>
+                                        <template x-for="year in archivedScheduleYears" :key="`schedule-archive-${year}`">
+                                            <option :value="year" x-text="`Archive ${year}`"></option>
+                                        </template>
+                                    </select>
                                     <select x-model="scheduleCourseFilter" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                                         <option value="">All Courses</option>
                                         @foreach($subjects->pluck('course_code')->filter()->unique()->sort()->values() as $courseCode)
@@ -213,18 +219,25 @@
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="whitespace-nowrap px-4 py-3 text-right">
-                                                    <button type="button"
+                                                    <template x-if="!scheduleArchiveYear">
+                                                        <div class="inline-flex items-center gap-2">
+                                                            <button type="button"
                                                             @click="editingSchedule = schedule.id; confirmingScheduleRemoval = null"
                                                             class="mr-2 inline-flex items-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/20">
-                                                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-                                                        Edit
-                                                    </button>
-                                                    <button type="button"
+                                                                <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                                                Edit
+                                                            </button>
+                                                            <button type="button"
                                                             @click="confirmingScheduleRemoval = schedule.id; editingSchedule = null"
                                                             class="inline-flex items-center gap-2 rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-500/20">
-                                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                                                        Remove
-                                                    </button>
+                                                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <span x-show="scheduleArchiveYear" class="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+                                                        Archived
+                                                    </span>
                                                 </td>
                                             </template>
                                             <template x-if="editingSchedule === schedule.id">
