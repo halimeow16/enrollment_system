@@ -576,10 +576,7 @@
                 sides: [],
             },
             subjectCount: {{ $subjects->count() }},
-            scheduleSubjectOptions: @json($subjects->map(fn ($subject) => [
-                'id' => $subject->id,
-                'label' => "{$subject->code} - {$subject->name} / {$subject->course_code} / {$subject->year_level} / {$subject->semester}",
-            ])->values()),
+            scheduleSubjectOptions: @json($scheduleSubjectOptions),
             addedSubjects: [],
             addedDays: [],
             addedRooms: [],
@@ -807,6 +804,36 @@
 
                 return response.json();
             },
+            async submitScheduleForm(form, overwrite = false) {
+                const formData = new FormData(form);
+
+                if (overwrite) {
+                    formData.set('overwrite_schedule', '1');
+                }
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const data = await response.json().catch(() => ({}));
+
+                if (response.status === 409 && data.requires_confirmation) {
+                    const error = new Error(data.message || 'This subject already has a schedule.');
+                    error.requiresScheduleOverwrite = true;
+                    error.schedule = data.schedule || null;
+                    throw error;
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Unable to save schedule.');
+                }
+
+                return data;
+            },
             setAcademicYear(value) {
                 this.academicYear = value;
                 window.dispatchEvent(new CustomEvent('academic-year-updated', {
@@ -856,10 +883,62 @@
                     ...(this.scheduleRows || []),
                 ];
             },
+            scheduleDayCode(day) {
+                return {
+                    monday: 'M',
+                    tuesday: 'T',
+                    wednesday: 'W',
+                    thursday: 'TH',
+                    friday: 'FRI',
+                    saturday: 'SAT',
+                    sunday: 'SUN',
+                }[(day || '').toLowerCase()] || String(day || '').toUpperCase();
+            },
+            scheduleDayOrder(day) {
+                return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].indexOf(day);
+            },
+            scheduleGroupKey(schedule) {
+                return [
+                    schedule.subject?.id || '',
+                    schedule.schedule_type || '',
+                    schedule.start_time || '',
+                    schedule.end_time || '',
+                    schedule.room_id || schedule.room || '',
+                    (schedule.instructor || '').toLowerCase().trim(),
+                ].join('|');
+            },
+            groupScheduleRows(rows) {
+                const groups = new Map();
+
+                rows.forEach((schedule) => {
+                    const key = this.scheduleGroupKey(schedule);
+                    const group = groups.get(key) || { ...schedule, schedule_ids: [], day_ids: [], days: [] };
+
+                    group.schedule_ids.push(schedule.id);
+                    group.day_ids.push(schedule.day_id);
+                    group.days.push(schedule.day);
+                    group.id = Math.min(...group.schedule_ids);
+                    group.update_url = schedule.update_url;
+                    group.delete_url = schedule.delete_url;
+                    groups.set(key, group);
+                });
+
+                return [...groups.values()].map((schedule) => {
+                    const orderedDays = [...new Set(schedule.days)]
+                        .sort((a, b) => this.scheduleDayOrder(a) - this.scheduleDayOrder(b));
+
+                    return {
+                        ...schedule,
+                        days: orderedDays,
+                        day_ids: [...new Set(schedule.day_ids)],
+                        day_label: orderedDays.map((day) => this.scheduleDayCode(day)).join(''),
+                    };
+                });
+            },
             filteredScheduleRows() {
                 const search = this.scheduleLiveSearch.trim().toLowerCase();
 
-                return this.allScheduleRows()
+                const filtered = this.allScheduleRows()
                     .filter((schedule) => {
                         const subject = schedule.subject || {};
                         if (this.scheduleCourseFilter && subject.course_code !== this.scheduleCourseFilter) return false;
@@ -881,24 +960,44 @@
                             schedule.instructor,
                         ].join(' ').toLowerCase().includes(search);
                     })
-                    .sort((a, b) => `${a.day || ''} ${a.start_time || ''} ${a.subject?.code || ''}`.localeCompare(`${b.day || ''} ${b.start_time || ''} ${b.subject?.code || ''}`));
+                return this.groupScheduleRows(filtered)
+                    .sort((a, b) => `${a.start_time || ''} ${a.subject?.code || ''} ${a.day_label || ''}`.localeCompare(`${b.start_time || ''} ${b.subject?.code || ''} ${b.day_label || ''}`));
             },
             allScheduleSubjectOptions() {
                 const liveSubjects = (this.addedSubjects || []).map((subject) => ({
                     id: subject.id,
-                    label: `${subject.code} - ${subject.name} / ${subject.course_code} / ${subject.year_level} / ${subject.semester}`,
-                }));
+                    code: subject.code,
+                    name: subject.name,
+                    course_code: subject.course_code,
+                    year_level: subject.year_level,
+                    semester: subject.semester,
+                    type: subject.type,
+                })).flatMap((subject) => {
+                    const types = subject.type === 'BOTH' ? ['LEC', 'LAB'] : [subject.type === 'LAB' ? 'LAB' : 'LEC'];
+
+                    return types.map((type) => ({
+                        id: subject.id,
+                        schedule_type: type,
+                        label: `${subject.code} - ${type} / ${subject.name} / ${subject.course_code} / ${subject.year_level} / ${subject.semester}`,
+                    }));
+                });
 
                 return [
                     ...(this.scheduleSubjectOptions || []),
-                    ...liveSubjects.filter((subject) => !(this.scheduleSubjectOptions || []).some((item) => item.id === subject.id)),
+                    ...liveSubjects.filter((subject) => !(this.scheduleSubjectOptions || []).some((item) => item.id === subject.id && item.schedule_type === subject.schedule_type)),
                 ];
             },
-            resolveScheduleSubjectId(label) {
-                return this.allScheduleSubjectOptions().find((subject) => subject.label === label)?.id || '';
+            resolveScheduleSubjectSelection(label) {
+                return this.allScheduleSubjectOptions().find((subject) => subject.label === label) || null;
             },
-            scheduleSubjectLabel(subjectId) {
-                return this.allScheduleSubjectOptions().find((subject) => Number(subject.id) === Number(subjectId))?.label || '';
+            resolveScheduleSubjectId(label) {
+                return this.resolveScheduleSubjectSelection(label)?.id || '';
+            },
+            resolveScheduleType(label) {
+                return this.resolveScheduleSubjectSelection(label)?.schedule_type || '';
+            },
+            scheduleSubjectLabel(subjectId, scheduleType = 'LEC') {
+                return this.allScheduleSubjectOptions().find((subject) => Number(subject.id) === Number(subjectId) && subject.schedule_type === scheduleType)?.label || '';
             },
             upsertSchedule(schedule) {
                 this.addedSchedules = (this.addedSchedules || []).map((item) => item.id === schedule.id ? schedule : item);
@@ -907,6 +1006,17 @@
                 if (!this.addedSchedules.some((item) => item.id === schedule.id) && !this.scheduleRows.some((item) => item.id === schedule.id)) {
                     this.addedSchedules.unshift(schedule);
                 }
+            },
+            applyScheduleResponse(data) {
+                const removedIds = data.removed_schedule_ids || [];
+
+                if (removedIds.length) {
+                    this.addedSchedules = (this.addedSchedules || []).filter((schedule) => !removedIds.includes(schedule.id));
+                    this.scheduleRows = (this.scheduleRows || []).filter((schedule) => !removedIds.includes(schedule.id));
+                }
+
+                (data.schedules || [data.schedule]).filter(Boolean).forEach((schedule) => this.upsertSchedule(schedule));
+                this.scheduleCount = (this.scheduleRows || []).length + (this.addedSchedules || []).length;
             },
             idStatusFor(enrollmentId) {
                 return this.idGenerationStatuses[enrollmentId] || {

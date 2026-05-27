@@ -5,37 +5,60 @@
 
                         <form action="{{ route('academic.schedules.store') }}"
                               method="POST"
-                              x-data="dirtyForm()"
+                              x-data="{ ...dirtyFormState(), confirmingOverwrite: false, overwriteMessage: '' }"
                               class="mt-4 grid gap-3 lg:grid-cols-6"
-                              @submit.prevent="submitAcademicForm($event.target)
-                                  .then((data) => { addedSchedules.unshift(data.schedule); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); if (data.time_slot && !addedTimeSlots.some((slot) => slot.id === data.time_slot.id)) addedTimeSlots.push(data.time_slot); scheduleCount++; $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Schedule assigned', 'No conflicts detected.'); })
-                                  .catch((error) => showToast('error', 'Schedule conflict', error.message))">
+                              @submit.prevent="confirmingOverwrite = false; submitScheduleForm($event.target)
+                                  .then((data) => { applyScheduleResponse(data); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); if (data.time_slot && !addedTimeSlots.some((slot) => slot.id === data.time_slot.id)) addedTimeSlots.push(data.time_slot); $event.target.reset(); $nextTick(() => markClean()); showToast('success', data.overwritten ? 'Schedule replaced' : 'Schedule assigned', data.overwritten ? 'The previous schedule was overwritten.' : 'No conflicts detected.'); })
+                                  .catch((error) => { if (error.requiresScheduleOverwrite) { overwriteMessage = error.message; confirmingOverwrite = true; return; } showToast('error', 'Schedule conflict', error.message); })">
                             @csrf
                             <div class="lg:col-span-2">
                                 <input type="hidden"
                                        name="subject_id"
                                        required
                                        x-ref="scheduleSubjectId">
+                                <input type="hidden"
+                                       name="schedule_type"
+                                       required
+                                       x-ref="scheduleType">
                                 <input type="search"
                                        list="schedule-subject-options"
                                        required
                                        placeholder="Search or select subject"
                                        autocomplete="off"
                                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                                       @input="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value)"
-                                       @change="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value)">
+                                       @input="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)"
+                                       @change="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)">
                             </div>
                             <input name="instructor" required placeholder="Instructor, e.g. Ms. Reyes" class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
                             <label class="grid grid-cols-2 gap-2 lg:col-span-2">
                                 <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                             </label>
-                            <select name="day_id" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-4">
-                                <option value="">Select day</option>
+                            <div class="grid grid-cols-7 gap-2 lg:col-span-4">
                                 @foreach($days as $day)
-                                    <option value="{{ $day->id }}">{{ $day->name }}</option>
+                                    @php
+                                        $dayCode = match (strtolower($day->name)) {
+                                            'monday' => 'M',
+                                            'tuesday' => 'T',
+                                            'wednesday' => 'W',
+                                            'thursday' => 'TH',
+                                            'friday' => 'FRI',
+                                            'saturday' => 'SAT',
+                                            'sunday' => 'SUN',
+                                            default => strtoupper($day->name),
+                                        };
+                                    @endphp
+                                    <label class="group relative">
+                                        <input type="checkbox"
+                                               name="day_ids[]"
+                                               value="{{ $day->id }}"
+                                               class="peer sr-only">
+                                        <span class="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-white/10 text-xs font-extrabold text-slate-300 transition peer-checked:border-blue-300/60 peer-checked:bg-[#1552d4] peer-checked:text-white group-hover:bg-white/15">
+                                            {{ $dayCode }}
+                                        </span>
+                                    </label>
                                 @endforeach
-                            </select>
+                            </div>
                             <input name="room_name"
                                    list="schedule-room-options"
                                    required
@@ -51,10 +74,34 @@
                                 </template>
                             </datalist>
                             <datalist id="schedule-subject-options">
-                                <template x-for="subject in allScheduleSubjectOptions()" :key="`schedule-subject-option-${subject.id}`">
+                                <template x-for="subject in allScheduleSubjectOptions()" :key="`schedule-subject-option-${subject.id}-${subject.schedule_type}`">
                                     <option :value="subject.label"></option>
                                 </template>
                             </datalist>
+                            <div x-show="confirmingOverwrite"
+                                 x-cloak
+                                 class="lg:col-span-6 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-sm font-extrabold text-amber-100">Replace existing schedule?</p>
+                                        <p class="mt-1 text-xs text-amber-100/80" x-text="overwriteMessage"></p>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        <button type="button"
+                                                @click="confirmingOverwrite = false"
+                                                class="rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-white/15">
+                                            Cancel
+                                        </button>
+                                        <button type="button"
+                                                @click="submitScheduleForm($el.closest('form'), true)
+                                                    .then((data) => { applyScheduleResponse(data); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); if (data.time_slot && !addedTimeSlots.some((slot) => slot.id === data.time_slot.id)) addedTimeSlots.push(data.time_slot); confirmingOverwrite = false; $el.closest('form').reset(); $nextTick(() => markClean()); showToast('success', 'Schedule replaced', 'The previous schedule was overwritten.'); })
+                                                    .catch((error) => showToast('error', 'Schedule conflict', error.message))"
+                                                class="rounded-lg bg-amber-400 px-4 py-2 text-xs font-extrabold text-slate-950 hover:bg-amber-300">
+                                            Replace
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                             <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-6">Assign Schedule</button>
                         </form>
 
@@ -146,14 +193,14 @@
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="px-4 py-3">
-                                                    <p class="font-semibold text-white" x-text="schedule.subject?.name || 'No subject'"></p>
+                                                    <p class="font-semibold text-white" x-text="schedule.subject_display_name || schedule.subject?.name || 'No subject'"></p>
                                                 </td>
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="px-4 py-3 text-xs text-slate-300" x-text="`${schedule.subject?.course_code || ''} / ${schedule.subject?.year_level || ''} / ${schedule.subject?.semester || ''}`"></td>
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
-                                                <td class="px-4 py-3 text-xs font-bold text-white" x-text="schedule.day"></td>
+                                                <td class="px-4 py-3 text-xs font-bold text-white" x-text="schedule.day_label || schedule.day"></td>
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="px-4 py-3 text-xs text-slate-300" x-text="schedule.time"></td>
@@ -184,29 +231,51 @@
                                                 <td colspan="8" class="px-4 py-3">
                                                     <form :action="schedule.update_url"
                                                           method="POST"
-                                                          x-data="{ subjectQuery: scheduleSubjectLabel(schedule.subject?.id), selectedSubjectId: schedule.subject?.id }"
+                                                          x-data="{ subjectQuery: scheduleSubjectLabel(schedule.subject?.id, schedule.schedule_type), selectedSubjectId: schedule.subject?.id, selectedScheduleType: schedule.schedule_type }"
                                                           class="grid gap-3 rounded-2xl border border-blue-300/20 bg-blue-500/10 p-3 lg:grid-cols-6"
                                                           @submit.prevent="submitAcademicForm($event.target)
-                                                              .then((data) => { upsertSchedule(data.schedule); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); editingSchedule = null; showToast('success', 'Schedule updated', 'No conflicts detected.'); })
+                                                              .then((data) => { applyScheduleResponse(data); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); editingSchedule = null; showToast('success', 'Schedule updated', 'No conflicts detected.'); })
                                                               .catch((error) => showToast('error', 'Update failed', error.message))">
                                                         @csrf
                                                         @method('PUT')
                                                         <div class="lg:col-span-2">
                                                             <input type="hidden" name="subject_id" x-model="selectedSubjectId">
+                                                            <input type="hidden" name="schedule_type" x-model="selectedScheduleType">
                                                             <input type="search"
                                                                    list="schedule-subject-options"
                                                                    required
                                                                    x-model="subjectQuery"
                                                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
-                                                                   @input="selectedSubjectId = resolveScheduleSubjectId(subjectQuery)"
-                                                                   @change="selectedSubjectId = resolveScheduleSubjectId(subjectQuery)">
+                                                                   @input="selectedSubjectId = resolveScheduleSubjectId(subjectQuery); selectedScheduleType = resolveScheduleType(subjectQuery)"
+                                                                   @change="selectedSubjectId = resolveScheduleSubjectId(subjectQuery); selectedScheduleType = resolveScheduleType(subjectQuery)">
                                                         </div>
                                                         <input name="instructor" required :value="schedule.instructor" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
-                                                        <select name="day_id" required x-init="$el.value = schedule.day_id" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
+                                                        <div class="grid grid-cols-7 gap-2 lg:col-span-2">
                                                             @foreach($days as $day)
-                                                                <option value="{{ $day->id }}">{{ $day->name }}</option>
+                                                                @php
+                                                                    $dayCode = match (strtolower($day->name)) {
+                                                                        'monday' => 'M',
+                                                                        'tuesday' => 'T',
+                                                                        'wednesday' => 'W',
+                                                                        'thursday' => 'TH',
+                                                                        'friday' => 'FRI',
+                                                                        'saturday' => 'SAT',
+                                                                        'sunday' => 'SUN',
+                                                                        default => strtoupper($day->name),
+                                                                    };
+                                                                @endphp
+                                                                <label class="group relative">
+                                                                    <input type="checkbox"
+                                                                           name="day_ids[]"
+                                                                           value="{{ $day->id }}"
+                                                                           :checked="(schedule.day_ids || [schedule.day_id]).map(Number).includes({{ $day->id }})"
+                                                                           class="peer sr-only">
+                                                                    <span class="flex h-9 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-white/10 text-[11px] font-extrabold text-slate-300 transition peer-checked:border-blue-300/60 peer-checked:bg-[#1552d4] peer-checked:text-white group-hover:bg-white/15">
+                                                                        {{ $dayCode }}
+                                                                    </span>
+                                                                </label>
                                                             @endforeach
-                                                        </select>
+                                                        </div>
                                                         <input type="time" name="start_time" required :value="schedule.start_time" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                                                         <input type="time" name="end_time" required :value="schedule.end_time" class="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                                                         <input name="room_name"
@@ -233,13 +302,13 @@
                                                           method="POST"
                                                           class="flex flex-col gap-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3 sm:flex-row sm:items-center sm:justify-between"
                                                           @submit.prevent="deleteAcademicItem($event.target)
-                                                              .then(() => { addedSchedules = addedSchedules.filter((item) => item.id !== schedule.id); scheduleRows = scheduleRows.filter((item) => item.id !== schedule.id); scheduleCount = Math.max(0, scheduleCount - 1); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
+                                                              .then((data) => { const ids = data.schedule_ids || [data.schedule_id || schedule.id]; addedSchedules = addedSchedules.filter((item) => !ids.includes(item.id)); scheduleRows = scheduleRows.filter((item) => !ids.includes(item.id)); scheduleCount = Math.max(0, scheduleCount - ids.length); confirmingScheduleRemoval = null; showToast('success', 'Schedule removed', 'Schedule was removed.'); })
                                                               .catch(() => showToast('error', 'Remove failed', 'Unable to remove schedule.'))">
                                                         @csrf
                                                         @method('DELETE')
                                                         <div>
                                                             <p class="text-xs font-bold text-red-50">Remove this schedule?</p>
-                                                            <p class="mt-1 text-xs text-red-100/80" x-text="`${schedule.subject?.code || 'No code'} / ${schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
+                                                            <p class="mt-1 text-xs text-red-100/80" x-text="`${schedule.subject?.code || 'No code'} / ${schedule.day_label || schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
                                                         </div>
                                                         <div class="flex justify-end gap-2">
                                                             <button type="button"

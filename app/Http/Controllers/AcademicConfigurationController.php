@@ -176,12 +176,15 @@ class AcademicConfigurationController extends Controller
     {
         $data = $request->validate([
             'subject_id' => ['required', 'exists:subjects,id'],
-            'day_id' => ['required', 'exists:days,id'],
+            'day_ids' => ['required', 'array', 'min:1'],
+            'day_ids.*' => ['required', 'exists:days,id'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'room_name' => ['required', 'string', 'max:80'],
             'instructor' => ['required', 'string', 'max:120'],
+            'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
         ]);
+        $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
 
         $subject = Subject::findOrFail($data['subject_id']);
         $timeSlot = TimeSlot::updateOrCreate(
@@ -198,9 +201,30 @@ class AcademicConfigurationController extends Controller
             ['name' => trim($data['room_name'])],
             ['is_active' => true]
         );
+        $existingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->where('subject_id', $data['subject_id'])
+            ->where('schedule_type', $data['schedule_type'])
+            ->get();
+        $existingSchedule = $existingSchedules->first();
+        $shouldOverwrite = $request->boolean('overwrite_schedule');
+
+        if ($existingSchedule && ! $shouldOverwrite) {
+            $message = "{$subject->code} - {$data['schedule_type']} already has a schedule. Do you want to replace it?";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'requires_confirmation' => true,
+                    'schedule' => $this->schedulePayload($existingSchedule),
+                ], 409);
+            }
+
+            return back()->withErrors(['schedule' => $message])->withInput();
+        }
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
-            ->where('day_id', $data['day_id'])
+            ->when($existingSchedules->isNotEmpty() && $shouldOverwrite, fn ($query) => $query->whereNotIn('id', $existingSchedules->pluck('id')))
+            ->whereIn('day_id', $dayIds)
             ->whereHas('timeSlot', function ($query) use ($timeSlot) {
                 $query->where('start_time', '<', $timeSlot->end_time)
                     ->where('end_time', '>', $timeSlot->start_time);
@@ -247,25 +271,56 @@ class AcademicConfigurationController extends Controller
             return back()->withErrors(['schedule' => $conflicts->implode(' ')])->withInput();
         }
 
-        $schedule = SubjectSchedule::create([
-            'subject_id' => $data['subject_id'],
-            'day_id' => $data['day_id'],
-            'time_slot_id' => $timeSlot->id,
-            'room_id' => $room->id,
-            'instructor' => $data['instructor'],
-        ])->load(['subject', 'day', 'timeSlot', 'room']);
-        ActivityLog::record('subject_schedule_assigned', $schedule, [], [
+        $removedScheduleIds = [];
+        if ($existingSchedules->isNotEmpty() && $shouldOverwrite) {
+            $oldValues = $existingSchedules->map(fn (SubjectSchedule $schedule) => [
+                'subject' => $schedule->subject->code,
+                'day' => $schedule->day->name,
+                'time' => $this->scheduleTimeLabel($schedule),
+                'room' => $schedule->room->name,
+                'instructor' => $schedule->instructor,
+                'schedule_type' => $schedule->schedule_type,
+            ])->values()->all();
+            $removedScheduleIds = $existingSchedules->pluck('id')->values()->all();
+            SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
+            $message = 'Schedule replaced.';
+            $statusCode = 200;
+            $logAction = 'subject_schedule_replaced';
+        } else {
+            $oldValues = [];
+            $message = 'Schedule assigned.';
+            $statusCode = 201;
+            $logAction = 'subject_schedule_assigned';
+        }
+
+        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room) {
+            return SubjectSchedule::create([
+                'subject_id' => $data['subject_id'],
+                'day_id' => $dayId,
+                'time_slot_id' => $timeSlot->id,
+                'room_id' => $room->id,
+                'instructor' => $data['instructor'],
+                'schedule_type' => $data['schedule_type'],
+            ])->load(['subject', 'day', 'timeSlot', 'room']);
+        });
+        $schedule = $schedules->first();
+
+        ActivityLog::record($logAction, $schedule, $oldValues, [
             'subject' => $schedule->subject->code,
-            'day' => $schedule->day->name,
+            'days' => $schedules->pluck('day.name')->implode(', '),
             'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
+            'schedule_type' => $schedule->schedule_type,
         ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Schedule assigned.',
+                'message' => $message,
                 'schedule' => $this->schedulePayload($schedule),
+                'schedules' => $schedules->map(fn (SubjectSchedule $schedule) => $this->schedulePayload($schedule))->values(),
+                'removed_schedule_ids' => $removedScheduleIds,
+                'overwritten' => $existingSchedules->isNotEmpty() && $shouldOverwrite,
                 'room' => [
                     'id' => $room->id,
                     'name' => $room->name,
@@ -274,24 +329,33 @@ class AcademicConfigurationController extends Controller
                     'id' => $timeSlot->id,
                     'label' => $timeSlot->label ?? ($timeSlot->start_time . ' - ' . $timeSlot->end_time),
                 ],
-            ], 201);
+            ], $statusCode);
         }
 
-        return back()->with('success', 'Schedule assigned.');
+        return back()->with('success', $message);
     }
 
     public function updateSchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'subject_id' => ['required', 'exists:subjects,id'],
-            'day_id' => ['required', 'exists:days,id'],
+            'day_ids' => ['required', 'array', 'min:1'],
+            'day_ids.*' => ['required', 'exists:days,id'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'room_name' => ['required', 'string', 'max:80'],
             'instructor' => ['required', 'string', 'max:120'],
+            'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
         ]);
+        $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
 
         $subject = Subject::findOrFail($data['subject_id']);
+        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
+        $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->where('subject_id', $schedule->subject_id)
+            ->where('schedule_type', $schedule->schedule_type)
+            ->get();
+        $relatedScheduleIds = $relatedSchedules->pluck('id');
         $timeSlot = TimeSlot::updateOrCreate(
             [
                 'start_time' => $data['start_time'],
@@ -308,8 +372,8 @@ class AcademicConfigurationController extends Controller
         );
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
-            ->whereKeyNot($schedule->id)
-            ->where('day_id', $data['day_id'])
+            ->whereNotIn('id', $relatedScheduleIds)
+            ->whereIn('day_id', $dayIds)
             ->whereHas('timeSlot', function ($query) use ($timeSlot) {
                 $query->where('start_time', '<', $timeSlot->end_time)
                     ->where('end_time', '>', $timeSlot->start_time);
@@ -356,36 +420,44 @@ class AcademicConfigurationController extends Controller
             return back()->withErrors(['schedule' => $conflicts->implode(' ')])->withInput();
         }
 
-        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
-        $oldValues = [
+        $oldValues = $relatedSchedules->map(fn (SubjectSchedule $schedule) => [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
             'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
-        ];
+            'schedule_type' => $schedule->schedule_type,
+        ])->values()->all();
+        $removedScheduleIds = $relatedScheduleIds->values()->all();
+        SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
 
-        $schedule->update([
-            'subject_id' => $data['subject_id'],
-            'day_id' => $data['day_id'],
-            'time_slot_id' => $timeSlot->id,
-            'room_id' => $room->id,
-            'instructor' => $data['instructor'],
-        ]);
-        $schedule->load(['subject', 'day', 'timeSlot', 'room']);
+        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room) {
+            return SubjectSchedule::create([
+                'subject_id' => $data['subject_id'],
+                'day_id' => $dayId,
+                'time_slot_id' => $timeSlot->id,
+                'room_id' => $room->id,
+                'instructor' => $data['instructor'],
+                'schedule_type' => $data['schedule_type'],
+            ])->load(['subject', 'day', 'timeSlot', 'room']);
+        });
+        $schedule = $schedules->first();
 
         ActivityLog::record('subject_schedule_updated', $schedule, $oldValues, [
             'subject' => $schedule->subject->code,
-            'day' => $schedule->day->name,
+            'days' => $schedules->pluck('day.name')->implode(', '),
             'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
+            'schedule_type' => $schedule->schedule_type,
         ], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Schedule updated.',
                 'schedule' => $this->schedulePayload($schedule),
+                'schedules' => $schedules->map(fn (SubjectSchedule $schedule) => $this->schedulePayload($schedule))->values(),
+                'removed_schedule_ids' => $removedScheduleIds,
                 'room' => [
                     'id' => $room->id,
                     'name' => $room->name,
@@ -402,22 +474,31 @@ class AcademicConfigurationController extends Controller
 
     public function destroySchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
     {
-        $id = $schedule->id;
         $schedule->load(['subject', 'day', 'timeSlot', 'room']);
-        $oldValues = [
+        $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->where('subject_id', $schedule->subject_id)
+            ->where('schedule_type', $schedule->schedule_type)
+            ->where('time_slot_id', $schedule->time_slot_id)
+            ->where('room_id', $schedule->room_id)
+            ->where('instructor', $schedule->instructor)
+            ->get();
+        $ids = $relatedSchedules->pluck('id')->values()->all();
+        $oldValues = $relatedSchedules->map(fn (SubjectSchedule $schedule) => [
             'subject' => $schedule->subject->code,
             'day' => $schedule->day->name,
             'time' => $this->scheduleTimeLabel($schedule),
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
-        ];
-        $schedule->delete();
+            'schedule_type' => $schedule->schedule_type,
+        ])->values()->all();
+        SubjectSchedule::whereIn('id', $ids)->delete();
         ActivityLog::record('subject_schedule_removed', $schedule, $oldValues, [], $request);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Schedule removed.',
-                'schedule_id' => $id,
+                'schedule_id' => $schedule->id,
+                'schedule_ids' => $ids,
             ]);
         }
 
@@ -854,6 +935,7 @@ class AcademicConfigurationController extends Controller
                 'course_code' => $schedule->subject->course_code,
                 'year_level' => $schedule->subject->year_level,
                 'semester' => $schedule->subject->semester,
+                'type' => $schedule->subject->type,
             ],
             'day_id' => $schedule->day_id,
             'day' => $schedule->day->name,
@@ -863,9 +945,18 @@ class AcademicConfigurationController extends Controller
             'room_id' => $schedule->room_id,
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
+            'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'subject_display_name' => $this->scheduleSubjectName($schedule),
             'update_url' => route('academic.schedules.update', $schedule),
             'delete_url' => route('academic.schedules.destroy', $schedule),
         ];
+    }
+
+    private function scheduleSubjectName(SubjectSchedule $schedule): string
+    {
+        $type = $schedule->schedule_type ?: ($schedule->subject->type === 'LAB' ? 'LAB' : 'LEC');
+
+        return $schedule->subject->name . ' - ' . $type;
     }
 
     private function scheduleTimeLabel(SubjectSchedule $schedule): string
@@ -896,6 +987,14 @@ class AcademicConfigurationController extends Controller
             'sunday' => 'SUN',
             default => strtoupper((string) $schedule->day?->name),
         };
+    }
+
+    private function scheduleDayLabels($schedules): string
+    {
+        return $schedules
+            ->sortBy(fn (SubjectSchedule $schedule) => $schedule->day?->sort_order ?? 999)
+            ->map(fn (SubjectSchedule $schedule) => $this->scheduleDayLabel($schedule))
+            ->implode('');
     }
 
     private function scheduleYearLabel(string $yearLevel): string
@@ -941,27 +1040,17 @@ class AcademicConfigurationController extends Controller
         $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator('COMTEQ Enrollment System');
         $pdf->SetTitle('Class Schedule');
-        $pdf->SetMargins(7, 7, 7);
+        $pdf->SetMargins(7, 5, 7);
         $pdf->SetAutoPageBreak(true, 8);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
 
         $drawHeader = function () use ($pdf, $academicYear, $courseName, $yearLabel, $semesterLabel): void {
             $pdf->SetY(6);
-            $pdf->SetTextColor(92, 128, 220);
-            $pdf->SetFont('helvetica', '', 30);
-            $pdf->SetXY(7, 4);
-            $pdf->Cell(57, 13, 'COMT', 0, 0, 'L');
-            $pdf->SetTextColor(230, 0, 0);
-            $pdf->SetFont('times', 'I', 32);
-            $pdf->Cell(9, 13, 'e', 0, 0, 'L');
-            $pdf->SetTextColor(92, 128, 220);
-            $pdf->SetFont('helvetica', '', 30);
-            $pdf->Cell(18, 13, 'Q', 0, 0, 'L');
-            $pdf->SetTextColor(80, 80, 80);
-            $pdf->SetFont('helvetica', '', 7);
-            $pdf->SetXY(8, 20);
-            $pdf->Cell(70, 4, 'COMPUTER & BUSINESS COLLEGE, INC.', 0, 0, 'L');
+            $logoPath = public_path('images/logo1-schedule.jpg');
+            if (file_exists($logoPath)) {
+                $pdf->Image($logoPath, 10, -1, 78, 0, 'JPG');
+            }
 
             $pdf->SetTextColor(132, 151, 210);
             $pdf->SetFont('helvetica', 'B', 20);
@@ -979,10 +1068,11 @@ class AcademicConfigurationController extends Controller
             $pdf->SetLineWidth(0.7);
             $pdf->Line(7, 29, 290, 29);
 
-            $pdf->SetY(37);
-            $pdf->SetFont('times', 'B', 18);
+            $pdf->SetY(32);
+            $pdf->SetFont('times', 'BU', 20);
             $pdf->SetTextColor(230, 0, 0);
             $pdf->Cell(101, 8, $yearLabel, 0, 0, 'R');
+            $pdf->SetFont('times', 'B', 20);
             $pdf->SetTextColor(0, 0, 0);
             $pdf->Cell(8, 8, '|', 0, 0, 'C');
             $pdf->SetTextColor(8, 34, 86);
@@ -991,9 +1081,9 @@ class AcademicConfigurationController extends Controller
             $pdf->Cell(8, 8, '|', 0, 0, 'C');
             $pdf->Cell(65, 8, 'AY ' . $academicYear, 0, 1, 'L');
 
-            $pdf->SetFont('times', 'B', 15);
+            $pdf->SetFont('times', 'B', 20);
             $pdf->Cell(0, 7, $courseName, 0, 1, 'C');
-            $pdf->Ln(5);
+            $pdf->Ln(2);
         };
 
         $drawTableHeader = function () use ($pdf): void {
@@ -1022,7 +1112,22 @@ class AcademicConfigurationController extends Controller
             return $pdf->Output('', 'S');
         }
 
-        foreach ($schedules as $schedule) {
+        $scheduleRows = $schedules
+            ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
+                $schedule->subject_id,
+                $schedule->schedule_type,
+                $schedule->time_slot_id,
+                $schedule->room_id,
+                strtolower(trim((string) $schedule->instructor)),
+            ]))
+            ->map(fn ($group) => [
+                'schedule' => $group->first(),
+                'day_label' => $this->scheduleDayLabels($group),
+            ])
+            ->values();
+
+        foreach ($scheduleRows as $row) {
+            $schedule = $row['schedule'];
             if ($pdf->GetY() > 190) {
                 $pdf->AddPage();
                 $drawHeader();
@@ -1030,7 +1135,7 @@ class AcademicConfigurationController extends Controller
                 $pdf->SetFont('helvetica', '', 10.5);
             }
 
-            $subjectName = (string) $schedule->subject->name;
+            $subjectName = $this->scheduleSubjectName($schedule);
             $lineCount = max(1, (int) ceil($pdf->GetStringWidth($subjectName) / 132));
             $rowHeight = max(8, $lineCount * 6);
             $x = $pdf->GetX();
@@ -1038,7 +1143,7 @@ class AcademicConfigurationController extends Controller
 
             $pdf->MultiCell(24, $rowHeight, $schedule->subject->code, 1, 'C', false, 0, $x, $y, true, 0, false, true, $rowHeight, 'M');
             $pdf->MultiCell(139, $rowHeight, $subjectName, 1, 'L', false, 0, $x + 24, $y, true, 0, false, true, $rowHeight, 'M');
-            $pdf->MultiCell(16, $rowHeight, $this->scheduleDayLabel($schedule), 1, 'C', false, 0, $x + 163, $y, true, 0, false, true, $rowHeight, 'M');
+            $pdf->MultiCell(16, $rowHeight, $row['day_label'], 1, 'C', false, 0, $x + 163, $y, true, 0, false, true, $rowHeight, 'M');
             $pdf->MultiCell(51, $rowHeight, $this->scheduleTimeLabel($schedule), 1, 'C', false, 0, $x + 179, $y, true, 0, false, true, $rowHeight, 'M');
             $pdf->MultiCell(18, $rowHeight, $schedule->room->name, 1, 'C', false, 0, $x + 230, $y, true, 0, false, true, $rowHeight, 'M');
             $pdf->MultiCell(35, $rowHeight, $schedule->instructor ?: '', 1, 'L', false, 1, $x + 248, $y, true, 0, false, true, $rowHeight, 'M');

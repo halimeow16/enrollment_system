@@ -10,7 +10,7 @@ class SubjectSchedule extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['subject_id', 'day_id', 'time_slot_id', 'room_id', 'instructor'];
+    protected $fillable = ['subject_id', 'day_id', 'time_slot_id', 'room_id', 'instructor', 'schedule_type'];
 
     public function subject(): BelongsTo
     {

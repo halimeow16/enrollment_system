@@ -64,7 +64,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        foreach (['Room 101', 'Room 102', 'Room 103', 'Room 104', 'Computer Lab 1', 'Computer Lab 2', 'Computer Lab 3'] as $room) {
+        foreach (['101', '102', '103', '104', '201', '202', '203'] as $room) {
             Room::updateOrCreate(['name' => $room], ['is_active' => true]);
         }
 
@@ -340,12 +340,12 @@ class DatabaseSeeder extends Seeder
         $days = Day::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()->values();
         $timeSlots = TimeSlot::where('is_active', true)->orderBy('start_time')->get()->values();
         $lectureRooms = Room::where('is_active', true)
-            ->where('name', 'not like', '%Lab%')
+            ->whereIn('name', ['101', '102', '103', '104'])
             ->orderBy('name')
             ->get()
             ->values();
         $labRooms = Room::where('is_active', true)
-            ->where('name', 'like', '%Lab%')
+            ->whereIn('name', ['201', '202', '203'])
             ->orderBy('name')
             ->get()
             ->values();
@@ -374,7 +374,10 @@ class DatabaseSeeder extends Seeder
                         'day_id' => $day->id,
                         'time_slot_id' => $timeSlot->id,
                     ],
-                    ['room_id' => $room->id]
+                    [
+                        'room_id' => $room->id,
+                        'schedule_type' => $usesLab ? 'LAB' : 'LEC',
+                    ]
                 );
             });
     }

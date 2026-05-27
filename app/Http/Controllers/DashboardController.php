@@ -119,6 +119,7 @@ class DashboardController extends Controller
                 'course_code' => $schedule->subject?->course_code,
                 'year_level' => $schedule->subject?->year_level,
                 'semester' => $schedule->subject?->semester,
+                'type' => $schedule->subject?->type,
             ],
             'day_id' => $schedule->day_id,
             'day' => $schedule->day?->name,
@@ -128,9 +129,22 @@ class DashboardController extends Controller
             'room_id' => $schedule->room_id,
             'room' => $schedule->room?->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
+            'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'subject_display_name' => $this->scheduleSubjectName($schedule),
             'update_url' => route('academic.schedules.update', $schedule),
             'delete_url' => route('academic.schedules.destroy', $schedule),
         ])->values();
+        $scheduleSubjectOptions = $subjects->flatMap(function (Subject $subject) {
+            $types = $subject->type === 'BOTH'
+                ? ['LEC', 'LAB']
+                : [$subject->type === 'LAB' ? 'LAB' : 'LEC'];
+
+            return collect($types)->map(fn (string $type) => [
+                'id' => $subject->id,
+                'schedule_type' => $type,
+                'label' => "{$subject->code} - {$type} / {$subject->name} / {$subject->course_code} / {$subject->year_level} / {$subject->semester}",
+            ]);
+        })->values();
         $departmentHeads = DepartmentHead::where('is_active', true)
             ->orderBy('course_code')
             ->get();
@@ -209,6 +223,7 @@ class DashboardController extends Controller
             'timeSlots',
             'subjectSchedules',
             'scheduleRows',
+            'scheduleSubjectOptions',
             'departmentHeads',
             'feeRows',
             'feeTypes',
@@ -731,5 +746,12 @@ class DashboardController extends Controller
         }
 
         return date('g:i A', strtotime((string) $start)) . ' - ' . date('g:i A', strtotime((string) $end));
+    }
+
+    private function scheduleSubjectName(SubjectSchedule $schedule): string
+    {
+        $type = $schedule->schedule_type ?: ($schedule->subject?->type === 'LAB' ? 'LAB' : 'LEC');
+
+        return ($schedule->subject?->name ?? 'No subject') . ' - ' . $type;
     }
 }
