@@ -87,6 +87,10 @@ Route::middleware('auth')->group(function () {
         ->name('account.update');
 
     Route::middleware('role:admin,registrar,department_head')->group(function () {
+        Route::get('/enrollments/{enrollment}/form', [EnrollmentController::class, 'show'])
+            ->name('enrollments.form.show');
+        Route::put('/enrollments/{enrollment}', [DashboardController::class, 'updateEnrollment'])
+            ->name('enrollments.update');
         Route::patch('/enrollments/{enrollment}/status', [DashboardController::class, 'updateEnrollmentStatus'])
             ->name('enrollments.status.update');
         Route::get('/enrollments/{enrollment}/id-card-data', [DashboardController::class, 'idCardData'])

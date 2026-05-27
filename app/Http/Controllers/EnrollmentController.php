@@ -192,6 +192,35 @@ class EnrollmentController extends Controller
         ]);
     }
 
+    public function show(Request $request, Enrollment $enrollment)
+    {
+        if (! $this->hasAvailablePdfLayout()) {
+            abort(404, 'Enrollment form layout is unavailable.');
+        }
+
+        $enrollment->load('subjects');
+
+        try {
+            $pdfContent = $this->fillExistingPDF($enrollment);
+        } catch (Throwable) {
+            abort(500, 'Enrollment form could not be generated.');
+        }
+
+        ActivityLog::record('enrollment_form_viewed', $enrollment, [], [
+            'student' => trim($enrollment->last_name . ', ' . $enrollment->first_name),
+            'student_number' => $enrollment->student_number,
+            'course_code' => $enrollment->course_code,
+            'year_level' => $enrollment->year_level,
+            'semester' => $enrollment->semester,
+        ], $request);
+
+        $filename = 'Enrollment_' . ($enrollment->student_number ?: $enrollment->id) . '.pdf';
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="' . $filename . '"');
+    }
+
     public function preview(Request $request)
     {
         $data = $request->all();

@@ -304,6 +304,91 @@ class DashboardController extends Controller
         return back()->with('success', 'Enrollment status updated.');
     }
 
+    public function updateEnrollment(Request $request, Enrollment $enrollment): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'student_number' => ['nullable', 'string', 'max:50'],
+            'date_filed' => ['nullable', 'date_format:Y-m-d'],
+            'school_year' => ['nullable', 'string', 'max:20'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'cellphone' => ['nullable', 'regex:/^09\d{9}$/'],
+            'email' => ['nullable', 'email', 'max:100'],
+            'last_school' => ['nullable', 'string', 'max:150'],
+            'present_address' => ['nullable', 'string'],
+            'barangay' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'province' => ['nullable', 'string', 'max:255'],
+            'date_of_birth' => ['required', 'date_format:Y-m-d'],
+            'age' => ['nullable', 'integer', 'min:1'],
+            'place_of_birth' => ['nullable', 'string', 'max:255'],
+            'civil_status' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'religion' => ['nullable', 'string', 'max:100'],
+            'father_name' => ['nullable', 'string', 'max:255'],
+            'father_address' => ['nullable', 'string'],
+            'father_cpNumber' => ['nullable', 'regex:/^09\d{9}$/'],
+            'mother_name' => ['nullable', 'string', 'max:255'],
+            'mother_address' => ['nullable', 'string'],
+            'mother_cpNumber' => ['nullable', 'regex:/^09\d{9}$/'],
+            'course_code' => ['required', 'string', 'max:50'],
+            'course_name' => ['required', 'string', 'max:255'],
+            'year_level' => ['required', 'string', 'max:20'],
+            'semester' => ['required', 'string', 'max:20'],
+            'department_head_name' => ['nullable', 'string', 'max:120'],
+            'credentials' => ['nullable', 'array'],
+            'credentials.*' => ['string'],
+        ], [
+            'cellphone.regex' => 'Enter a valid 11-digit cellphone number starting with 09.',
+            'father_cpNumber.regex' => 'Enter a valid father cellphone number starting with 09.',
+            'mother_cpNumber.regex' => 'Enter a valid mother cellphone number starting with 09.',
+        ]);
+
+        $validated['credentials'] = array_values($validated['credentials'] ?? []);
+        $validated['enrollment_identity_hash'] = $this->enrollmentIdentityHash($validated);
+        $oldValues = $enrollment->only(array_keys($validated));
+
+        if (
+            $validated['enrollment_identity_hash']
+            && Enrollment::where('enrollment_identity_hash', $validated['enrollment_identity_hash'])
+                ->whereKeyNot($enrollment->id)
+                ->exists()
+        ) {
+            $message = 'Another enrollment already uses this student identity, school year, year level, and semester.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withErrors(['enrollment' => $message])->withInput();
+        }
+
+        try {
+            $enrollment->update($validated);
+        } catch (UniqueConstraintViolationException) {
+            $message = 'Another enrollment already uses this student identity, school year, year level, and semester.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withErrors(['enrollment' => $message])->withInput();
+        }
+
+        ActivityLog::record('enrollment_updated', $enrollment, $oldValues, $enrollment->only(array_keys($validated)), $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Enrollment updated.',
+                'enrollment' => $this->enrollmentEditPayload($enrollment->fresh()),
+                'stats' => $this->dashboardStats(),
+            ]);
+        }
+
+        return back()->with('success', 'Enrollment updated.');
+    }
+
     public function idCardData(Enrollment $enrollment): JsonResponse
     {
         abort_unless(in_array(auth()->user()?->user_type, ['admin', 'registrar', 'department_head'], true), 403);
@@ -746,6 +831,64 @@ class DashboardController extends Controller
         }
 
         return date('g:i A', strtotime((string) $start)) . ' - ' . date('g:i A', strtotime((string) $end));
+    }
+
+    private function enrollmentEditPayload(Enrollment $enrollment): array
+    {
+        return [
+            'id' => $enrollment->id,
+            'student_number' => $enrollment->student_number,
+            'date_filed' => $enrollment->date_filed?->format('Y-m-d'),
+            'school_year' => $enrollment->school_year,
+            'first_name' => $enrollment->first_name,
+            'middle_name' => $enrollment->middle_name,
+            'last_name' => $enrollment->last_name,
+            'cellphone' => $enrollment->cellphone,
+            'email' => $enrollment->email,
+            'last_school' => $enrollment->last_school,
+            'present_address' => $enrollment->present_address,
+            'barangay' => $enrollment->barangay,
+            'city' => $enrollment->city,
+            'province' => $enrollment->province,
+            'date_of_birth' => $enrollment->date_of_birth?->format('Y-m-d'),
+            'age' => $enrollment->age,
+            'place_of_birth' => $enrollment->place_of_birth,
+            'civil_status' => $enrollment->civil_status,
+            'gender' => $enrollment->gender,
+            'religion' => $enrollment->religion,
+            'father_name' => $enrollment->father_name,
+            'father_address' => $enrollment->father_address,
+            'father_cpNumber' => $enrollment->father_cpNumber,
+            'mother_name' => $enrollment->mother_name,
+            'mother_address' => $enrollment->mother_address,
+            'mother_cpNumber' => $enrollment->mother_cpNumber,
+            'course_code' => $enrollment->course_code,
+            'course_name' => $enrollment->course_name,
+            'year_level' => $enrollment->year_level,
+            'semester' => $enrollment->semester,
+            'department_head_name' => $enrollment->department_head_name,
+            'credentials' => $enrollment->credentials ?? [],
+            'enrollment_status' => $enrollment->enrollment_status,
+        ];
+    }
+
+    private function enrollmentIdentityHash(array $data): ?string
+    {
+        $normalized = [
+            strtolower(trim((string) ($data['first_name'] ?? ''))),
+            strtolower(trim((string) ($data['middle_name'] ?? ''))),
+            strtolower(trim((string) ($data['last_name'] ?? ''))),
+            strtolower(trim((string) ($data['date_of_birth'] ?? ''))),
+            strtolower(trim((string) ($data['school_year'] ?? AppSetting::getValue('academic_year', '2026-2027')))),
+            strtolower(trim((string) ($data['year_level'] ?? ''))),
+            strtolower(trim((string) ($data['semester'] ?? ''))),
+        ];
+
+        if (in_array('', [$normalized[0], $normalized[2], $normalized[3], $normalized[4], $normalized[5], $normalized[6]], true)) {
+            return null;
+        }
+
+        return hash('sha256', implode('|', $normalized));
     }
 
     private function scheduleSubjectName(SubjectSchedule $schedule): string

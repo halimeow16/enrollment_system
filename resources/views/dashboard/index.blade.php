@@ -9,6 +9,7 @@
      x-init="init()"
      @dashboard-tab-selected.window="switchTab($event.detail.tab)"
      @dashboard-toast.window="showToast($event.detail.type, $event.detail.title, $event.detail.message)"
+     @edit-enrollment.window="openEnrollmentEditor($event.detail.enrollment, $event.detail.url)"
      class="space-y-5">
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
@@ -425,6 +426,210 @@
         </div>
     </section>
 
+    <div x-show="enrollmentEditor.open"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
+         @click.self="closeEnrollmentEditor()"
+         @keydown.escape.window="closeEnrollmentEditor()">
+        <form :action="enrollmentEditor.url"
+              method="POST"
+              class="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#101a2d] shadow-2xl shadow-black/40"
+              @submit.prevent="saveEnrollmentEditor($event.target)">
+            @csrf
+            @method('PUT')
+            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                    <h3 class="text-base font-extrabold text-white">Edit Enrollment</h3>
+                    <p class="text-xs text-slate-400">Update saved student and enrollment details.</p>
+                </div>
+                <button type="button"
+                        @click="closeEnrollmentEditor()"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-auto p-5">
+                <div class="grid gap-4 lg:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-3">
+                        <h4 class="text-sm font-extrabold text-white">Enrollment</h4>
+                        <div class="mt-3 grid gap-3 md:grid-cols-4">
+                            <label class="text-xs font-semibold text-slate-300">Student No.
+                                <input name="student_number" x-model="enrollmentEditor.form.student_number" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Date Filed
+                                <input type="date" name="date_filed" x-model="enrollmentEditor.form.date_filed" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">School Year
+                                <input name="school_year" x-model="enrollmentEditor.form.school_year" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Department Head
+                                <input name="department_head_name" x-model="enrollmentEditor.form.department_head_name" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Course Code
+                                <input name="course_code" x-model="enrollmentEditor.form.course_code" required list="edit-course-codes" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300 md:col-span-2">Course Name
+                                <input name="course_name" x-model="enrollmentEditor.form.course_name" required class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Year / Semester
+                                <div class="mt-1 grid grid-cols-2 gap-2">
+                                    <select name="year_level" x-model="enrollmentEditor.form.year_level" required class="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                                        <option class="text-slate-900" value="1">1st Year</option>
+                                        <option class="text-slate-900" value="2">2nd Year</option>
+                                        <option class="text-slate-900" value="3">3rd Year</option>
+                                        <option class="text-slate-900" value="4">4th Year</option>
+                                    </select>
+                                    <select name="semester" x-model="enrollmentEditor.form.semester" required class="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                                        <option class="text-slate-900" value="1st">1st</option>
+                                        <option class="text-slate-900" value="2nd">2nd</option>
+                                        <option class="text-slate-900" value="Summer">Summer</option>
+                                    </select>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-2">
+                        <h4 class="text-sm font-extrabold text-white">Student Information</h4>
+                        <div class="mt-3 grid gap-3 md:grid-cols-3">
+                            <label class="text-xs font-semibold text-slate-300">First Name
+                                <input name="first_name" x-model="enrollmentEditor.form.first_name" required class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Middle Name
+                                <input name="middle_name" x-model="enrollmentEditor.form.middle_name" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Last Name
+                                <input name="last_name" x-model="enrollmentEditor.form.last_name" required class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Birthdate
+                                <input type="date" name="date_of_birth" x-model="enrollmentEditor.form.date_of_birth" required class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Age
+                                <input type="number" min="1" name="age" x-model="enrollmentEditor.form.age" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Gender
+                                <input name="gender" x-model="enrollmentEditor.form.gender" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Civil Status
+                                <input name="civil_status" x-model="enrollmentEditor.form.civil_status" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Religion
+                                <input name="religion" x-model="enrollmentEditor.form.religion" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Place of Birth
+                                <input name="place_of_birth" x-model="enrollmentEditor.form.place_of_birth" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <h4 class="text-sm font-extrabold text-white">Contact</h4>
+                        <div class="mt-3 space-y-3">
+                            <label class="block text-xs font-semibold text-slate-300">Cellphone
+                                <input name="cellphone" x-model="enrollmentEditor.form.cellphone" placeholder="09XXXXXXXXX" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="block text-xs font-semibold text-slate-300">Email
+                                <input type="email" name="email" x-model="enrollmentEditor.form.email" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="block text-xs font-semibold text-slate-300">Last School
+                                <input name="last_school" x-model="enrollmentEditor.form.last_school" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-3">
+                        <h4 class="text-sm font-extrabold text-white">Address</h4>
+                        <div class="mt-3 grid gap-3 md:grid-cols-4">
+                            <label class="text-xs font-semibold text-slate-300 md:col-span-2">Present Address
+                                <input name="present_address" x-model="enrollmentEditor.form.present_address" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Barangay
+                                <input name="barangay" x-model="enrollmentEditor.form.barangay" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">City
+                                <input name="city" x-model="enrollmentEditor.form.city" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Province
+                                <input name="province" x-model="enrollmentEditor.form.province" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-3">
+                        <h4 class="text-sm font-extrabold text-white">Parents / Guardian</h4>
+                        <div class="mt-3 grid gap-3 md:grid-cols-3">
+                            <label class="text-xs font-semibold text-slate-300">Father Name
+                                <input name="father_name" x-model="enrollmentEditor.form.father_name" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Father Contact
+                                <input name="father_cpNumber" x-model="enrollmentEditor.form.father_cpNumber" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Father Address
+                                <input name="father_address" x-model="enrollmentEditor.form.father_address" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Mother Name
+                                <input name="mother_name" x-model="enrollmentEditor.form.mother_name" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Mother Contact
+                                <input name="mother_cpNumber" x-model="enrollmentEditor.form.mother_cpNumber" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-300">Mother Address
+                                <input name="mother_address" x-model="enrollmentEditor.form.mother_address" class="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-3">
+                        <h4 class="text-sm font-extrabold text-white">Credentials</h4>
+                        <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            @foreach([
+                                'form_138' => 'Form 138',
+                                'birth_certificate' => 'Birth Certificate',
+                                'good_moral' => 'Good Moral',
+                                'certificate_grades' => 'Certificate of Grades',
+                                'certificate_eligibility' => 'Certificate of Eligibility',
+                                'transcript' => 'Transcript',
+                                'long_folder' => 'Long Folder',
+                                'picture' => 'Picture',
+                            ] as $credential => $label)
+                                <label class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200">
+                                    <input type="checkbox"
+                                           name="credentials[]"
+                                           value="{{ $credential }}"
+                                           x-model="enrollmentEditor.form.credentials"
+                                           class="rounded border-white/20 bg-white/10 text-[#1552d4]">
+                                    {{ $label }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <datalist id="edit-course-codes">
+                @foreach($subjects->pluck('course_code')->filter()->unique()->sort()->values() as $courseCode)
+                    <option value="{{ $courseCode }}"></option>
+                @endforeach
+            </datalist>
+
+            <div class="flex justify-end gap-2 border-t border-white/10 px-5 py-4">
+                <button type="button"
+                        @click="closeEnrollmentEditor()"
+                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10">
+                    Cancel
+                </button>
+                <button type="submit"
+                        :disabled="enrollmentEditor.saving"
+                        class="inline-flex items-center gap-2 rounded-xl bg-[#1552d4] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600">
+                    <i x-show="!enrollmentEditor.saving" data-lucide="save" class="h-4 w-4"></i>
+                    <i x-show="enrollmentEditor.saving" data-lucide="loader-2" class="h-4 w-4 animate-spin" x-cloak></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
     <div x-show="idPreview.open"
          x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
@@ -575,6 +780,12 @@
                 image: '',
                 sides: [],
             },
+            enrollmentEditor: {
+                open: false,
+                saving: false,
+                url: '',
+                form: {},
+            },
             subjectCount: {{ $subjects->count() }},
             scheduleSubjectOptions: @json($scheduleSubjectOptions),
             addedSubjects: [],
@@ -713,6 +924,51 @@
 
                 const data = await response.json();
                 return data.status;
+            },
+            openEnrollmentEditor(enrollment, url) {
+                this.enrollmentEditor = {
+                    open: true,
+                    saving: false,
+                    url,
+                    form: {
+                        ...enrollment,
+                        credentials: enrollment.credentials || [],
+                    },
+                };
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+            closeEnrollmentEditor() {
+                this.enrollmentEditor.open = false;
+                this.enrollmentEditor.saving = false;
+                this.enrollmentEditor.url = '';
+                this.enrollmentEditor.form = {};
+            },
+            async saveEnrollmentEditor(form) {
+                this.enrollmentEditor.saving = true;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Unable to update enrollment.');
+                    }
+
+                    this.closeEnrollmentEditor();
+                    this.showToast('success', 'Enrollment updated', 'Student data was saved.');
+                    await this.refreshEnrollmentTables();
+                } catch (error) {
+                    this.showToast('error', 'Update failed', error.message);
+                } finally {
+                    this.enrollmentEditor.saving = false;
+                }
             },
             async refreshEnrollmentTables() {
                 try {
