@@ -10,6 +10,10 @@ const courses = [
 let selectedCourseCode = "BSIT";
 let selectedCourseName = "BS Information Technology";
 
+function selectedStudentType() {
+    return document.querySelector('input[name="student_type"]:checked')?.value || 'regular';
+}
+
 function populateCourses() {
     const container = document.getElementById('courseGrid');
     if (!container) return;
@@ -252,32 +256,56 @@ function renderSubjectList() {
     const container = document.getElementById('subjectList');
     if (!container) return;
 
+    const checkedSubjectIds = new Set(
+        Array.from(document.querySelectorAll('.subject-checkbox:checked')).map(input => Number(input.value))
+    );
     const yearLevel = document.getElementById('year_level')?.value;
     const semester = document.getElementById('semester')?.value;
-    const subjects = (window.subjectCatalog ?? []).filter(subject =>
-        subject.course_code === selectedCourseCode &&
-        subject.year_level === yearLevel &&
-        subject.semester === semester
-    );
+    const studentType = selectedStudentType();
+    const searchWrap = document.getElementById('irregularSubjectSearchWrap');
+    const searchInput = document.getElementById('subjectSearch');
+    const search = (searchInput?.value || '').trim().toLowerCase();
+    const subjects = (window.subjectCatalog ?? []).filter(subject => {
+        if (studentType === 'regular') {
+            return subject.course_code === selectedCourseCode &&
+                subject.year_level === yearLevel &&
+                subject.semester === semester;
+        }
 
-    if (!yearLevel || !semester) {
+        if (!search) return true;
+
+        return [
+            subject.code,
+            subject.name,
+            subject.course_code,
+            subject.year_level ? `year ${subject.year_level}` : '',
+            subject.semester,
+            subject.type,
+        ].join(' ').toLowerCase().includes(search);
+    });
+
+    searchWrap?.classList.toggle('hidden', studentType !== 'irregular');
+
+    if (studentType === 'regular' && (!yearLevel || !semester)) {
         container.innerHTML = '<p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>';
         updateSubjectTotals();
         return;
     }
 
     if (subjects.length === 0) {
-        container.innerHTML = '<p class="text-sm text-slate-500">No subjects configured for this program, year level, and semester.</p>';
+        container.innerHTML = studentType === 'regular'
+            ? '<p class="text-sm text-slate-500">No subjects configured for this program, year level, and semester.</p>'
+            : '<p class="text-sm text-slate-500">No subjects match your search.</p>';
         updateSubjectTotals();
         return;
     }
 
     container.innerHTML = subjects.map(subject => `
         <label class="mb-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 last:mb-0">
-            <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox">
+            <input type="checkbox" name="subject_ids[]" value="${subject.id}" class="mt-1 subject-checkbox" ${checkedSubjectIds.has(Number(subject.id)) ? 'checked' : ''}>
             <span class="min-w-0 flex-1">
                 <span class="block text-sm font-bold text-slate-800">${subject.code} - ${subject.name}</span>
-                <span class="mt-1 block text-xs text-slate-500">${subject.type} / ${subject.total_units} units</span>
+                <span class="mt-1 block text-xs text-slate-500">${subject.course_code} / Year ${subject.year_level} / ${subject.semester} / ${subject.type} / ${subject.total_units} units</span>
             </span>
         </label>
     `).join('');
@@ -287,6 +315,31 @@ function renderSubjectList() {
     });
 
     updateSubjectTotals();
+}
+
+function setupStudentTypeCards() {
+    const cards = document.querySelectorAll('.student-type-card');
+
+    function refreshCards() {
+        const type = selectedStudentType();
+
+        cards.forEach(card => {
+            const active = card.dataset.studentTypeCard === type;
+            card.classList.toggle('border-blue-600', active);
+            card.classList.toggle('bg-blue-50', active);
+            card.classList.toggle('border-transparent', !active);
+            card.classList.toggle('bg-slate-50', !active);
+        });
+
+        renderSubjectList();
+    }
+
+    document.querySelectorAll('.student-type-radio').forEach(input => {
+        input.addEventListener('change', refreshCards);
+    });
+
+    document.getElementById('subjectSearch')?.addEventListener('input', renderSubjectList);
+    refreshCards();
 }
 
 function updateSubjectTotals() {
@@ -504,7 +557,7 @@ function setMaxDate() {
 document.addEventListener('DOMContentLoaded', function() {
     setMaxDate();
     updateDepartmentHead();
-    renderSubjectList();
+    setupStudentTypeCards();
     setupDuplicateEnrollmentCheck();
 
     document.getElementById('year_level')?.addEventListener('change', renderSubjectList);

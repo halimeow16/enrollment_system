@@ -9,6 +9,26 @@
     <input type="hidden" name="course_code" id="course_code" value="BSIT">
     <input type="hidden" name="course_name" id="course_name" value="BS Information Technology">
 
+    <div class="mb-8">
+        <label class="block text-sm font-medium text-slate-600 mb-3">Student Type <span class="text-red-500">*</span></label>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-blue-600 bg-blue-50 p-5 transition" data-student-type-card="regular">
+                <input type="radio" name="student_type" value="regular" checked required class="mt-1 student-type-radio">
+                <span>
+                    <span class="block text-sm font-bold text-slate-900">Regular</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">Load subjects from the selected program, year level, and semester.</span>
+                </span>
+            </label>
+            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-transparent bg-slate-50 p-5 transition hover:border-blue-200" data-student-type-card="irregular">
+                <input type="radio" name="student_type" value="irregular" required class="mt-1 student-type-radio">
+                <span>
+                    <span class="block text-sm font-bold text-slate-900">Irregular</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">Open all available subjects and use search to choose manually.</span>
+                </span>
+            </label>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Year Level <span class="text-red-500">*</span></label>
@@ -48,6 +68,15 @@
     <div class="mt-8">
         <div class="flex items-center justify-between mb-3">
             <label class="block text-sm font-medium text-slate-600">Subjects</label>
+        </div>
+        <div id="irregularSubjectSearchWrap" class="mb-3 hidden">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                <input type="search"
+                       id="subjectSearch"
+                       placeholder="Search subject code, name, course, year, semester..."
+                       class="form-input w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm">
+            </div>
         </div>
         <div id="subjectList" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>

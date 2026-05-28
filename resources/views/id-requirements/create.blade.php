@@ -75,6 +75,46 @@
                     </div>
                 </section>
 
+                @if($customIdFields->isNotEmpty())
+                    <section>
+                        <div class="mb-5 flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                                <i class="fa-solid fa-clipboard-list"></i>
+                            </span>
+                            <div>
+                                <h2 class="section-title">Additional ID Information</h2>
+                                <p class="text-sm text-slate-500">These fields are required for the current ID template.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-5 md:grid-cols-2">
+                            @foreach($customIdFields as $field)
+                                <div>
+                                    <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                        {{ $field->label }}
+                                        @if($field->is_required)
+                                            <span class="text-red-500">*</span>
+                                        @endif
+                                    </label>
+                                    @if($field->input_type === 'photo')
+                                        <input type="file"
+                                               name="custom_field_files[{{ $field->key }}]"
+                                               accept="image/png,image/jpeg,image/webp"
+                                               @required($field->is_required)
+                                               class="block w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-3.5 text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700">
+                                    @else
+                                        <input type="text"
+                                               name="custom_fields[{{ $field->key }}]"
+                                               value="{{ old('custom_fields.' . $field->key) }}"
+                                               @required($field->is_required)
+                                               class="form-input w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5">
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
                 <section>
                     <div class="mb-5 flex items-center gap-3">
                         <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">

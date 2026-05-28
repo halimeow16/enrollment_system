@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Middleware\EnsureUserType;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,5 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            $previous = $exception->getPrevious();
+
+            if (
+                $previous instanceof \PDOException
+                && str_starts_with((string) $previous->getCode(), '2002')
+            ) {
+                return response()->view('errors.database', status: 503);
+            }
+
+            return null;
+        });
     })->create();

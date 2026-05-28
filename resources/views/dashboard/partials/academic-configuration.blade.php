@@ -794,7 +794,9 @@
                         { key: 'credential_transcript', label: 'Transcript Check', type: 'check' },
                         { key: 'credential_long_folder', label: 'Long Folder Check', type: 'check' },
                         { key: 'credential_picture', label: 'Picture Check', type: 'check' },
+                        ...@js($customEnrollmentFields),
                     ],
+                    customFieldStoreUrl: @js(route('academic.template-fields.store')),
                     idTemplate: @js($idTemplatePayload),
                     idTemplates: @js($idTemplatePayloads),
                     idFonts: @js($idFonts ?? []),
@@ -815,6 +817,7 @@
                         { key: 'emergency_contact_name', label: 'Emergency Name', type: 'text', width: 180, height: 24, font_size: 13, font_family: 'Arial', font_weight: '700' },
                         { key: 'emergency_contact_relationship', label: 'Emergency Relation', type: 'text', width: 160, height: 22, font_size: 12, font_family: 'Arial', font_weight: '600' },
                         { key: 'emergency_contact_number', label: 'Emergency Contact', type: 'text', width: 170, height: 22, font_size: 12, font_family: 'Arial', font_weight: '600' },
+                        ...@js($customIdFields),
                     ],
                  })"
                  x-init="init()"
@@ -871,6 +874,29 @@
                     </template>
                     <p x-show="!template" class="mt-2 text-xs text-slate-400">No PDF uploaded yet.</p>
                 </div>
+
+                <form class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3"
+                      @submit.prevent="createCustomField($event.target, 'enrollment')">
+                    @csrf
+                    <input type="hidden" name="scope" value="enrollment">
+                    <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Add Field</p>
+                    <input name="label" required placeholder="Field label" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        <select name="input_type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            <option value="text">Text</option>
+                            <option value="date">Date</option>
+                            <option value="number">Number</option>
+                        </select>
+                        <label class="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+                            <input type="checkbox" name="is_required" value="1">
+                            Required
+                        </label>
+                    </div>
+                    <button class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/25">
+                        <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                        Add Enrollment Field
+                    </button>
+                </form>
 
                 <div class="mt-4">
                     <div class="mb-2 flex items-center justify-between gap-3">
@@ -1125,6 +1151,28 @@
                         </template>
                         <p x-show="!idTemplate" class="mt-2 text-xs text-slate-400">No ID background uploaded yet.</p>
                     </div>
+
+                    <form class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3"
+                          @submit.prevent="createCustomField($event.target, 'id')">
+                        @csrf
+                        <input type="hidden" name="scope" value="id">
+                        <p class="text-xs font-bold uppercase tracking-wide text-blue-200">Add Field</p>
+                        <input name="label" required placeholder="Field label" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <div class="mt-2 grid grid-cols-2 gap-2">
+                            <select name="input_type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="text">Text</option>
+                                <option value="photo">Photo</option>
+                            </select>
+                            <label class="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300">
+                                <input type="checkbox" name="is_required" value="1">
+                                Required
+                            </label>
+                        </div>
+                        <button class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/25">
+                            <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                            Add ID Field
+                        </button>
+                    </form>
 
                     <div class="mt-4">
                         <div class="mb-2 flex items-center justify-between">

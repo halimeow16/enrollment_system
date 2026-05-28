@@ -20,13 +20,14 @@ class Enrollment extends Model
         'civil_status', 'gender', 'religion',
         'father_name', 'father_address', 'father_cpNumber',
         'mother_name', 'mother_address', 'mother_cpNumber',
-        'course_code', 'course_name', 'year_level', 'semester',
+        'course_code', 'course_name', 'year_level', 'semester', 'student_type',
         'enrollment_identity_hash',
         'department_head_name',
         'enrollment_status',
         'archived_at',
         'archived_school_year',
         'credentials',
+        'custom_fields',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class Enrollment extends Model
         'archived_at'   => 'datetime',
         'age'           => 'integer',
         'credentials'   => 'array',
+        'custom_fields' => 'array',
     ];
 
     public function subjects(): BelongsToMany

@@ -17,6 +17,7 @@ class StudentId extends Model
         'emergency_contact_name',
         'emergency_contact_relationship',
         'emergency_contact_number',
+        'custom_fields',
         'front_output_path',
         'back_output_path',
         'front_template_id',
@@ -32,6 +33,7 @@ class StudentId extends Model
         return [
             'submitted_at' => 'datetime',
             'generated_at' => 'datetime',
+            'custom_fields' => 'array',
         ];
     }
 

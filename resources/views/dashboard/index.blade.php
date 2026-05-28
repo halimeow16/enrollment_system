@@ -1553,7 +1553,9 @@
 
                 for (const field of template.fields || []) {
                     if (field.type === 'image') {
-                        const source = field.key === 'signature' ? student.signature : student.photo;
+                        const source = field.key === 'signature'
+                            ? student.signature
+                            : (field.key === 'student_photo' ? student.photo : student.images?.[field.key]);
                         if (!source) continue;
 
                         const image = await this.loadCanvasImage(source);
@@ -1732,6 +1734,7 @@
                     idFields: config.idFields,
                     idFonts: config.idFonts || [],
                     idFontUploadUrl: config.idFontUploadUrl,
+                    customFieldStoreUrl: config.customFieldStoreUrl,
                     templateSection: 'enrollment',
                     selectedField: config.fields[0]?.key || null,
                     selectedIdField: config.idFields[0]?.key || null,
@@ -1891,6 +1894,40 @@
                         window.dispatchEvent(new CustomEvent('dashboard-toast', {
                             detail: { type: 'success', title: 'Template uploaded', message: 'PDF template is ready for mapping.' },
                         }));
+                    },
+                    async createCustomField(form, scope) {
+                        if (!this.customFieldStoreUrl) return;
+
+                        const response = await fetch(this.customFieldStoreUrl, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                                detail: { type: 'error', title: 'Field not added', message: data.message || 'Unable to add field.' },
+                            }));
+                            return;
+                        }
+
+                        if (scope === 'id') {
+                            this.idFields = [...this.idFields, data.field];
+                            this.selectedIdField = data.field.key;
+                        } else {
+                            this.fields = [...this.fields, data.field];
+                            this.selectedField = data.field.key;
+                        }
+
+                        form.reset();
+                        window.dispatchEvent(new CustomEvent('dashboard-toast', {
+                            detail: { type: 'success', title: 'Field added', message: `${data.field.label} is now available.` },
+                        }));
+                        this.$nextTick(() => window.lucide?.createIcons());
                     },
                     async uploadIdTemplate(form) {
                         const response = await fetch(form.action, {

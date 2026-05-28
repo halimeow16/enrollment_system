@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Enrollment;
 use App\Models\AppSetting;
+use App\Models\CustomTemplateField;
 use App\Models\Day;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
@@ -237,6 +238,8 @@ class DashboardController extends Controller
         })->all();
         $idTemplatePayload = $idTemplatePayloads['front'] ?? $idTemplatePayloads['back'] ?? null;
         $idFonts = $this->idFontPayloads();
+        $customEnrollmentFields = $this->customTemplateFields('enrollment');
+        $customIdFields = $this->customTemplateFields('id');
 
         return view('dashboard.index', compact(
             'stats',
@@ -263,6 +266,8 @@ class DashboardController extends Controller
             'idTemplatePayloads',
             'idTemplatePayload',
             'idFonts',
+            'customEnrollmentFields',
+            'customIdFields',
             'academicYear',
             'accountUsers',
             'activityLogs'
@@ -505,6 +510,7 @@ class DashboardController extends Controller
                 'signature' => $studentId->signature_path && Storage::disk('public')->exists($studentId->signature_path)
                     ? $this->storageDataUrl($studentId->signature_path)
                     : null,
+                'images' => $this->idCustomImages($studentId),
             ],
             'templates' => $templates,
         ]);
@@ -828,7 +834,28 @@ class DashboardController extends Controller
             'emergency_contact_name' => $studentId?->emergency_contact_name ?? '',
             'emergency_contact_relationship' => $studentId?->emergency_contact_relationship ?? '',
             'emergency_contact_number' => $studentId?->emergency_contact_number ?? '',
-        ];
+        ] + collect($enrollment->custom_fields ?? [])
+            ->merge($studentId?->custom_fields ?? [])
+            ->mapWithKeys(fn ($value, $key) => [$key => is_array($value) ? implode(', ', $value) : (string) $value])
+            ->all();
+    }
+
+    private function idCustomImages(StudentId $studentId): array
+    {
+        return CustomTemplateField::where('scope', 'id')
+            ->where('input_type', 'photo')
+            ->where('is_active', true)
+            ->get()
+            ->mapWithKeys(function (CustomTemplateField $field) use ($studentId) {
+                $path = $studentId->custom_fields[$field->key] ?? null;
+
+                if (! is_string($path) || ! Storage::disk('public')->exists($path)) {
+                    return [];
+                }
+
+                return [$field->key => $this->storageDataUrl($path)];
+            })
+            ->all();
     }
 
     private function idFontPayloads(): array
@@ -842,6 +869,37 @@ class DashboardController extends Controller
                 'url' => '/storage/' . ltrim($path, '/'),
                 'extension' => strtolower(pathinfo($path, PATHINFO_EXTENSION)),
             ])
+            ->values()
+            ->all();
+    }
+
+    private function customTemplateFields(string $scope): array
+    {
+        return CustomTemplateField::where('scope', $scope)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get()
+            ->map(function (CustomTemplateField $field) {
+                $isImage = $field->scope === 'id' && $field->input_type === 'photo';
+
+                return [
+                    'id' => $field->id,
+                    'key' => $field->key,
+                    'label' => $field->label,
+                    'type' => $isImage ? 'image' : 'text',
+                    'input_type' => $field->input_type,
+                    'is_required' => (bool) $field->is_required,
+                    'is_custom' => true,
+                    'width' => $isImage ? 120 : 180,
+                    'height' => $isImage ? 140 : 28,
+                    'font_size' => 14,
+                    'font_family' => 'Arial',
+                    'font_weight' => '600',
+                    'shape' => $isImage ? 'rectangle' : null,
+                    'object_fit' => $isImage ? 'cover' : null,
+                ];
+            })
             ->values()
             ->all();
     }

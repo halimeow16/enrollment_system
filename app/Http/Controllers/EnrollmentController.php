@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use App\Models\ActivityLog;
 use App\Models\AppSetting;
+use App\Models\CustomTemplateField;
 use App\Models\Enrollment;
 use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
@@ -15,6 +16,7 @@ use DateTimeInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class EnrollmentController extends Controller
@@ -34,8 +36,9 @@ class EnrollmentController extends Controller
         $departmentHeads = DepartmentHead::where('is_active', true)
             ->get()
             ->keyBy('course_code');
+        $customEnrollmentFields = $this->customTemplateFields('enrollment');
 
-        return view('enrollment.create', compact('subjects', 'departmentHeads', 'academicYear'));
+        return view('enrollment.create', compact('subjects', 'departmentHeads', 'academicYear', 'customEnrollmentFields'));
     }
 
     public function store(Request $request)
@@ -70,11 +73,14 @@ class EnrollmentController extends Controller
             'course_name'      => 'required|string',
             'year_level'       => 'required|string',
             'semester'         => 'required|string',
+            'student_type'     => 'required|in:regular,irregular',
             'department_head_name' => 'nullable|string|max:120',
             'subject_ids'      => 'nullable|array',
             'subject_ids.*'    => 'integer|exists:subjects,id',
             'credentials'      => 'nullable|array',
             'credentials.*'    => 'string',
+            'custom_fields'    => 'nullable|array',
+            'custom_fields.*'  => 'nullable|string|max:255',
             'replace_existing' => 'nullable|boolean',
         ], [
             'cellphone.regex' => 'Enter a valid 11-digit cellphone number starting with 09.',
@@ -83,6 +89,8 @@ class EnrollmentController extends Controller
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
+        $validated['custom_fields'] = $this->validatedCustomFields('enrollment', $validated['custom_fields'] ?? []);
+        $this->ensureRequiredCustomFields('enrollment', $validated['custom_fields']);
         $replaceExisting = (bool) ($validated['replace_existing'] ?? false);
         unset($validated['replace_existing']);
         $validated['enrollment_identity_hash'] = $this->enrollmentIdentityHash($validated);
@@ -152,6 +160,7 @@ class EnrollmentController extends Controller
             'course_code' => $enrollment->course_code,
             'year_level' => $enrollment->year_level,
             'semester' => $enrollment->semester,
+            'student_type' => $enrollment->student_type,
             'subjects' => $selectedSubjects->pluck('code')->values()->all(),
         ], $request);
 
@@ -179,6 +188,7 @@ class EnrollmentController extends Controller
             'date_of_birth' => 'required|date_format:Y-m-d',
             'year_level' => 'required|string',
             'semester' => 'required|string',
+            'student_type' => 'nullable|in:regular,irregular',
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
@@ -225,6 +235,7 @@ class EnrollmentController extends Controller
     {
         $data = $request->all();
         $data['school_year'] = AppSetting::getValue('academic_year', '2026-2027');
+        $data['custom_fields'] = $this->validatedCustomFields('enrollment', $data['custom_fields'] ?? []);
         $data['department_head_name'] = DepartmentHead::where('course_code', $data['course_code'] ?? null)
             ->where('is_active', true)
             ->value('name') ?? $data['department_head_name'] ?? null;
@@ -556,6 +567,10 @@ class EnrollmentController extends Controller
 
         $value = data_get($data, $key, '');
 
+        if ($value === '' && str_starts_with($key, 'custom_')) {
+            $value = data_get($data, "custom_fields.{$key}", '');
+        }
+
         if (in_array($key, ['date_filed', 'date_of_birth'], true)) {
             return $this->dateOnly($value);
         }
@@ -683,6 +698,39 @@ class EnrollmentController extends Controller
         }
 
         return collect($subjects ?? [])->values();
+    }
+
+    private function customTemplateFields(string $scope)
+    {
+        return CustomTemplateField::where('scope', $scope)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get();
+    }
+
+    private function validatedCustomFields(string $scope, array $values): array
+    {
+        return $this->customTemplateFields($scope)
+            ->mapWithKeys(function (CustomTemplateField $field) use ($values) {
+                $value = trim((string) ($values[$field->key] ?? ''));
+
+                return [$field->key => $value];
+            })
+            ->filter(fn ($value) => $value !== '')
+            ->all();
+    }
+
+    private function ensureRequiredCustomFields(string $scope, array $values): void
+    {
+        $missing = $this->customTemplateFields($scope)
+            ->filter(fn (CustomTemplateField $field) => $field->is_required && trim((string) ($values[$field->key] ?? '')) === '')
+            ->mapWithKeys(fn (CustomTemplateField $field) => ["custom_fields.{$field->key}" => "{$field->label} is required."])
+            ->all();
+
+        if ($missing) {
+            throw ValidationException::withMessages($missing);
+        }
     }
 
     private function mappedCheckIsSelected(string $key, $data): bool

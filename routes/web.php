@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/schedules/{schedule}', [AcademicConfigurationController::class, 'updateSchedule'])->name('schedules.update');
         Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');
+        Route::post('/template-fields', [AcademicConfigurationController::class, 'storeCustomTemplateField'])->name('template-fields.store');
         Route::put('/templates/{template}/mappings', [AcademicConfigurationController::class, 'updateEnrollmentTemplateMappings'])->name('templates.mappings.update');
         Route::get('/templates/{template}/pdf', [AcademicConfigurationController::class, 'showEnrollmentTemplatePdf'])->name('templates.pdf');
         Route::post('/id-templates', [AcademicConfigurationController::class, 'storeIdTemplate'])->name('id-templates.store');

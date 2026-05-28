@@ -59,6 +59,30 @@
 
                 @include('enrollment.partials.basic-info')
                 @include('enrollment.partials.personal-info')
+
+                @if($customEnrollmentFields->isNotEmpty())
+                    <div class="mt-14">
+                        <h2 class="section-title border-b border-slate-200 pb-3 mb-6">ADDITIONAL INFORMATION</h2>
+                        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            @foreach($customEnrollmentFields as $field)
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">
+                                        {{ $field->label }}
+                                        @if($field->is_required)
+                                            <span class="text-red-500">*</span>
+                                        @endif
+                                    </label>
+                                    <input type="{{ $field->input_type === 'number' ? 'number' : ($field->input_type === 'date' ? 'date' : 'text') }}"
+                                           name="custom_fields[{{ $field->key }}]"
+                                           value="{{ old('custom_fields.' . $field->key) }}"
+                                           @required($field->is_required)
+                                           class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 @include('enrollment.partials.academic-program')
                 @include('enrollment.partials.required-credentials')
 

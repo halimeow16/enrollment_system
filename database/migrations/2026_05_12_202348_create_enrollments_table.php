@@ -48,6 +48,7 @@ return new class extends Migration
             $table->string('course_name')->nullable();
             $table->string('year_level')->nullable();
             $table->string('semester')->nullable();
+            $table->enum('student_type', ['regular', 'irregular'])->default('regular');
 
             $table->json('credentials')->nullable();
 

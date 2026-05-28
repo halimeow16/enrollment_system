@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Day;
 use App\Models\AppSetting;
+use App\Models\CustomTemplateField;
 use App\Models\DepartmentHead;
 use App\Models\Enrollment;
 use App\Models\EnrollmentTemplate;
@@ -706,6 +707,52 @@ class AcademicConfigurationController extends Controller
         return back()->with('success', 'Template uploaded.');
     }
 
+    public function storeCustomTemplateField(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'scope' => ['required', Rule::in(['enrollment', 'id'])],
+            'label' => ['required', 'string', 'max:80'],
+            'is_required' => ['nullable', 'boolean'],
+        ]);
+
+        $inputTypeData = $request->validate([
+            'input_type' => [
+                'required',
+                Rule::in($data['scope'] === 'id' ? ['text', 'photo'] : ['text', 'date', 'number']),
+            ],
+        ]);
+
+        $data['input_type'] = $inputTypeData['input_type'];
+        $prefix = $data['scope'] === 'id' ? 'custom_id_' : 'custom_enrollment_';
+        $baseKey = $prefix . Str::of($data['label'])->slug('_')->limit(48, '')->toString();
+        $baseKey = $baseKey ?: $prefix . 'field';
+        $key = $baseKey;
+        $suffix = 2;
+
+        while (CustomTemplateField::where('key', $key)->exists()) {
+            $key = $baseKey . '_' . $suffix++;
+        }
+
+        $field = CustomTemplateField::create([
+            'scope' => $data['scope'],
+            'key' => $key,
+            'label' => $data['label'],
+            'input_type' => $data['input_type'],
+            'is_required' => (bool) ($data['is_required'] ?? false),
+            'is_active' => true,
+            'sort_order' => (int) CustomTemplateField::where('scope', $data['scope'])->max('sort_order') + 1,
+        ]);
+
+        ActivityLog::record('custom_template_field_created', $field, [], $field->only([
+            'scope', 'key', 'label', 'input_type', 'is_required',
+        ]), $request);
+
+        return response()->json([
+            'message' => 'Custom field added.',
+            'field' => $this->customTemplateFieldPayload($field),
+        ], 201);
+    }
+
     public function updateEnrollmentTemplateMappings(Request $request, EnrollmentTemplate $template): JsonResponse
     {
         $data = $request->validate([
@@ -968,6 +1015,28 @@ class AcademicConfigurationController extends Controller
             'lecture_units' => (int) $subject->lecture_units,
             'laboratory_units' => (int) $subject->laboratory_units,
             'total_units' => (int) $subject->total_units,
+        ];
+    }
+
+    private function customTemplateFieldPayload(CustomTemplateField $field): array
+    {
+        $isImage = $field->scope === 'id' && $field->input_type === 'photo';
+
+        return [
+            'id' => $field->id,
+            'key' => $field->key,
+            'label' => $field->label,
+            'type' => $isImage ? 'image' : 'text',
+            'input_type' => $field->input_type,
+            'is_required' => (bool) $field->is_required,
+            'is_custom' => true,
+            'width' => $isImage ? 120 : 180,
+            'height' => $isImage ? 140 : 28,
+            'font_size' => 14,
+            'font_family' => 'Arial',
+            'font_weight' => '600',
+            'shape' => $isImage ? 'rectangle' : null,
+            'object_fit' => $isImage ? 'cover' : null,
         ];
     }
 
