@@ -6,12 +6,12 @@
                         <form action="{{ route('academic.schedules.store') }}"
                               method="POST"
                               x-data="{ ...dirtyFormState(), confirmingOverwrite: false, overwriteMessage: '' }"
-                              class="mt-4 grid gap-3 lg:grid-cols-6"
+                              class="mt-4 grid gap-3 lg:grid-cols-12"
                               @submit.prevent="confirmingOverwrite = false; submitScheduleForm($event.target)
                                   .then((data) => { applyScheduleResponse(data); if (data.room && !addedRooms.some((room) => room.id === data.room.id)) addedRooms.push(data.room); if (data.time_slot && !addedTimeSlots.some((slot) => slot.id === data.time_slot.id)) addedTimeSlots.push(data.time_slot); $event.target.reset(); $nextTick(() => markClean()); showToast('success', data.overwritten ? 'Schedule replaced' : 'Schedule assigned', data.overwritten ? 'The previous schedule was overwritten.' : 'No conflicts detected.'); })
                                   .catch((error) => { if (error.requiresScheduleOverwrite) { overwriteMessage = error.message; confirmingOverwrite = true; return; } showToast('error', 'Schedule conflict', error.message); })">
                             @csrf
-                            <div class="lg:col-span-2">
+                            <div class="lg:col-span-4">
                                 <input type="hidden"
                                        name="subject_id"
                                        required
@@ -29,54 +29,64 @@
                                        @input="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)"
                                        @change="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)">
                             </div>
-                            <input name="schedule_for"
-                                   list="schedule-for-options"
-                                   value="Whole Class"
-                                   required
-                                   placeholder="Schedule for, e.g. Whole Class or Batch 1"
-                                   autocomplete="off"
-                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
                             <input name="instructor"
                                    list="schedule-instructor-options"
                                    required
                                    placeholder="Instructor, e.g. Ms. Reyes"
                                    autocomplete="off"
-                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
-                            <label class="grid grid-cols-2 gap-2 lg:col-span-2">
-                                <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                            </label>
-                            <div class="grid grid-cols-7 gap-2 lg:col-span-4">
-                                @foreach($days as $day)
-                                    @php
-                                        $dayCode = match (strtolower($day->name)) {
-                                            'monday' => 'M',
-                                            'tuesday' => 'T',
-                                            'wednesday' => 'W',
-                                            'thursday' => 'TH',
-                                            'friday' => 'FRI',
-                                            'saturday' => 'SAT',
-                                            'sunday' => 'SUN',
-                                            default => strtoupper($day->name),
-                                        };
-                                    @endphp
-                                    <label class="group relative">
-                                        <input type="checkbox"
-                                               name="day_ids[]"
-                                               value="{{ $day->id }}"
-                                               class="peer sr-only">
-                                        <span class="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-white/10 text-xs font-extrabold text-slate-300 transition peer-checked:border-blue-300/60 peer-checked:bg-[#1552d4] peer-checked:text-white group-hover:bg-white/15">
-                                            {{ $dayCode }}
-                                        </span>
-                                    </label>
-                                @endforeach
-                            </div>
+                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-4">
                             <input name="room_name"
                                    list="schedule-room-options"
                                    required
                                    placeholder="Room, e.g. 203"
                                    autocomplete="off"
-                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
+                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-4">
+                            <label class="grid gap-1 lg:col-span-3">
+                                <span class="text-[11px] font-bold uppercase tracking-wide text-slate-300">Assign Schedule For</span>
+                                <input name="schedule_for"
+                                       list="schedule-for-options"
+                                       value="Whole Class"
+                                       required
+                                       placeholder="Whole Class or Batch 1"
+                                       autocomplete="off"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            </label>
+                            <label class="grid gap-1 lg:col-span-2">
+                                <span class="text-[11px] font-bold uppercase tracking-wide text-slate-300">From</span>
+                                <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            </label>
+                            <label class="grid gap-1 lg:col-span-2">
+                                <span class="text-[11px] font-bold uppercase tracking-wide text-slate-300">To</span>
+                                <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            </label>
+                            <div class="grid gap-1 lg:col-span-5">
+                                <span class="text-[11px] font-bold uppercase tracking-wide text-slate-300">Days</span>
+                                <div class="grid grid-cols-7 gap-2">
+                                    @foreach($days as $day)
+                                        @php
+                                            $dayCode = match (strtolower($day->name)) {
+                                                'monday' => 'M',
+                                                'tuesday' => 'T',
+                                                'wednesday' => 'W',
+                                                'thursday' => 'TH',
+                                                'friday' => 'FRI',
+                                                'saturday' => 'SAT',
+                                                'sunday' => 'SUN',
+                                                default => strtoupper($day->name),
+                                            };
+                                        @endphp
+                                        <label class="group relative">
+                                            <input type="checkbox"
+                                                   name="day_ids[]"
+                                                   value="{{ $day->id }}"
+                                                   class="peer sr-only">
+                                            <span class="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-white/10 text-xs font-extrabold text-slate-300 transition peer-checked:border-blue-300/60 peer-checked:bg-[#1552d4] peer-checked:text-white group-hover:bg-white/15">
+                                                {{ $dayCode }}
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
                             <datalist id="schedule-room-options">
                                 @foreach($currentScheduleRooms as $room)
                                     <option value="{{ $room->name }}"></option>
@@ -103,7 +113,7 @@
                             </datalist>
                             <div x-show="confirmingOverwrite"
                                  x-cloak
-                                 class="lg:col-span-6 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4">
+                                 class="lg:col-span-12 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4">
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <p class="text-sm font-extrabold text-amber-100">Replace existing schedule?</p>
@@ -125,7 +135,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-6">Assign Schedule</button>
+                            <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-12">Assign Schedule</button>
                         </form>
 
                     </div>
