@@ -711,6 +711,7 @@
                         { key: 'student_number', label: 'Student ID', type: 'text' },
                         { key: 'date_filed', label: 'Date Filed', type: 'text' },
                         { key: 'school_year', label: 'School Year', type: 'text' },
+                        { key: 'student_type', label: 'Student Type', type: 'text' },
                         { key: 'last_name', label: 'Last Name', type: 'text' },
                         { key: 'first_name', label: 'First Name', type: 'text' },
                         { key: 'middle_name', label: 'Middle Name', type: 'text' },
@@ -828,18 +829,12 @@
                     <p class="mt-1 text-xs text-slate-300">Manage document layouts used by the system.</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
+                <div class="grid grid-cols-1 rounded-2xl border border-white/10 bg-white/5 p-1">
                     <button type="button"
                             @click="templateSection = 'enrollment'"
                             :class="templateSection === 'enrollment' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
                             class="rounded-xl px-4 py-2 text-xs font-bold transition">
                         Enrollment Template
-                    </button>
-                    <button type="button"
-                            @click="templateSection = 'id'"
-                            :class="templateSection === 'id' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
-                            class="rounded-xl px-4 py-2 text-xs font-bold transition">
-                        ID Template
                     </button>
                 </div>
             </div>

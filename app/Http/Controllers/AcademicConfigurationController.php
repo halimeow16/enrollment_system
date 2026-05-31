@@ -213,8 +213,10 @@ class AcademicConfigurationController extends Controller
             'room_name' => ['required', 'string', 'max:80'],
             'instructor' => ['required', 'string', 'max:120'],
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
+            'schedule_for' => ['nullable', 'string', 'max:80'],
         ]);
         $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
+        $data['schedule_for'] = $this->normalizeScheduleFor($data['schedule_for'] ?? null);
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
 
         $subject = Subject::findOrFail($data['subject_id']);
@@ -235,6 +237,7 @@ class AcademicConfigurationController extends Controller
         $existingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $data['subject_id'])
             ->where('schedule_type', $data['schedule_type'])
+            ->where('schedule_for', $data['schedule_for'])
             ->whereNull('archived_at')
             ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->get();
@@ -242,7 +245,7 @@ class AcademicConfigurationController extends Controller
         $shouldOverwrite = $request->boolean('overwrite_schedule');
 
         if ($existingSchedule && ! $shouldOverwrite) {
-            $message = "{$subject->code} - {$data['schedule_type']} already has a schedule. Do you want to replace it?";
+            $message = $this->subjectScheduleLabel($subject, $data['schedule_type']) . " for {$data['schedule_for']} already has a schedule. Do you want to replace it?";
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -268,16 +271,23 @@ class AcademicConfigurationController extends Controller
 
         $conflicts = $overlappingSchedules
             ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room) {
+                $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
+                $existingSubjectLabel = $this->subjectScheduleLabel($schedule->subject, $schedule->schedule_type);
+
                 if ((int) $schedule->room_id === (int) $room->id) {
-                    return "Room {$schedule->room->name} is already used by {$schedule->subject->code}.";
+                    return "Room {$schedule->room->name} is already used by {$existingSubjectLabel}.";
                 }
 
                 if (strtolower(trim((string) $schedule->instructor)) === strtolower(trim($data['instructor']))) {
-                    return "{$data['instructor']} is already assigned to {$schedule->subject->code}.";
+                    return "{$data['instructor']} is already assigned to {$existingSubjectLabel}.";
                 }
 
                 if ((int) $schedule->subject_id === (int) $data['subject_id']) {
-                    return "{$subject->code} already has an overlapping schedule.";
+                    if ($this->scheduleGroupsConflict($schedule->schedule_for, $data['schedule_for'])) {
+                        return "{$newSubjectLabel} for {$data['schedule_for']} already has an overlapping schedule.";
+                    }
+
+                    return null;
                 }
 
                 $scheduledSubject = $schedule->subject;
@@ -286,8 +296,9 @@ class AcademicConfigurationController extends Controller
                     && $scheduledSubject->course_code === $subject->course_code
                     && $scheduledSubject->year_level === $subject->year_level
                     && $scheduledSubject->semester === $subject->semester
+                    && $this->scheduleGroupsConflict($schedule->schedule_for, $data['schedule_for'])
                 ) {
-                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} already has {$scheduledSubject->code} at that time.";
+                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} {$data['schedule_for']} already has {$existingSubjectLabel} at that time.";
                 }
 
                 return null;
@@ -315,6 +326,7 @@ class AcademicConfigurationController extends Controller
                 'room' => $schedule->room->name,
                 'instructor' => $schedule->instructor,
                 'schedule_type' => $schedule->schedule_type,
+                'schedule_for' => $schedule->schedule_for,
             ])->values()->all();
             $removedScheduleIds = $existingSchedules->pluck('id')->values()->all();
             SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
@@ -336,6 +348,7 @@ class AcademicConfigurationController extends Controller
                 'room_id' => $room->id,
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
+                'schedule_for' => $data['schedule_for'],
                 'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
@@ -348,6 +361,7 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
             'schedule_type' => $schedule->schedule_type,
+            'schedule_for' => $schedule->schedule_for,
         ], $request);
 
         if ($request->expectsJson()) {
@@ -382,8 +396,10 @@ class AcademicConfigurationController extends Controller
             'room_name' => ['required', 'string', 'max:80'],
             'instructor' => ['required', 'string', 'max:120'],
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
+            'schedule_for' => ['nullable', 'string', 'max:80'],
         ]);
         $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
+        $data['schedule_for'] = $this->normalizeScheduleFor($data['schedule_for'] ?? null);
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
 
         $subject = Subject::findOrFail($data['subject_id']);
@@ -391,6 +407,7 @@ class AcademicConfigurationController extends Controller
         $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $schedule->subject_id)
             ->where('schedule_type', $schedule->schedule_type)
+            ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
             ->whereNull('archived_at')
             ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->get();
@@ -423,16 +440,23 @@ class AcademicConfigurationController extends Controller
 
         $conflicts = $overlappingSchedules
             ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room) {
+                $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
+                $existingSubjectLabel = $this->subjectScheduleLabel($existingSchedule->subject, $existingSchedule->schedule_type);
+
                 if ((int) $existingSchedule->room_id === (int) $room->id) {
-                    return "Room {$existingSchedule->room->name} is already used by {$existingSchedule->subject->code}.";
+                    return "Room {$existingSchedule->room->name} is already used by {$existingSubjectLabel}.";
                 }
 
                 if (strtolower(trim((string) $existingSchedule->instructor)) === strtolower(trim($data['instructor']))) {
-                    return "{$data['instructor']} is already assigned to {$existingSchedule->subject->code}.";
+                    return "{$data['instructor']} is already assigned to {$existingSubjectLabel}.";
                 }
 
                 if ((int) $existingSchedule->subject_id === (int) $data['subject_id']) {
-                    return "{$subject->code} already has an overlapping schedule.";
+                    if ($this->scheduleGroupsConflict($existingSchedule->schedule_for, $data['schedule_for'])) {
+                        return "{$newSubjectLabel} for {$data['schedule_for']} already has an overlapping schedule.";
+                    }
+
+                    return null;
                 }
 
                 $scheduledSubject = $existingSchedule->subject;
@@ -441,8 +465,9 @@ class AcademicConfigurationController extends Controller
                     && $scheduledSubject->course_code === $subject->course_code
                     && $scheduledSubject->year_level === $subject->year_level
                     && $scheduledSubject->semester === $subject->semester
+                    && $this->scheduleGroupsConflict($existingSchedule->schedule_for, $data['schedule_for'])
                 ) {
-                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} already has {$scheduledSubject->code} at that time.";
+                    return "{$subject->course_code} {$subject->year_level} {$subject->semester} {$data['schedule_for']} already has {$existingSubjectLabel} at that time.";
                 }
 
                 return null;
@@ -468,6 +493,7 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
             'schedule_type' => $schedule->schedule_type,
+            'schedule_for' => $schedule->schedule_for,
         ])->values()->all();
         $removedScheduleIds = $relatedScheduleIds->values()->all();
         SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
@@ -480,6 +506,7 @@ class AcademicConfigurationController extends Controller
                 'room_id' => $room->id,
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
+                'schedule_for' => $data['schedule_for'],
                 'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
@@ -492,6 +519,7 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
             'schedule_type' => $schedule->schedule_type,
+            'schedule_for' => $schedule->schedule_for,
         ], $request);
 
         if ($request->expectsJson()) {
@@ -520,6 +548,7 @@ class AcademicConfigurationController extends Controller
         $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $schedule->subject_id)
             ->where('schedule_type', $schedule->schedule_type)
+            ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
             ->where('time_slot_id', $schedule->time_slot_id)
             ->where('room_id', $schedule->room_id)
             ->where('instructor', $schedule->instructor)
@@ -536,6 +565,7 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor,
             'schedule_type' => $schedule->schedule_type,
+            'schedule_for' => $schedule->schedule_for,
         ])->values()->all();
         SubjectSchedule::whereIn('id', $ids)->delete();
         ActivityLog::record('subject_schedule_removed', $schedule, $oldValues, [], $request);
@@ -575,12 +605,12 @@ class AcademicConfigurationController extends Controller
             ->get();
 
         $courseName = $this->scheduleCourseName($data['course_code']);
-        $fileName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule.pdf')
+        $fileName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule.docx')
             ->replace([' ', '/'], '-')
             ->lower()
             ->toString();
 
-        $pdfContent = $this->buildSchedulePdf(
+        $docxPath = $this->buildScheduleDocx(
             $academicYear,
             $courseName,
             $this->scheduleYearLabel($data['year_level']),
@@ -588,9 +618,91 @@ class AcademicConfigurationController extends Controller
             $schedules
         );
 
-        return response($pdfContent, 200)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        return response()->download(
+            $docxPath,
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        )->deleteFileAfterSend(true);
+    }
+
+    public function downloadInstructorSchedule(Request $request)
+    {
+        $data = $request->validate([
+            'instructor' => ['required', 'string', 'max:120'],
+            'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+        ]);
+
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $instructor = trim($data['instructor']);
+        $schedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
+            ->whereRaw('LOWER(TRIM(instructor)) = ?', [strtolower($instructor)])
+            ->whereHas('subject', fn ($query) => $query->where('semester', $data['semester']))
+            ->join('days', 'subject_schedules.day_id', '=', 'days.id')
+            ->join('time_slots', 'subject_schedules.time_slot_id', '=', 'time_slots.id')
+            ->orderBy('days.sort_order')
+            ->orderBy('time_slots.start_time')
+            ->select('subject_schedules.*')
+            ->get();
+
+        $fileName = Str::of($instructor . '-' . $data['semester'] . '-' . $academicYear . '-faculty-loading.docx')
+            ->replace([' ', '/', '\\'], '-')
+            ->lower()
+            ->toString();
+
+        $docxPath = $this->buildInstructorScheduleDocx(
+            $instructor,
+            $academicYear,
+            $this->scheduleSemesterLabel($data['semester']),
+            $schedules
+        );
+
+        return response()->download(
+            $docxPath,
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        )->deleteFileAfterSend(true);
+    }
+
+    public function downloadRoomSchedule(Request $request)
+    {
+        $data = $request->validate([
+            'room_name' => ['required', 'string', 'max:80'],
+            'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+        ]);
+
+        $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $roomName = trim($data['room_name']);
+        $schedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
+            ->whereHas('room', fn ($query) => $query->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($roomName)]))
+            ->whereHas('subject', fn ($query) => $query->where('semester', $data['semester']))
+            ->join('days', 'subject_schedules.day_id', '=', 'days.id')
+            ->join('time_slots', 'subject_schedules.time_slot_id', '=', 'time_slots.id')
+            ->orderBy('days.sort_order')
+            ->orderBy('time_slots.start_time')
+            ->select('subject_schedules.*')
+            ->get();
+
+        $fileName = Str::of($roomName . '-' . $data['semester'] . '-' . $academicYear . '-room-schedule.docx')
+            ->replace([' ', '/', '\\'], '-')
+            ->lower()
+            ->toString();
+
+        $docxPath = $this->buildRoomScheduleDocx(
+            $roomName,
+            $academicYear,
+            $this->scheduleSemesterLabel($data['semester']),
+            $schedules
+        );
+
+        return response()->download(
+            $docxPath,
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        )->deleteFileAfterSend(true);
     }
 
     public function storeDepartmentHead(Request $request): RedirectResponse|JsonResponse
@@ -1062,6 +1174,7 @@ class AcademicConfigurationController extends Controller
             'room' => $schedule->room->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
             'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'schedule_for' => $schedule->schedule_for ?: 'Whole Class',
             'school_year' => $schedule->school_year,
             'archived_school_year' => $schedule->archived_school_year,
             'archived_at' => $schedule->archived_at?->toDateTimeString(),
@@ -1076,6 +1189,48 @@ class AcademicConfigurationController extends Controller
         $type = $schedule->schedule_type ?: ($schedule->subject->type === 'LAB' ? 'LAB' : 'LEC');
 
         return $schedule->subject->name . ' - ' . $type;
+    }
+
+    private function scheduleUnits(SubjectSchedule $schedule): int
+    {
+        return match ($schedule->schedule_type) {
+            'LAB' => (int) $schedule->subject->laboratory_units,
+            'LEC' => (int) $schedule->subject->lecture_units,
+            default => (int) $schedule->subject->total_units,
+        };
+    }
+
+    private function scheduleCourseGroup(SubjectSchedule $schedule): string
+    {
+        return trim($schedule->subject->course_code . ' ' . $schedule->subject->year_level);
+    }
+
+    private function subjectScheduleLabel(?Subject $subject, ?string $type): string
+    {
+        if (! $subject) {
+            return 'Selected subject';
+        }
+
+        $resolvedType = $type ?: ($subject->type === 'LAB' ? 'LAB' : 'LEC');
+
+        return $subject->name . ' - ' . $resolvedType;
+    }
+
+    private function normalizeScheduleFor(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? 'Whole Class' : preg_replace('/\s+/', ' ', $value);
+    }
+
+    private function scheduleGroupsConflict(?string $existing, ?string $incoming): bool
+    {
+        $existing = strtolower($this->normalizeScheduleFor($existing));
+        $incoming = strtolower($this->normalizeScheduleFor($incoming));
+
+        return $existing === 'whole class'
+            || $incoming === 'whole class'
+            || $existing === $incoming;
     }
 
     private function scheduleTimeLabel(SubjectSchedule $schedule): string
@@ -1147,6 +1302,479 @@ class AcademicConfigurationController extends Controller
             'BSBA' => 'BACHELOR OF SCIENCE IN BUSINESS ADMINISTRATION',
             'BSOM' => 'BACHELOR OF SCIENCE IN OFFICE MANAGEMENT',
         ][strtoupper($courseCode)] ?? strtoupper($courseCode);
+    }
+
+    private function buildScheduleDocx(
+        string $academicYear,
+        string $courseName,
+        string $yearLabel,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $scheduleRows = $this->scheduleDocumentRows($schedules);
+        $logoPath = public_path('images/logo1.png');
+        $hasLogo = file_exists($logoPath);
+        $docxPath = storage_path('app/schedule-' . Str::uuid() . '.docx');
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Unable to create schedule document.');
+        }
+
+        $zip->addFromString('[Content_Types].xml', $this->docxContentTypes($hasLogo));
+        $zip->addFromString('_rels/.rels', $this->docxRootRelationships());
+        $zip->addFromString('word/_rels/document.xml.rels', $this->docxDocumentRelationships($hasLogo));
+        $zip->addFromString('word/styles.xml', $this->docxStyles());
+        $zip->addFromString('word/document.xml', $this->docxScheduleDocument(
+            $academicYear,
+            $courseName,
+            $yearLabel,
+            $semesterLabel,
+            $scheduleRows,
+            $hasLogo
+        ));
+
+        if ($hasLogo) {
+            $zip->addFile($logoPath, 'word/media/logo1.png');
+        }
+
+        $zip->close();
+
+        return $docxPath;
+    }
+
+    private function buildInstructorScheduleDocx(
+        string $instructor,
+        string $academicYear,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $scheduleRows = $this->scheduleDocumentRows($schedules);
+        $logoPath = public_path('images/logo1.png');
+        $hasLogo = file_exists($logoPath);
+        $docxPath = storage_path('app/instructor-schedule-' . Str::uuid() . '.docx');
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Unable to create instructor schedule document.');
+        }
+
+        $zip->addFromString('[Content_Types].xml', $this->docxContentTypes($hasLogo));
+        $zip->addFromString('_rels/.rels', $this->docxRootRelationships());
+        $zip->addFromString('word/_rels/document.xml.rels', $this->docxDocumentRelationships($hasLogo));
+        $zip->addFromString('word/styles.xml', $this->docxStyles());
+        $zip->addFromString('word/document.xml', $this->docxInstructorScheduleDocument(
+            $instructor,
+            $academicYear,
+            $semesterLabel,
+            $scheduleRows,
+            $hasLogo
+        ));
+
+        if ($hasLogo) {
+            $zip->addFile($logoPath, 'word/media/logo1.png');
+        }
+
+        $zip->close();
+
+        return $docxPath;
+    }
+
+    private function buildRoomScheduleDocx(
+        string $roomName,
+        string $academicYear,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $scheduleRows = $this->scheduleDocumentRows($schedules);
+        $logoPath = public_path('images/logo1.png');
+        $hasLogo = file_exists($logoPath);
+        $docxPath = storage_path('app/room-schedule-' . Str::uuid() . '.docx');
+
+        $zip = new \ZipArchive();
+        if ($zip->open($docxPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Unable to create room schedule document.');
+        }
+
+        $zip->addFromString('[Content_Types].xml', $this->docxContentTypes($hasLogo));
+        $zip->addFromString('_rels/.rels', $this->docxRootRelationships());
+        $zip->addFromString('word/_rels/document.xml.rels', $this->docxDocumentRelationships($hasLogo));
+        $zip->addFromString('word/styles.xml', $this->docxStyles());
+        $zip->addFromString('word/document.xml', $this->docxRoomScheduleDocument(
+            $roomName,
+            $academicYear,
+            $semesterLabel,
+            $scheduleRows,
+            $hasLogo
+        ));
+
+        if ($hasLogo) {
+            $zip->addFile($logoPath, 'word/media/logo1.png');
+        }
+
+        $zip->close();
+
+        return $docxPath;
+    }
+
+    private function scheduleDocumentRows($schedules)
+    {
+        return $schedules
+            ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
+                $schedule->subject_id,
+                $schedule->schedule_type,
+                $schedule->schedule_for ?: 'Whole Class',
+                $schedule->time_slot_id,
+                $schedule->room_id,
+                strtolower(trim((string) $schedule->instructor)),
+            ]))
+            ->map(fn ($group) => [
+                'schedule' => $group->first(),
+                'day_label' => $this->scheduleDayLabels($group),
+            ])
+            ->values();
+    }
+
+    private function docxContentTypes(bool $hasLogo): string
+    {
+        $png = $hasLogo ? '<Default Extension="png" ContentType="image/png"/>' : '';
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . $png
+            . '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+            . '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+            . '</Types>';
+    }
+
+    private function docxRootRelationships(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+            . '</Relationships>';
+    }
+
+    private function docxDocumentRelationships(bool $hasLogo): string
+    {
+        $logo = $hasLogo
+            ? '<Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo1.png"/>'
+            : '';
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            . $logo
+            . '</Relationships>';
+    }
+
+    private function docxStyles(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            . '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/></w:rPr></w:style>'
+            . '</w:styles>';
+    }
+
+    private function docxScheduleDocument(
+        string $academicYear,
+        string $courseName,
+        string $yearLabel,
+        string $semesterLabel,
+        $scheduleRows,
+        bool $hasLogo
+    ): string {
+        $tableWidth = 15440;
+        $columns = [
+            'code' => 1250,
+            'subject' => 7100,
+            'day' => 850,
+            'time' => 2600,
+            'room' => 1000,
+            'instructor' => 2640,
+        ];
+
+        $rows = $scheduleRows->isEmpty()
+            ? $this->docxTableRow([
+                ['No schedules found for this class.', $tableWidth, ['align' => 'center', 'colspan' => 6]],
+            ])
+            : $scheduleRows->map(function (array $row): string {
+                $schedule = $row['schedule'];
+                $subjectName = $this->scheduleSubjectName($schedule);
+                if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                    $subjectName .= ' (' . $schedule->schedule_for . ')';
+                }
+
+                return $this->docxTableRow([
+                    [$schedule->subject->code, 1250, ['align' => 'center']],
+                    [$subjectName, 7100],
+                    [$row['day_label'], 850, ['align' => 'center']],
+                    [$this->scheduleTimeLabel($schedule), 2600, ['align' => 'center']],
+                    [$schedule->room->name, 1000, ['align' => 'center']],
+                    [$schedule->instructor ?: '', 2640],
+                ]);
+            })->implode('');
+
+        $heading = $this->docxParagraph([
+            ['text' => $yearLabel, 'bold' => true, 'color' => 'FF0000', 'underline' => true, 'size' => 24, 'font' => 'Times New Roman'],
+            ['text' => '  |  ', 'bold' => true, 'size' => 24, 'font' => 'Times New Roman'],
+            ['text' => $semesterLabel, 'bold' => true, 'color' => '082256', 'size' => 24, 'font' => 'Times New Roman'],
+            ['text' => '  |  AY ' . $academicYear, 'bold' => true, 'size' => 24, 'font' => 'Times New Roman'],
+        ], 'center');
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<w:body>'
+            . $this->docxHeaderTable($hasLogo)
+            . $heading
+            . $this->docxParagraph([['text' => $courseName, 'bold' => true, 'size' => 22, 'font' => 'Times New Roman']], 'center')
+            . $this->docxParagraph([['text' => '', 'size' => 5]], 'center')
+            . '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="10"/><w:left w:val="single" w:sz="10"/><w:bottom w:val="single" w:sz="10"/><w:right w:val="single" w:sz="10"/><w:insideH w:val="single" w:sz="10"/><w:insideV w:val="single" w:sz="10"/></w:tblBorders></w:tblPr>'
+            . '<w:tblGrid><w:gridCol w:w="' . $columns['code'] . '"/><w:gridCol w:w="' . $columns['subject'] . '"/><w:gridCol w:w="' . $columns['day'] . '"/><w:gridCol w:w="' . $columns['time'] . '"/><w:gridCol w:w="' . $columns['room'] . '"/><w:gridCol w:w="' . $columns['instructor'] . '"/></w:tblGrid>'
+            . $this->docxTableRow([
+                ['Code', $columns['code'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Subjects', $columns['subject'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Day', $columns['day'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Time', $columns['time'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Room', $columns['room'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Instructor', $columns['instructor'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+            ])
+            . $rows
+            . '</w:tbl>'
+            . '<w:p><w:pPr><w:sectPr><w:pgSz w:orient="landscape" w:w="16838" w:h="11906"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="0" w:footer="0" w:gutter="0"/><w:cols w:space="720"/><w:docGrid w:linePitch="360"/></w:sectPr></w:pPr></w:p>'
+            . '</w:body></w:document>';
+    }
+
+    private function docxInstructorScheduleDocument(
+        string $instructor,
+        string $academicYear,
+        string $semesterLabel,
+        $scheduleRows,
+        bool $hasLogo
+    ): string {
+        $tableWidth = 15440;
+        $columns = [
+            'code' => 1250,
+            'description' => 6500,
+            'units' => 850,
+            'day' => 900,
+            'time' => 2500,
+            'room' => 1100,
+            'course' => 2340,
+        ];
+
+        $rows = $scheduleRows->isEmpty()
+            ? $this->docxTableRow([
+                ['No schedules found for this instructor.', $tableWidth, ['align' => 'center', 'colspan' => 7]],
+            ])
+            : $scheduleRows->map(function (array $row): string {
+                $schedule = $row['schedule'];
+                $description = $this->scheduleSubjectName($schedule);
+                if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                    $description .= ' (' . $schedule->schedule_for . ')';
+                }
+
+                return $this->docxTableRow([
+                    [$schedule->subject->code, 1250, ['align' => 'center']],
+                    [$description, 6500],
+                    [$this->scheduleUnits($schedule), 850, ['align' => 'center']],
+                    [$row['day_label'], 900, ['align' => 'center']],
+                    [$this->scheduleTimeLabel($schedule), 2500, ['align' => 'center']],
+                    [$schedule->room->name, 1100, ['align' => 'center']],
+                    [$this->scheduleCourseGroup($schedule), 2340, ['align' => 'center']],
+                ]);
+            })->implode('');
+
+        $totalUnits = $scheduleRows->sum(fn (array $row) => $this->scheduleUnits($row['schedule']));
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<w:body>'
+            . $this->docxHeaderTable($hasLogo)
+            . $this->docxParagraph([['text' => 'COLLEGE FACULTY LOADING', 'bold' => true, 'size' => 14, 'font' => 'Arial']], 'center')
+            . '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="8"/><w:insideV w:val="single" w:sz="8"/></w:tblBorders></w:tblPr>'
+            . '<w:tblGrid><w:gridCol w:w="2600"/><w:gridCol w:w="5120"/><w:gridCol w:w="2600"/><w:gridCol w:w="5120"/></w:tblGrid>'
+            . $this->docxTableRow([
+                ['Name of Instructor', 2600, ['bold' => true]],
+                [$instructor, 5120],
+                ['Academic Year', 2600, ['bold' => true]],
+                [$academicYear, 5120],
+            ])
+            . $this->docxTableRow([
+                ['Semester', 2600, ['bold' => true]],
+                [$semesterLabel, 12840, ['colspan' => 3]],
+            ])
+            . '</w:tbl>'
+            . $this->docxParagraph([['text' => '', 'size' => 4]], 'center')
+            . '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="10"/><w:left w:val="single" w:sz="10"/><w:bottom w:val="single" w:sz="10"/><w:right w:val="single" w:sz="10"/><w:insideH w:val="single" w:sz="10"/><w:insideV w:val="single" w:sz="10"/></w:tblBorders></w:tblPr>'
+            . '<w:tblGrid><w:gridCol w:w="' . $columns['code'] . '"/><w:gridCol w:w="' . $columns['description'] . '"/><w:gridCol w:w="' . $columns['units'] . '"/><w:gridCol w:w="' . $columns['day'] . '"/><w:gridCol w:w="' . $columns['time'] . '"/><w:gridCol w:w="' . $columns['room'] . '"/><w:gridCol w:w="' . $columns['course'] . '"/></w:tblGrid>'
+            . $this->docxTableRow([
+                ['Code', $columns['code'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Description', $columns['description'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Units', $columns['units'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Day', $columns['day'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Time', $columns['time'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Room', $columns['room'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Course', $columns['course'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+            ])
+            . $rows
+            . $this->docxTableRow([
+                ['Total Units', 7750, ['align' => 'right', 'bold' => true, 'colspan' => 2]],
+                [(string) $totalUnits, 850, ['align' => 'center', 'bold' => true]],
+                ['', 900],
+                ['', 2500],
+                ['', 1100],
+                ['', 2340],
+            ])
+            . '</w:tbl>'
+            . '<w:p><w:pPr><w:sectPr><w:pgSz w:orient="landscape" w:w="16838" w:h="11906"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="0" w:footer="0" w:gutter="0"/><w:cols w:space="720"/><w:docGrid w:linePitch="360"/></w:sectPr></w:pPr></w:p>'
+            . '</w:body></w:document>';
+    }
+
+    private function docxRoomScheduleDocument(
+        string $roomName,
+        string $academicYear,
+        string $semesterLabel,
+        $scheduleRows,
+        bool $hasLogo
+    ): string {
+        $tableWidth = 15440;
+        $columns = [
+            'day' => 850,
+            'time' => 2500,
+            'code' => 1250,
+            'description' => 6800,
+            'course' => 1440,
+            'instructor' => 2600,
+        ];
+
+        $rows = $scheduleRows->isEmpty()
+            ? $this->docxTableRow([
+                ['No schedules found for this room.', $tableWidth, ['align' => 'center', 'colspan' => 7]],
+            ])
+            : $scheduleRows->map(function (array $row): string {
+                $schedule = $row['schedule'];
+                $description = $this->scheduleSubjectName($schedule);
+                if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                    $description .= ' (' . $schedule->schedule_for . ')';
+                }
+
+                return $this->docxTableRow([
+                    [$row['day_label'], 850, ['align' => 'center']],
+                    [$this->scheduleTimeLabel($schedule), 2500, ['align' => 'center']],
+                    [$schedule->subject->code, 1250, ['align' => 'center']],
+                    [$description, 6800],
+                    [$this->scheduleCourseGroup($schedule), 1440, ['align' => 'center']],
+                    [$schedule->instructor ?: '', 2600],
+                ]);
+            })->implode('');
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<w:body>'
+            . $this->docxHeaderTable($hasLogo)
+            . $this->docxParagraph([['text' => 'ROOM SCHEDULE', 'bold' => true, 'size' => 14, 'font' => 'Arial']], 'center')
+            . '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="8"/><w:insideV w:val="single" w:sz="8"/></w:tblBorders></w:tblPr>'
+            . '<w:tblGrid><w:gridCol w:w="2600"/><w:gridCol w:w="5120"/><w:gridCol w:w="2600"/><w:gridCol w:w="5120"/></w:tblGrid>'
+            . $this->docxTableRow([
+                ['Room', 2600, ['bold' => true]],
+                [$roomName, 5120],
+                ['Academic Year', 2600, ['bold' => true]],
+                [$academicYear, 5120],
+            ])
+            . $this->docxTableRow([
+                ['Semester', 2600, ['bold' => true]],
+                [$semesterLabel, 12840, ['colspan' => 3]],
+            ])
+            . '</w:tbl>'
+            . $this->docxParagraph([['text' => '', 'size' => 4]], 'center')
+            . '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="10"/><w:left w:val="single" w:sz="10"/><w:bottom w:val="single" w:sz="10"/><w:right w:val="single" w:sz="10"/><w:insideH w:val="single" w:sz="10"/><w:insideV w:val="single" w:sz="10"/></w:tblBorders></w:tblPr>'
+            . '<w:tblGrid><w:gridCol w:w="' . $columns['day'] . '"/><w:gridCol w:w="' . $columns['time'] . '"/><w:gridCol w:w="' . $columns['code'] . '"/><w:gridCol w:w="' . $columns['description'] . '"/><w:gridCol w:w="' . $columns['course'] . '"/><w:gridCol w:w="' . $columns['instructor'] . '"/></w:tblGrid>'
+            . $this->docxTableRow([
+                ['Day', $columns['day'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Time', $columns['time'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Code', $columns['code'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Description', $columns['description'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Course', $columns['course'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+                ['Instructor', $columns['instructor'], ['align' => 'center', 'bold' => true, 'color' => 'FFFFFF', 'fill' => '000000', 'size' => 11]],
+            ])
+            . $rows
+            . '</w:tbl>'
+            . '<w:p><w:pPr><w:sectPr><w:pgSz w:orient="landscape" w:w="16838" w:h="11906"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="0" w:footer="0" w:gutter="0"/><w:cols w:space="720"/><w:docGrid w:linePitch="360"/></w:sectPr></w:pPr></w:p>'
+            . '</w:body></w:document>';
+    }
+
+    private function docxHeaderTable(bool $hasLogo): string
+    {
+        $logo = $hasLogo ? $this->docxImageRun('rIdLogo', 2915415, 1252739) : '';
+
+        return '<w:tbl><w:tblPr><w:tblW w:w="15440" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:bottom w:val="single" w:sz="24" w:color="808080"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="5000"/><w:gridCol w:w="10440"/></w:tblGrid>'
+            . '<w:tr>'
+            . '<w:tc><w:tcPr><w:tcW w:w="5000" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r>' . $logo . '</w:r></w:p></w:tc>'
+            . '<w:tc><w:tcPr><w:tcW w:w="10440" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'
+            . $this->docxParagraph([['text' => 'COMTEQ COMPUTER AND BUSINESS COLLEGE, INC.', 'bold' => true, 'color' => '8497D2', 'size' => 16]], 'left')
+            . $this->docxParagraph([['text' => '#63 Fendler st., East Tapinac, Olongapo City, Philippines', 'bold' => true, 'color' => '6E6E6E', 'size' => 10]], 'left')
+            . $this->docxParagraph([['text' => 'Mobile no.: 09428197810 | Tel No.: (047) 602-4778 | www.comteq.edu.ph', 'bold' => true, 'color' => '6E6E6E', 'size' => 10]], 'left')
+            . '</w:tc></w:tr></w:tbl>';
+    }
+
+    private function docxParagraph(array $runs, string $align = 'left'): string
+    {
+        $content = collect($runs)->map(fn (array $run) => $this->docxTextRun($run))->implode('');
+
+        return '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="' . $align . '"/></w:pPr>' . $content . '</w:p>';
+    }
+
+    private function docxTextRun(array $run): string
+    {
+        $font = $this->docxEscape($run['font'] ?? 'Arial');
+        $size = (int) (($run['size'] ?? 22) * 2);
+        $color = $this->docxEscape($run['color'] ?? '000000');
+        $bold = ! empty($run['bold']) ? '<w:b/>' : '';
+        $underline = ! empty($run['underline']) ? '<w:u w:val="single"/>' : '';
+
+        return '<w:r><w:rPr><w:rFonts w:ascii="' . $font . '" w:hAnsi="' . $font . '"/>' . $bold . $underline . '<w:color w:val="' . $color . '"/><w:sz w:val="' . $size . '"/></w:rPr><w:t xml:space="preserve">' . $this->docxEscape((string) ($run['text'] ?? '')) . '</w:t></w:r>';
+    }
+
+    private function docxTableRow(array $cells): string
+    {
+        $row = '<w:tr>';
+        foreach ($cells as $cell) {
+            [$text, $width, $options] = [$cell[0], $cell[1], $cell[2] ?? []];
+            $row .= $this->docxTableCell((string) $text, (int) $width, $options);
+        }
+
+        return $row . '</w:tr>';
+    }
+
+    private function docxTableCell(string $text, int $width, array $options = []): string
+    {
+        $fill = isset($options['fill']) ? '<w:shd w:fill="' . $this->docxEscape($options['fill']) . '"/>' : '';
+        $gridSpan = isset($options['colspan']) ? '<w:gridSpan w:val="' . (int) $options['colspan'] . '"/>' : '';
+        $align = $options['align'] ?? 'left';
+        $color = $options['color'] ?? '000000';
+        $bold = ! empty($options['bold']);
+
+        return '<w:tc><w:tcPr><w:tcW w:w="' . $width . '" w:type="dxa"/>' . $gridSpan . $fill . '<w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>'
+            . $this->docxParagraph([['text' => $text, 'bold' => $bold, 'color' => $color, 'size' => $options['size'] ?? 10]], $align)
+            . '</w:tc>';
+    }
+
+    private function docxImageRun(string $relationshipId, int $widthEmu, int $heightEmu): string
+    {
+        return '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $widthEmu . '" cy="' . $heightEmu . '"/><wp:docPr id="1" name="COMTEQ Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="logo1.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' . $relationshipId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $widthEmu . '" cy="' . $heightEmu . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+    }
+
+    private function docxEscape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
     }
 
     private function buildSchedulePdf(
@@ -1235,6 +1863,7 @@ class AcademicConfigurationController extends Controller
             ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
                 $schedule->subject_id,
                 $schedule->schedule_type,
+                $schedule->schedule_for ?: 'Whole Class',
                 $schedule->time_slot_id,
                 $schedule->room_id,
                 strtolower(trim((string) $schedule->instructor)),
@@ -1255,6 +1884,9 @@ class AcademicConfigurationController extends Controller
             }
 
             $subjectName = $this->scheduleSubjectName($schedule);
+            if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                $subjectName .= ' (' . $schedule->schedule_for . ')';
+            }
             $lineCount = max(1, (int) ceil($pdf->GetStringWidth($subjectName) / 132));
             $rowHeight = max(8, $lineCount * 6);
             $x = $pdf->GetX();

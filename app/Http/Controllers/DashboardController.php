@@ -124,6 +124,26 @@ class DashboardController extends Controller
             ->with(['subject', 'day', 'timeSlot', 'room'])
             ->latest()
             ->get();
+        $currentScheduleRooms = $subjectSchedules
+            ->pluck('room')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+        $scheduleInstructorOptions = $subjectSchedules
+            ->pluck('instructor')
+            ->map(fn ($instructor) => trim((string) $instructor))
+            ->filter()
+            ->unique(fn ($instructor) => strtolower($instructor))
+            ->sort()
+            ->values();
+        $scheduleForOptions = $subjectSchedules
+            ->pluck('schedule_for')
+            ->map(fn ($scheduleFor) => trim((string) $scheduleFor))
+            ->filter()
+            ->unique(fn ($scheduleFor) => strtolower($scheduleFor))
+            ->sort()
+            ->values();
         $archivedScheduleYears = SubjectSchedule::whereNotNull('archived_at')
             ->whereNotNull('archived_school_year')
             ->distinct()
@@ -156,6 +176,7 @@ class DashboardController extends Controller
             'room' => $schedule->room?->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
             'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'schedule_for' => $schedule->schedule_for ?: 'Whole Class',
             'school_year' => $schedule->school_year,
             'archived_school_year' => $schedule->archived_school_year,
             'archived_at' => $schedule->archived_at?->toDateTimeString(),
@@ -252,7 +273,10 @@ class DashboardController extends Controller
             'subjects',
             'days',
             'rooms',
+            'currentScheduleRooms',
             'timeSlots',
+            'scheduleInstructorOptions',
+            'scheduleForOptions',
             'subjectSchedules',
             'scheduleRows',
             'archivedScheduleRows',
@@ -1044,6 +1068,7 @@ class DashboardController extends Controller
             'room' => $schedule->room?->name,
             'instructor' => $schedule->instructor ?: 'Unassigned',
             'schedule_type' => $schedule->schedule_type ?: 'LEC',
+            'schedule_for' => $schedule->schedule_for ?: 'Whole Class',
             'school_year' => $schedule->school_year,
             'archived_school_year' => $schedule->archived_school_year,
             'archived_at' => $schedule->archived_at?->toDateTimeString(),

@@ -11,18 +11,25 @@
 
     <div class="mb-8">
         <label class="block text-sm font-medium text-slate-600 mb-3">Student Type <span class="text-red-500">*</span></label>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-blue-600 bg-blue-50 p-5 transition" data-student-type-card="regular">
-                <input type="radio" name="student_type" value="regular" checked required class="mt-1 student-type-radio">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-blue-600 bg-blue-50 p-5 transition" data-student-type-card="new">
+                <input type="radio" name="student_type" value="new" checked required class="mt-1 student-type-radio">
                 <span>
-                    <span class="block text-sm font-bold text-slate-900">Regular</span>
+                    <span class="block text-sm font-bold text-slate-900">New</span>
                     <span class="mt-1 block text-xs leading-5 text-slate-500">Load subjects from the selected program, year level, and semester.</span>
                 </span>
             </label>
-            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-transparent bg-slate-50 p-5 transition hover:border-blue-200" data-student-type-card="irregular">
-                <input type="radio" name="student_type" value="irregular" required class="mt-1 student-type-radio">
+            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-transparent bg-slate-50 p-5 transition hover:border-blue-200" data-student-type-card="old">
+                <input type="radio" name="student_type" value="old" required class="mt-1 student-type-radio">
                 <span>
-                    <span class="block text-sm font-bold text-slate-900">Irregular</span>
+                    <span class="block text-sm font-bold text-slate-900">Old</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">Load subjects from the selected program, year level, and semester.</span>
+                </span>
+            </label>
+            <label class="student-type-card flex cursor-pointer items-start gap-3 rounded-3xl border-2 border-transparent bg-slate-50 p-5 transition hover:border-blue-200" data-student-type-card="transferee">
+                <input type="radio" name="student_type" value="transferee" required class="mt-1 student-type-radio">
+                <span>
+                    <span class="block text-sm font-bold text-slate-900">Transferee</span>
                     <span class="mt-1 block text-xs leading-5 text-slate-500">Open all available subjects and use search to choose manually.</span>
                 </span>
             </label>
@@ -69,7 +76,7 @@
         <div class="flex items-center justify-between mb-3">
             <label class="block text-sm font-medium text-slate-600">Subjects</label>
         </div>
-        <div id="irregularSubjectSearchWrap" class="mb-3 hidden">
+        <div id="openSubjectSearchWrap" class="mb-3 hidden">
             <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
                 <input type="search"

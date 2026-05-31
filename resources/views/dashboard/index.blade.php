@@ -679,13 +679,111 @@
     </div>
 
     {{-- Scheduling --}}
-    <section x-show="activeTab === 'scheduling'" x-cloak>
+    <section x-show="activeTab === 'scheduling'" x-cloak x-data="{ showScheduleReports: false }">
         <div class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
             <div class="border-b border-white/10 px-5 py-4">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Academic Setup</p>
-                    <h2 class="mt-1 text-xl font-extrabold text-white">Scheduling</h2>
-                    <p class="mt-1 text-xs text-slate-300">Manage schedule options, subject schedules, rooms, and assigned schedules.</p>
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Academic Setup</p>
+                        <h2 class="mt-1 text-xl font-extrabold text-white">Scheduling</h2>
+                        <p class="mt-1 text-xs text-slate-300">Manage schedule options, subject schedules, rooms, and assigned schedules.</p>
+                    </div>
+                    <button type="button"
+                            @click="showScheduleReports = !showScheduleReports"
+                            :class="showScheduleReports ? 'border-violet-300/30 bg-violet-500/25 text-violet-50' : 'border-violet-300/20 bg-violet-500/15 text-violet-100 hover:bg-violet-500/25'"
+                            class="group inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition">
+                        <i data-lucide="files" class="h-4 w-4"></i>
+                        <span>Generate Reports</span>
+                        <i data-lucide="chevron-down"
+                           :class="showScheduleReports ? 'rotate-180' : ''"
+                           class="h-4 w-4 transition"></i>
+                    </button>
+                </div>
+
+                <div x-show="showScheduleReports"
+                     x-transition
+                     x-cloak
+                     class="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 xl:grid-cols-3">
+                    <form action="{{ route('academic.schedules.pdf') }}"
+                          method="GET"
+                          target="_blank"
+                          class="grid gap-2 rounded-xl border border-blue-300/10 bg-blue-500/10 p-3">
+                        <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-blue-100">Class Schedule</p>
+                        <div class="grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+                            <select name="course_code" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Course</option>
+                                @foreach($subjects->pluck('course_code')->filter()->unique()->sort()->values() as $courseCode)
+                                    <option value="{{ $courseCode }}">{{ $courseCode }}</option>
+                                @endforeach
+                            </select>
+                            <select name="year_level" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Year</option>
+                                @foreach($subjects->pluck('year_level')->filter()->unique()->sort()->values() as $yearLevel)
+                                    <option value="{{ $yearLevel }}">Year {{ $yearLevel }}</option>
+                                @endforeach
+                            </select>
+                            <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Semester</option>
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                        </div>
+                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/20 px-4 py-2 text-sm font-bold text-blue-100 transition hover:bg-blue-500/30">
+                            <i data-lucide="file-down" class="h-4 w-4"></i>
+                            Download DOCX
+                        </button>
+                    </form>
+
+                    <form action="{{ route('academic.schedules.instructor') }}"
+                          method="GET"
+                          target="_blank"
+                          class="grid gap-2 rounded-xl border border-emerald-300/10 bg-emerald-500/10 p-3">
+                        <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-100">Faculty Schedule</p>
+                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                            <select name="instructor" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Select instructor</option>
+                                @foreach($scheduleInstructorOptions as $instructor)
+                                    <option value="{{ $instructor }}">{{ $instructor }}</option>
+                                @endforeach
+                            </select>
+                            <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Semester</option>
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                        </div>
+                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30">
+                            <i data-lucide="file-user" class="h-4 w-4"></i>
+                            Download DOCX
+                        </button>
+                    </form>
+
+                    <form action="{{ route('academic.schedules.room') }}"
+                          method="GET"
+                          target="_blank"
+                          class="grid gap-2 rounded-xl border border-cyan-300/10 bg-cyan-500/10 p-3">
+                        <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-cyan-100">Room Schedule</p>
+                        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                            <select name="room_name" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Select room</option>
+                                @foreach($currentScheduleRooms as $room)
+                                    <option value="{{ $room->name }}">{{ $room->name }}</option>
+                                @endforeach
+                            </select>
+                            <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <option value="">Semester</option>
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="Summer">Summer</option>
+                            </select>
+                        </div>
+                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-500/20 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-500/30">
+                            <i data-lucide="door-open" class="h-4 w-4"></i>
+                            Download DOCX
+                        </button>
+                    </form>
                 </div>
             </div>
 
@@ -804,6 +902,8 @@
             addedRooms: [],
             addedTimeSlots: [],
             addedSchedules: [],
+            scheduleInstructorOptions: @json($scheduleInstructorOptions),
+            scheduleForOptions: @json($scheduleForOptions),
             scheduleRows: @json($scheduleRows),
             archivedScheduleRows: @json($archivedScheduleRows),
             archivedScheduleYears: @json($archivedScheduleYears),
@@ -1210,6 +1310,7 @@
                     schedule.end_time || '',
                     schedule.room_id || schedule.room || '',
                     (schedule.instructor || '').toLowerCase().trim(),
+                    (schedule.schedule_for || 'Whole Class').toLowerCase().trim(),
                 ].join('|');
             },
             groupScheduleRows(rows) {
@@ -1263,6 +1364,7 @@
                             schedule.time,
                             schedule.room,
                             schedule.instructor,
+                            schedule.schedule_for,
                         ].join(' ').toLowerCase().includes(search);
                     })
                 return this.groupScheduleRows(filtered)
@@ -1321,6 +1423,19 @@
                 }
 
                 (data.schedules || [data.schedule]).filter(Boolean).forEach((schedule) => this.upsertSchedule(schedule));
+                (data.schedules || [data.schedule]).filter(Boolean).forEach((schedule) => {
+                    const scheduleFor = schedule.schedule_for || 'Whole Class';
+                    if (!this.scheduleForOptions.includes(scheduleFor)) {
+                        this.scheduleForOptions.push(scheduleFor);
+                        this.scheduleForOptions.sort();
+                    }
+
+                    const instructor = (schedule.instructor || '').trim();
+                    if (instructor && !this.scheduleInstructorOptions.some((item) => item.toLowerCase() === instructor.toLowerCase())) {
+                        this.scheduleInstructorOptions.push(instructor);
+                        this.scheduleInstructorOptions.sort();
+                    }
+                });
                 this.scheduleCount = (this.scheduleRows || []).length + (this.addedSchedules || []).length;
             },
             idStatusFor(enrollmentId) {

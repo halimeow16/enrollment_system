@@ -13,8 +13,8 @@ return new class extends Migration
                 return;
             }
 
-            $table->enum('student_type', ['regular', 'irregular'])
-                ->default('regular')
+            $table->enum('student_type', ['new', 'old', 'transferee'])
+                ->default('new')
                 ->after('semester');
         });
     }

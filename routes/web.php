@@ -123,6 +123,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/time-slots', [AcademicConfigurationController::class, 'storeTimeSlot'])->name('time-slots.store');
         Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
         Route::get('/schedules/pdf', [AcademicConfigurationController::class, 'downloadSchedulePdf'])->name('schedules.pdf');
+        Route::get('/schedules/instructor', [AcademicConfigurationController::class, 'downloadInstructorSchedule'])->name('schedules.instructor');
+        Route::get('/schedules/room', [AcademicConfigurationController::class, 'downloadRoomSchedule'])->name('schedules.room');
         Route::put('/schedules/{schedule}', [AcademicConfigurationController::class, 'updateSchedule'])->name('schedules.update');
         Route::delete('/schedules/{schedule}', [AcademicConfigurationController::class, 'destroySchedule'])->name('schedules.destroy');
         Route::post('/templates', [AcademicConfigurationController::class, 'storeEnrollmentTemplate'])->name('templates.store');

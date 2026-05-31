@@ -73,7 +73,7 @@ class EnrollmentController extends Controller
             'course_name'      => 'required|string',
             'year_level'       => 'required|string',
             'semester'         => 'required|string',
-            'student_type'     => 'required|in:regular,irregular',
+            'student_type'     => 'required|in:new,old,transferee',
             'department_head_name' => 'nullable|string|max:120',
             'subject_ids'      => 'nullable|array',
             'subject_ids.*'    => 'integer|exists:subjects,id',
@@ -188,7 +188,7 @@ class EnrollmentController extends Controller
             'date_of_birth' => 'required|date_format:Y-m-d',
             'year_level' => 'required|string',
             'semester' => 'required|string',
-            'student_type' => 'nullable|in:regular,irregular',
+            'student_type' => 'nullable|in:new,old,transferee',
         ]);
 
         $validated['school_year'] = AppSetting::getValue('academic_year', '2026-2027');

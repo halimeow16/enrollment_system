@@ -11,7 +11,11 @@ let selectedCourseCode = "BSIT";
 let selectedCourseName = "BS Information Technology";
 
 function selectedStudentType() {
-    return document.querySelector('input[name="student_type"]:checked')?.value || 'regular';
+    return document.querySelector('input[name="student_type"]:checked')?.value || 'new';
+}
+
+function usesStandardSubjectLoad(studentType) {
+    return ['new', 'old'].includes(studentType);
 }
 
 function populateCourses() {
@@ -262,11 +266,11 @@ function renderSubjectList() {
     const yearLevel = document.getElementById('year_level')?.value;
     const semester = document.getElementById('semester')?.value;
     const studentType = selectedStudentType();
-    const searchWrap = document.getElementById('irregularSubjectSearchWrap');
+    const searchWrap = document.getElementById('openSubjectSearchWrap');
     const searchInput = document.getElementById('subjectSearch');
     const search = (searchInput?.value || '').trim().toLowerCase();
     const subjects = (window.subjectCatalog ?? []).filter(subject => {
-        if (studentType === 'regular') {
+        if (usesStandardSubjectLoad(studentType)) {
             return subject.course_code === selectedCourseCode &&
                 subject.year_level === yearLevel &&
                 subject.semester === semester;
@@ -284,16 +288,16 @@ function renderSubjectList() {
         ].join(' ').toLowerCase().includes(search);
     });
 
-    searchWrap?.classList.toggle('hidden', studentType !== 'irregular');
+    searchWrap?.classList.toggle('hidden', usesStandardSubjectLoad(studentType));
 
-    if (studentType === 'regular' && (!yearLevel || !semester)) {
+    if (usesStandardSubjectLoad(studentType) && (!yearLevel || !semester)) {
         container.innerHTML = '<p class="text-sm text-slate-500">Choose a program, year level, and semester to load available subjects.</p>';
         updateSubjectTotals();
         return;
     }
 
     if (subjects.length === 0) {
-        container.innerHTML = studentType === 'regular'
+        container.innerHTML = usesStandardSubjectLoad(studentType)
             ? '<p class="text-sm text-slate-500">No subjects configured for this program, year level, and semester.</p>'
             : '<p class="text-sm text-slate-500">No subjects match your search.</p>';
         updateSubjectTotals();

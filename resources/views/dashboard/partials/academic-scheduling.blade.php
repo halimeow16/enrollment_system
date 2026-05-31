@@ -29,7 +29,19 @@
                                        @input="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)"
                                        @change="$refs.scheduleSubjectId.value = resolveScheduleSubjectId($event.target.value); $refs.scheduleType.value = resolveScheduleType($event.target.value)">
                             </div>
-                            <input name="instructor" required placeholder="Instructor, e.g. Ms. Reyes" class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
+                            <input name="schedule_for"
+                                   list="schedule-for-options"
+                                   value="Whole Class"
+                                   required
+                                   placeholder="Schedule for, e.g. Whole Class or Batch 1"
+                                   autocomplete="off"
+                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
+                            <input name="instructor"
+                                   list="schedule-instructor-options"
+                                   required
+                                   placeholder="Instructor, e.g. Ms. Reyes"
+                                   autocomplete="off"
+                                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
                             <label class="grid grid-cols-2 gap-2 lg:col-span-2">
                                 <input type="time" name="start_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <input type="time" name="end_time" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -66,11 +78,22 @@
                                    autocomplete="off"
                                    class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:col-span-2">
                             <datalist id="schedule-room-options">
-                                @foreach($rooms as $room)
+                                @foreach($currentScheduleRooms as $room)
                                     <option value="{{ $room->name }}"></option>
                                 @endforeach
                                 <template x-for="room in addedRooms" :key="`room-datalist-${room.id}`">
                                     <option :value="room.name"></option>
+                                </template>
+                            </datalist>
+                            <datalist id="schedule-instructor-options">
+                                <template x-for="instructor in scheduleInstructorOptions" :key="`schedule-instructor-option-${instructor}`">
+                                    <option :value="instructor"></option>
+                                </template>
+                            </datalist>
+                            <datalist id="schedule-for-options">
+                                <option value="Whole Class"></option>
+                                <template x-for="option in scheduleForOptions" :key="`schedule-for-option-${option}`">
+                                    <option :value="option"></option>
                                 </template>
                             </datalist>
                             <datalist id="schedule-subject-options">
@@ -105,33 +128,6 @@
                             <button :disabled="!dirty" class="rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 lg:col-span-6">Assign Schedule</button>
                         </form>
 
-                        <form action="{{ route('academic.schedules.pdf') }}"
-                              method="GET"
-                              target="_blank"
-                              class="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
-                            <select name="course_code" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                <option value="">Course</option>
-                                @foreach($subjects->pluck('course_code')->filter()->unique()->sort()->values() as $courseCode)
-                                    <option value="{{ $courseCode }}">{{ $courseCode }}</option>
-                                @endforeach
-                            </select>
-                            <select name="year_level" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                <option value="">Year</option>
-                                @foreach($subjects->pluck('year_level')->filter()->unique()->sort()->values() as $yearLevel)
-                                    <option value="{{ $yearLevel }}">Year {{ $yearLevel }}</option>
-                                @endforeach
-                            </select>
-                            <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                                <option value="">Semester</option>
-                                <option value="1st">1st Semester</option>
-                                <option value="2nd">2nd Semester</option>
-                                <option value="Summer">Summer</option>
-                            </select>
-                            <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/15 px-4 py-2 text-sm font-bold text-blue-100 transition hover:bg-blue-500/25">
-                                <i data-lucide="file-down" class="h-4 w-4"></i>
-                                PDF
-                            </button>
-                        </form>
                     </div>
 
                     <div class="h-[575px] overflow-hidden rounded-2xl border border-white/10 bg-white/5">
@@ -178,12 +174,13 @@
                         </div>
 
                         <div class="h-[470px] overflow-auto">
-                            <table class="w-full min-w-[1080px] text-sm">
+                            <table class="w-full min-w-[1180px] text-sm">
                                 <thead class="sticky top-0 z-10 bg-[#101a2d] text-xs uppercase tracking-wide text-slate-300">
                                     <tr>
                                         <th class="px-4 py-3 text-left font-bold">Code</th>
                                         <th class="px-4 py-3 text-left font-bold">Subject</th>
                                         <th class="px-4 py-3 text-left font-bold">Group</th>
+                                        <th class="px-4 py-3 text-left font-bold">For</th>
                                         <th class="px-4 py-3 text-left font-bold">Day</th>
                                         <th class="px-4 py-3 text-left font-bold">Time</th>
                                         <th class="px-4 py-3 text-left font-bold">Room</th>
@@ -204,6 +201,9 @@
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="px-4 py-3 text-xs text-slate-300" x-text="`${schedule.subject?.course_code || ''} / ${schedule.subject?.year_level || ''} / ${schedule.subject?.semester || ''}`"></td>
+                                            </template>
+                                            <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
+                                                <td class="px-4 py-3 text-xs font-semibold text-blue-100" x-text="schedule.schedule_for || 'Whole Class'"></td>
                                             </template>
                                             <template x-if="confirmingScheduleRemoval !== schedule.id && editingSchedule !== schedule.id">
                                                 <td class="px-4 py-3 text-xs font-bold text-white" x-text="schedule.day_label || schedule.day"></td>
@@ -241,7 +241,7 @@
                                                 </td>
                                             </template>
                                             <template x-if="editingSchedule === schedule.id">
-                                                <td colspan="8" class="px-4 py-3">
+                                                <td colspan="9" class="px-4 py-3">
                                                     <form :action="schedule.update_url"
                                                           method="POST"
                                                           x-data="{ subjectQuery: scheduleSubjectLabel(schedule.subject?.id, schedule.schedule_type), selectedSubjectId: schedule.subject?.id, selectedScheduleType: schedule.schedule_type }"
@@ -262,7 +262,16 @@
                                                                    @input="selectedSubjectId = resolveScheduleSubjectId(subjectQuery); selectedScheduleType = resolveScheduleType(subjectQuery)"
                                                                    @change="selectedSubjectId = resolveScheduleSubjectId(subjectQuery); selectedScheduleType = resolveScheduleType(subjectQuery)">
                                                         </div>
-                                                        <input name="instructor" required :value="schedule.instructor" class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
+                                                        <input name="schedule_for"
+                                                               list="schedule-for-options"
+                                                               required
+                                                               :value="schedule.schedule_for || 'Whole Class'"
+                                                               class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
+                                                        <input name="instructor"
+                                                               list="schedule-instructor-options"
+                                                               required
+                                                               :value="schedule.instructor"
+                                                               class="rounded-lg border border-slate-200 px-3 py-2 text-xs lg:col-span-2">
                                                         <div class="grid grid-cols-7 gap-2 lg:col-span-2">
                                                             @foreach($days as $day)
                                                                 @php
@@ -310,7 +319,7 @@
                                                 </td>
                                             </template>
                                             <template x-if="confirmingScheduleRemoval === schedule.id">
-                                                <td colspan="8" class="px-4 py-3">
+                                                <td colspan="9" class="px-4 py-3">
                                                     <form :action="schedule.delete_url"
                                                           method="POST"
                                                           class="flex flex-col gap-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -321,7 +330,7 @@
                                                         @method('DELETE')
                                                         <div>
                                                             <p class="text-xs font-bold text-red-50">Remove this schedule?</p>
-                                                            <p class="mt-1 text-xs text-red-100/80" x-text="`${schedule.subject?.code || 'No code'} / ${schedule.day_label || schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
+                                                            <p class="mt-1 text-xs text-red-100/80" x-text="`${schedule.subject?.code || 'No code'} / ${schedule.schedule_for || 'Whole Class'} / ${schedule.day_label || schedule.day} / ${schedule.time} / ${schedule.room}`"></p>
                                                         </div>
                                                         <div class="flex justify-end gap-2">
                                                             <button type="button"
@@ -339,7 +348,7 @@
                                         </tr>
                                     </template>
                                     <tr x-show="filteredScheduleRows().length === 0">
-                                        <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-300">No schedule matches the current filters.</td>
+                                        <td colspan="9" class="px-4 py-10 text-center text-sm text-slate-300">No schedule matches the current filters.</td>
                                     </tr>
                                 </tbody>
                             </table>

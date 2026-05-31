@@ -32,7 +32,6 @@
                     $navItems = [
                         ['tab' => 'overview', 'label' => 'Dashboard', 'icon' => 'layout-dashboard'],
                         ['tab' => 'enrollments', 'label' => 'Enrollments', 'icon' => 'users'],
-                        ['tab' => 'id-generation', 'label' => 'Generate IDs', 'icon' => 'badge'],
                         ['tab' => 'scheduling', 'label' => 'Scheduling', 'icon' => 'calendar-days'],
                     ];
 

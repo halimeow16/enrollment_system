@@ -17,6 +17,7 @@ class SubjectSchedule extends Model
         'room_id',
         'instructor',
         'schedule_type',
+        'schedule_for',
         'school_year',
         'archived_at',
         'archived_school_year',
