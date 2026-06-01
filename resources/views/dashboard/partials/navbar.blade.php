@@ -451,6 +451,26 @@
             accountsBaseUrl: config.accountsBaseUrl,
             logsUrl: config.logsUrl,
             isAdmin: config.isAdmin,
+            responseErrorMessage(data, fallback) {
+                if (window.dashboardResponseErrorMessage) {
+                    return window.dashboardResponseErrorMessage(data, fallback);
+                }
+
+                const messages = [];
+
+                if (data?.message) {
+                    messages.push(data.message);
+                }
+
+                if (data?.errors && typeof data.errors === 'object') {
+                    Object.values(data.errors).forEach((fieldErrors) => {
+                        const entries = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
+                        entries.filter(Boolean).forEach((entry) => messages.push(entry));
+                    });
+                }
+
+                return [...new Set(messages)].join(' ') || fallback;
+            },
             async requestJson(url, form, method = 'POST') {
                 const formData = new FormData(form);
                 const response = await fetch(url, {
@@ -464,7 +484,7 @@
                 const data = await response.json().catch(() => ({}));
 
                 if (!response.ok) {
-                    throw new Error(data.message || 'Unable to save account changes.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to save account changes. Please check the required fields and try again.'));
                 }
 
                 return data;
@@ -492,7 +512,7 @@
                     const data = await response.json().catch(() => ({}));
 
                     if (! response.ok) {
-                        throw new Error(data.message || 'Unable to load logs.');
+                        throw new Error(this.responseErrorMessage(data, 'Unable to load logs. Please refresh the page or try again later.'));
                     }
 
                     this.logs = (data.logs || []).map((log) => ({ ...log, open: false }));
@@ -633,7 +653,7 @@
                     const data = await response.json().catch(() => ({}));
 
                     if (!response.ok) {
-                        throw new Error(data.message || 'Unable to remove account.');
+                        throw new Error(this.responseErrorMessage(data, 'Unable to remove account. Make sure at least one admin account remains.'));
                     }
 
                     this.users = this.users.filter((user) => user.id !== id);

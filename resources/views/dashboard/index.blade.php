@@ -29,15 +29,15 @@
     @endif
 
     <template x-teleport="body">
-        <div class="fixed bottom-6 right-6 z-[1000] w-[min(360px,calc(100vw-2rem))] space-y-3 pointer-events-none">
+        <div class="fixed right-6 top-6 z-[1000] w-[min(360px,calc(100vw-2rem))] space-y-3 pointer-events-none">
             <template x-for="toast in toasts" :key="toast.id">
                 <div x-show="toast.visible"
                      x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="translate-y-2 opacity-0"
+                     x-transition:enter-start="-translate-y-2 opacity-0"
                      x-transition:enter-end="translate-y-0 opacity-100"
                      x-transition:leave="transition ease-in duration-150"
                      x-transition:leave-start="translate-y-0 opacity-100"
-                     x-transition:leave-end="translate-y-2 opacity-0"
+                     x-transition:leave-end="-translate-y-2 opacity-0"
                      :class="toast.type === 'success' ? 'border-emerald-300/20 bg-emerald-500/15 text-emerald-50' : 'border-red-300/20 bg-red-500/15 text-red-50'"
                      class="pointer-events-auto rounded-2xl border px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
                     <div class="flex items-start gap-3">
@@ -862,6 +862,23 @@
         return window.dirtyFormState();
     };
 
+    window.dashboardResponseErrorMessage = function (data, fallback) {
+        const messages = [];
+
+        if (data?.message) {
+            messages.push(data.message);
+        }
+
+        if (data?.errors && typeof data.errors === 'object') {
+            Object.values(data.errors).forEach((fieldErrors) => {
+                const entries = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
+                entries.filter(Boolean).forEach((entry) => messages.push(entry));
+            });
+        }
+
+        return [...new Set(messages)].join(' ') || fallback;
+    };
+
     window.dashboardFrame = function () {
         return {
             activeTab: 'overview',
@@ -1008,10 +1025,13 @@
             },
             showToast(type, title, message) {
                 const id = Date.now() + Math.random();
-                this.toasts.push({ id, type, title, message, visible: true });
+                this.toasts.push({ id, type, title, message: message || 'Something went wrong. Please try again.', visible: true });
                 this.$nextTick(() => window.lucide?.createIcons());
 
-                setTimeout(() => this.dismissToast(id), 3200);
+                setTimeout(() => this.dismissToast(id), 5000);
+            },
+            responseErrorMessage(data, fallback) {
+                return window.dashboardResponseErrorMessage(data, fallback);
             },
             dismissToast(id) {
                 const toast = this.toasts.find((item) => item.id === id);
@@ -1032,11 +1052,12 @@
                     },
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (!response.ok) {
-                    throw new Error('Unable to update enrollment status.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to update enrollment status. Please refresh the page and try again.'));
                 }
 
-                const data = await response.json();
                 return data.status;
             },
             openEnrollmentEditor(enrollment, url) {
@@ -1072,7 +1093,7 @@
                     const data = await response.json().catch(() => ({}));
 
                     if (!response.ok) {
-                        throw new Error(data.message || 'Unable to update enrollment.');
+                        throw new Error(this.responseErrorMessage(data, 'Unable to update enrollment. Please check the student details and try again.'));
                     }
 
                     this.closeEnrollmentEditor();
@@ -1139,11 +1160,12 @@
                     },
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (!response.ok) {
-                    throw new Error('Unable to save subject.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to save subject. Please check the subject details and try again.'));
                 }
 
-                const data = await response.json();
                 return data.subject;
             },
             async deleteSubject(form) {
@@ -1156,11 +1178,13 @@
                     },
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (!response.ok) {
-                    throw new Error('Unable to remove subject.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to remove subject. It may already be used by another record.'));
                 }
 
-                return response.json();
+                return data;
             },
             async submitAcademicForm(form) {
                 const targetForm = form instanceof HTMLFormElement ? form : form?.form;
@@ -1180,7 +1204,7 @@
 
                 if (!response.ok) {
                     const data = await response.json().catch(() => ({}));
-                    throw new Error(data.message || 'Unable to save changes.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to save changes. Please review the highlighted fields and try again.'));
                 }
 
                 return response.json();
@@ -1203,14 +1227,14 @@
                 const data = await response.json().catch(() => ({}));
 
                 if (response.status === 409 && data.requires_confirmation) {
-                    const error = new Error(data.message || 'This subject already has a schedule.');
+                    const error = new Error(this.responseErrorMessage(data, 'This subject already has a schedule.'));
                     error.requiresScheduleOverwrite = true;
                     error.schedule = data.schedule || null;
                     throw error;
                 }
 
                 if (!response.ok) {
-                    throw new Error(data.message || 'Unable to save schedule.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to save schedule. Please check the selected day, room, and time slot.'));
                 }
 
                 return data;
@@ -1514,7 +1538,7 @@
                     const data = await response.json().catch(() => ({}));
 
                     if (!response.ok) {
-                        throw new Error(data.message || 'Unable to upload student photo.');
+                        throw new Error(this.responseErrorMessage(data, `Unable to upload student ${fieldName === 'signature' ? 'signature' : 'photo'}. Please use a valid image file and try again.`));
                     }
 
                     if (data.status) {
@@ -1540,7 +1564,7 @@
                 const data = await response.json().catch(() => ({}));
 
                 if (!response.ok) {
-                    throw new Error(data.message || 'Unable to render ID.');
+                    throw new Error(this.responseErrorMessage(data, 'Unable to render ID. Please confirm the student has a mapped template and complete ID assets.'));
                 }
 
                 const renderedSides = [];
@@ -1892,6 +1916,9 @@
                         });
                         this.$nextTick(() => this.renderPdf());
                     },
+                    responseErrorMessage(data, fallback) {
+                        return window.dashboardResponseErrorMessage(data, fallback);
+                    },
                     loadMappings() {
                         this.mappings = {};
                         const validFieldKeys = new Set(this.fields.map((field) => field.key));
@@ -1997,7 +2024,7 @@
                         const data = await response.json().catch(() => ({}));
 
                         if (!response.ok) {
-                            throw new Error(data.message || 'Unable to upload template.');
+                            throw new Error(this.responseErrorMessage(data, 'Unable to upload template. Please choose a valid PDF template and try again.'));
                         }
 
                         this.template = data.template;
@@ -2025,7 +2052,7 @@
 
                         if (!response.ok) {
                             window.dispatchEvent(new CustomEvent('dashboard-toast', {
-                                detail: { type: 'error', title: 'Field not added', message: data.message || 'Unable to add field.' },
+                                detail: { type: 'error', title: 'Field not added', message: this.responseErrorMessage(data, 'Unable to add field. Please enter a unique field label and try again.') },
                             }));
                             return;
                         }
@@ -2057,7 +2084,7 @@
                         const data = await response.json().catch(() => ({}));
 
                         if (!response.ok) {
-                            throw new Error(data.message || 'Unable to upload ID template.');
+                            throw new Error(this.responseErrorMessage(data, 'Unable to upload ID template. Please choose a valid front or back image and try again.'));
                         }
 
                         this.idTemplates = {
@@ -2088,7 +2115,7 @@
                         const data = await response.json().catch(() => ({}));
 
                         if (!response.ok) {
-                            throw new Error(data.message || 'Unable to upload font.');
+                            throw new Error(this.responseErrorMessage(data, 'Unable to upload font. Please choose a valid TTF or OTF font file.'));
                         }
 
                         this.idFonts = [
@@ -2604,7 +2631,7 @@
                         this.saving = false;
 
                         if (!response.ok) {
-                            throw new Error(data.message || 'Unable to save mappings.');
+                            throw new Error(this.responseErrorMessage(data, 'Unable to save mappings. Please check that every mapped field is still inside the template.'));
                         }
 
                         this.template = data.template;
@@ -2655,7 +2682,7 @@
                                 const data = await response.json().catch(() => ({}));
 
                                 if (!response.ok) {
-                                    throw new Error(data.message || 'Unable to save ID layouts.');
+                                    throw new Error(this.responseErrorMessage(data, 'Unable to save ID layouts. Please check the mapped fields and try again.'));
                                 }
 
                                 savedTemplates.push(data.template);
