@@ -6,11 +6,16 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AccountSettingsController extends Controller
 {
+    private const BACKUP_VERSION = 1;
+
     public function updateOwn(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -158,9 +163,168 @@ class AccountSettingsController extends Controller
         ]);
     }
 
+    public function exportDatabase(Request $request)
+    {
+        abort_unless($request->user()?->user_type === 'admin', 403);
+
+        $data = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        $this->confirmPassword($request, $data['password']);
+
+        $payload = [
+            'version' => self::BACKUP_VERSION,
+            'exported_at' => now()->toIso8601String(),
+            'app' => config('app.name'),
+            'database' => config('database.default'),
+            'tables' => collect($this->backupTables())
+                ->mapWithKeys(fn (string $table) => [$table => $this->backupTableRows($table)])
+                ->all(),
+        ];
+        $encrypted = Crypt::encryptString(base64_encode(gzencode(json_encode($payload, JSON_THROW_ON_ERROR), 9)));
+        $fileName = 'enrollment-system-' . now()->format('Y-m-d-His') . '.esbackup';
+
+        ActivityLog::record('database_exported', null, [], [
+            'tables' => array_keys($payload['tables']),
+        ], $request);
+
+        return response()->streamDownload(function () use ($encrypted): void {
+            echo $encrypted;
+        }, $fileName, [
+            'Content-Type' => 'application/octet-stream',
+        ]);
+    }
+
+    public function importDatabase(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->user_type === 'admin', 403);
+
+        $data = $request->validate([
+            'password' => ['required', 'string'],
+            'backup_file' => ['required', 'file', 'max:51200'],
+            'replace_confirmation' => ['accepted'],
+        ], [
+            'replace_confirmation.accepted' => 'Please confirm that all current data will be replaced.',
+        ]);
+
+        $this->confirmPassword($request, $data['password']);
+
+        try {
+            $encrypted = $request->file('backup_file')->get();
+            $payload = json_decode(gzdecode(base64_decode(Crypt::decryptString($encrypted), true)), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([
+                'backup_file' => 'The uploaded backup could not be decrypted or is not a valid enrollment system backup.',
+            ]);
+        }
+
+        if (($payload['version'] ?? null) !== self::BACKUP_VERSION || ! is_array($payload['tables'] ?? null)) {
+            throw ValidationException::withMessages([
+                'backup_file' => 'The uploaded backup version is not supported.',
+            ]);
+        }
+
+        $allowedTables = $this->backupTables();
+        $payloadTables = array_intersect_key($payload['tables'], array_flip($allowedTables));
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        try {
+            foreach (array_reverse($allowedTables) as $table) {
+                DB::table($table)->truncate();
+            }
+
+            foreach ($allowedTables as $table) {
+                $columns = array_flip($this->backupTableColumns($table));
+                $rows = collect($payloadTables[$table] ?? [])
+                    ->map(fn (array $row) => array_intersect_key($row, $columns))
+                    ->all();
+
+                foreach (array_chunk($rows, 250) as $chunk) {
+                    if ($chunk) {
+                        DB::table($table)->insert($chunk);
+                    }
+                }
+            }
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
+
+        ActivityLog::create([
+            'user_id' => null,
+            'action' => 'database_imported',
+            'model_type' => 'System',
+            'model_id' => null,
+            'old_values' => null,
+            'new_values' => [
+                'exported_at' => $payload['exported_at'] ?? null,
+                'tables' => array_keys($payloadTables),
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Database restored. The uploaded encrypted backup replaced the current application data.',
+        ]);
+    }
+
     private function adminCount(): int
     {
         return User::where('user_type', 'admin')->count();
+    }
+
+    private function confirmPassword(Request $request, string $password): void
+    {
+        if (! Hash::check($password, (string) $request->user()?->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'Password confirmation is incorrect.',
+            ]);
+        }
+    }
+
+    private function backupTables(): array
+    {
+        $skipTables = [
+            'cache',
+            'cache_locks',
+            'failed_jobs',
+            'job_batches',
+            'jobs',
+            'migrations',
+            'password_reset_tokens',
+            'sessions',
+        ];
+
+        return collect(DB::select('SHOW TABLES'))
+            ->map(fn ($row) => (string) array_values((array) $row)[0])
+            ->reject(fn (string $table) => in_array($table, $skipTables, true))
+            ->values()
+            ->all();
+    }
+
+    private function backupTableRows(string $table): array
+    {
+        $columns = array_flip($this->backupTableColumns($table));
+
+        return DB::table($table)
+            ->get()
+            ->map(fn ($row) => array_intersect_key((array) $row, $columns))
+            ->all();
+    }
+
+    private function backupTableColumns(string $table): array
+    {
+        return collect(DB::select(
+            'SELECT COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION',
+            [DB::getDatabaseName(), $table]
+        ))
+            ->reject(fn ($column) => str_contains(strtoupper((string) $column->EXTRA), 'GENERATED'))
+            ->map(fn ($column) => (string) $column->COLUMN_NAME)
+            ->values()
+            ->all();
     }
 
     private function userPayload(User $user): array

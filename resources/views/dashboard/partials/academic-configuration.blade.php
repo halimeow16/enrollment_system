@@ -32,9 +32,10 @@
 
 @php
     $canManageAdminConfiguration = in_array(auth()->user()?->user_type, ['admin', 'registrar'], true);
+    $instructorTitleOptions = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
 @endphp
 
-<div x-data="{ section: 'settings', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null, academicYear: @js($academicYear ?? '2026-2027') }"
+<div x-data="{ section: 'subjects', course: '', year: '', semester: '', scheduleSearch: '', feeCourse: @js($feeRows->first()['course_code'] ?? ''), editingSubject: null, confirmingSubjectRemoval: null, confirmingScheduleRemoval: null, academicYear: @js($academicYear ?? '2026-2027'), configuredInstructors: @js($instructorOptions), configuredRooms: @js($scheduleRoomOptions), confirmingInstructorRemoval: null, editingInstructor: null, confirmingRoomRemoval: null }"
      class="academic-config-frame overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#17213a]/95 to-[#071224]/95 shadow-2xl shadow-black/30">
     <div class="border-b border-white/10 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -44,18 +45,24 @@
                 <p class="mt-1 text-xs text-slate-300">Manage curriculum, schedules, templates, and permitted school settings in one workspace.</p>
             </div>
 
-            <div class="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1 xl:w-auto {{ $canManageAdminConfiguration ? 'md:grid-cols-5 xl:min-w-[580px]' : 'md:grid-cols-3 xl:min-w-[380px]' }}">
-                <button type="button"
-                        @click="section = 'settings'"
-                        :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
-                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
-                    Settings
-                </button>
+            <div class="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 xl:w-auto {{ $canManageAdminConfiguration ? 'md:grid-cols-6 xl:min-w-[640px]' : 'md:grid-cols-4 xl:min-w-[460px]' }}">
                 <button type="button"
                         @click="section = 'subjects'"
                         :class="section === 'subjects' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
                         class="rounded-xl px-3 py-2 text-xs font-bold transition">
                     Subjects
+                </button>
+                <button type="button"
+                        @click="section = 'schedule-options'"
+                        :class="section === 'schedule-options' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                    Resources
+                </button>
+                <button type="button"
+                        @click="section = 'settings'"
+                        :class="section === 'settings' ? 'bg-white text-[#1552d4] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+                        class="rounded-xl px-3 py-2 text-xs font-bold transition">
+                    Settings
                 </button>
                 @if($canManageAdminConfiguration)
                     <button type="button"
@@ -96,7 +103,7 @@
                       class="mt-5 space-y-4"
                       @submit.prevent="if (!confirmingNewAcademicYear) { confirmingNewAcademicYear = true; return; }
                           submitAcademicForm($event.target)
-                              .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); confirmingNewAcademicYear = false; markClean(); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active. Archived ${data.archived_enrollments || 0} enrollments and ${data.archived_schedules || 0} schedules.`); })
+                              .then((data) => { academicYear = data.academic_year; setAcademicYear(data.academic_year); confirmingNewAcademicYear = false; markClean(); showToast('success', 'Academic year updated', `A.Y. ${data.academic_year} is now active. Archived ${data.archived_enrollments || 0} enrollments and ${data.archived_schedules || 0} schedules.`); window.setTimeout(() => window.location.reload(), 900); })
                               .catch((error) => showToast('error', 'Save failed', error.message))">
                     @csrf
                     @method('PUT')
@@ -580,6 +587,209 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <section x-show="section === 'schedule-options'" x-cloak class="grid grid-cols-12 gap-5">
+            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="font-extrabold text-white">Instructors</h3>
+                        <p class="mt-1 text-xs text-slate-300">Configured names are used as scheduling dropdown choices.</p>
+                    </div>
+                    <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300" x-text="`${configuredInstructors.length} active`"></span>
+                </div>
+
+                <form action="{{ route('academic.instructors.store') }}"
+                      method="POST"
+                      x-data="dirtyForm()"
+                      class="mt-4 grid gap-3 sm:grid-cols-6"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { configuredInstructors = [data.instructor, ...configuredInstructors.filter((item) => item.id !== data.instructor.id)].sort((a, b) => a.name.localeCompare(b.name)); if (!scheduleInstructorOptions.some((item) => item.toLowerCase() === data.instructor.name.toLowerCase())) scheduleInstructorOptions.push(data.instructor.name); scheduleInstructorOptions.sort(); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Instructor saved', `${data.instructor.name} is now available for scheduling.`); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
+                    @csrf
+                    <select name="title"
+                            required
+                            class="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2">
+                        @foreach($instructorTitleOptions as $title)
+                            <option value="{{ $title }}">{{ $title }}</option>
+                        @endforeach
+                    </select>
+                    <input name="first_name"
+                           required
+                           placeholder="First name"
+                           autocomplete="off"
+                           class="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-4">
+                    <input name="middle_initial"
+                           maxlength="10"
+                           placeholder="M.I. (optional)"
+                           autocomplete="off"
+                           class="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2">
+                    <input name="last_name"
+                           required
+                           placeholder="Last name"
+                           autocomplete="off"
+                           class="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-4">
+                    <button :disabled="!dirty"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60 sm:col-span-6">
+                        <i data-lucide="plus" class="h-4 w-4"></i>
+                        Save Instructor
+                    </button>
+                </form>
+
+                <div class="mt-4 max-h-[330px] overflow-auto rounded-2xl border border-white/10">
+                    <template x-for="instructor in configuredInstructors" :key="`configured-instructor-${instructor.id}`">
+                        <div class="border-b border-white/10 px-4 py-3 last:border-b-0">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-white" x-text="instructor.name"></p>
+                                    <p class="mt-0.5 text-xs text-slate-400" x-text="[instructor.first_name, instructor.middle_initial, instructor.last_name].filter(Boolean).join(' ')"></p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                            x-show="editingInstructor !== instructor.id && confirmingInstructorRemoval !== instructor.id"
+                                            @click="editingInstructor = instructor.id; confirmingInstructorRemoval = null"
+                                            class="rounded-lg border border-blue-300/20 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-100 transition hover:bg-blue-500/20">
+                                        Edit
+                                    </button>
+                                    <button type="button"
+                                            x-show="editingInstructor !== instructor.id && confirmingInstructorRemoval !== instructor.id"
+                                            @click="confirmingInstructorRemoval = instructor.id"
+                                            class="rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                            <form :action="`{{ url('/academic-configuration/instructors') }}/${instructor.id}`"
+                                  method="POST"
+                                  x-show="editingInstructor === instructor.id"
+                                  x-cloak
+                                  x-data="dirtyForm()"
+                                  class="mt-3 grid gap-3 rounded-2xl border border-blue-300/20 bg-blue-500/10 p-3 sm:grid-cols-6"
+                                  @submit.prevent="submitAcademicForm($event.target)
+                                      .then((data) => { const oldName = data.old_name || instructor.name; configuredInstructors = [data.instructor, ...configuredInstructors.filter((item) => item.id !== data.instructor.id)].sort((a, b) => a.name.localeCompare(b.name)); scheduleInstructorOptions = scheduleInstructorOptions.filter((item) => item.toLowerCase() !== oldName.toLowerCase()); if (!scheduleInstructorOptions.some((item) => item.toLowerCase() === data.instructor.name.toLowerCase())) scheduleInstructorOptions.push(data.instructor.name); scheduleInstructorOptions.sort(); scheduleRows = scheduleRows.map((schedule) => schedule.instructor === oldName ? { ...schedule, instructor: data.instructor.name } : schedule); addedSchedules = addedSchedules.map((schedule) => schedule.instructor === oldName ? { ...schedule, instructor: data.instructor.name } : schedule); editingInstructor = null; markClean(); showToast('success', 'Instructor updated', `${data.instructor.name} was saved.`); })
+                                      .catch((error) => showToast('error', 'Update failed', error.message))">
+                                @csrf
+                                @method('PUT')
+                                <select name="title"
+                                        required
+                                        class="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-2">
+                                    @foreach($instructorTitleOptions as $title)
+                                        <option value="{{ $title }}" :selected="instructor.title === '{{ $title }}'">{{ $title }}</option>
+                                    @endforeach
+                                </select>
+                                <input name="first_name"
+                                       required
+                                       :value="instructor.first_name"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-4">
+                                <input name="middle_initial"
+                                       maxlength="10"
+                                       :value="instructor.middle_initial"
+                                       placeholder="M.I. (optional)"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-2">
+                                <input name="last_name"
+                                       required
+                                       :value="instructor.last_name"
+                                       class="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:col-span-4">
+                                <div class="flex justify-end gap-2 sm:col-span-6">
+                                    <button type="button"
+                                            @click="editingInstructor = null"
+                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                        Cancel
+                                    </button>
+                                    <button :disabled="!dirty"
+                                            class="rounded-lg bg-[#1552d4] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                            <form :action="`{{ url('/academic-configuration/instructors') }}/${instructor.id}`"
+                                  method="POST"
+                                  x-show="confirmingInstructorRemoval === instructor.id"
+                                  x-cloak
+                                  class="mt-3 flex items-center justify-end gap-2 rounded-2xl border border-red-300/20 bg-red-500/10 p-3"
+                                  @submit.prevent="deleteSubject($event.target)
+                                      .then(() => { configuredInstructors = configuredInstructors.filter((item) => item.id !== instructor.id); scheduleInstructorOptions = scheduleInstructorOptions.filter((item) => item.toLowerCase() !== instructor.name.toLowerCase()); confirmingInstructorRemoval = null; showToast('success', 'Instructor removed', `${instructor.name} was removed from scheduling options.`); })
+                                      .catch((error) => showToast('error', 'Remove failed', error.message))">
+                                @csrf
+                                @method('DELETE')
+                                <span class="mr-auto text-xs font-semibold text-red-100">Remove this instructor from scheduling options?</span>
+                                <button type="button"
+                                        @click="confirmingInstructorRemoval = null"
+                                        class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                    Cancel
+                                </button>
+                                <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                    Confirm
+                                </button>
+                            </form>
+                        </div>
+                    </template>
+                    <p x-show="configuredInstructors.length === 0" class="px-4 py-8 text-center text-sm text-slate-300">No instructors configured yet.</p>
+                </div>
+            </div>
+
+            <div class="col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="font-extrabold text-white">Rooms</h3>
+                        <p class="mt-1 text-xs text-slate-300">Active rooms are used as scheduling dropdown choices.</p>
+                    </div>
+                    <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-slate-300" x-text="`${configuredRooms.length} active`"></span>
+                </div>
+
+                <form action="{{ route('academic.rooms.store') }}"
+                      method="POST"
+                      x-data="dirtyForm()"
+                      class="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]"
+                      @submit.prevent="submitAcademicForm($event.target)
+                          .then((data) => { const room = data.room; configuredRooms = [room, ...configuredRooms.filter((item) => item.id !== room.id)].sort((a, b) => a.name.localeCompare(b.name)); if (!addedRooms.some((item) => item.id === room.id)) addedRooms.push(room); $event.target.reset(); $nextTick(() => markClean()); showToast('success', 'Room saved', `${room.name} is now available for scheduling.`); })
+                          .catch((error) => showToast('error', 'Save failed', error.message))">
+                    @csrf
+                    <input name="name"
+                           required
+                           placeholder="Room name"
+                           autocomplete="off"
+                           class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <button :disabled="!dirty"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1552d4] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f43b0] disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:opacity-60">
+                        <i data-lucide="plus" class="h-4 w-4"></i>
+                        Save Room
+                    </button>
+                </form>
+
+                <div class="mt-4 max-h-[330px] overflow-auto rounded-2xl border border-white/10">
+                    <template x-for="room in configuredRooms" :key="`configured-room-${room.id}`">
+                        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 last:border-b-0">
+                            <p class="text-sm font-semibold text-white" x-text="room.name"></p>
+                            <form :action="`{{ url('/academic-configuration/rooms') }}/${room.id}`"
+                                  method="POST"
+                                  @submit.prevent="deleteSubject($event.target)
+                                      .then(() => { configuredRooms = configuredRooms.filter((item) => item.id !== room.id); addedRooms = addedRooms.filter((item) => item.id !== room.id); confirmingRoomRemoval = null; showToast('success', 'Room removed', `${room.name} was removed from scheduling options.`); })
+                                      .catch((error) => showToast('error', 'Remove failed', error.message))">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button"
+                                        x-show="confirmingRoomRemoval !== room.id"
+                                        @click="confirmingRoomRemoval = room.id"
+                                        class="rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/20">
+                                    Remove
+                                </button>
+                                <div x-show="confirmingRoomRemoval === room.id" x-cloak class="flex items-center gap-2">
+                                    <button type="button"
+                                            @click="confirmingRoomRemoval = null"
+                                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">
+                                        Cancel
+                                    </button>
+                                    <button class="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600">
+                                        Confirm
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+                    <p x-show="configuredRooms.length === 0" class="px-4 py-8 text-center text-sm text-slate-300">No rooms configured yet.</p>
                 </div>
             </div>
         </section>

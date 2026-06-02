@@ -743,9 +743,9 @@
                         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                             <select name="instructor" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <option value="">Select instructor</option>
-                                @foreach($scheduleInstructorOptions as $instructor)
-                                    <option value="{{ $instructor }}">{{ $instructor }}</option>
-                                @endforeach
+                                <template x-for="instructor in scheduleInstructorOptions" :key="`faculty-report-instructor-${instructor}`">
+                                    <option :value="instructor" x-text="instructor"></option>
+                                </template>
                             </select>
                             <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <option value="">Semester</option>
@@ -768,9 +768,9 @@
                         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                             <select name="room_name" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <option value="">Select room</option>
-                                @foreach($currentScheduleRooms as $room)
-                                    <option value="{{ $room->name }}">{{ $room->name }}</option>
-                                @endforeach
+                                <template x-for="room in addedRooms" :key="`room-report-option-${room.id}`">
+                                    <option :value="room.name" x-text="room.name"></option>
+                                </template>
                             </select>
                             <select name="semester" required class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                                 <option value="">Semester</option>
@@ -851,6 +851,18 @@
             refreshDirty() {
                 this.dirty = this.snapshot() !== this.initialSnapshot;
             },
+            requiredComplete() {
+                if (!(this.$el instanceof HTMLFormElement)) return true;
+
+                return [...this.$el.querySelectorAll('[required]')].every((field) => {
+                    if (field.disabled) return true;
+                    if (field.type === 'checkbox' || field.type === 'radio') {
+                        return this.$el.querySelectorAll(`[name="${CSS.escape(field.name)}"]:checked`).length > 0;
+                    }
+
+                    return String(field.value || '').trim() !== '';
+                });
+            },
             markClean() {
                 this.initialSnapshot = this.snapshot();
                 this.dirty = false;
@@ -916,7 +928,7 @@
             scheduleSubjectOptions: @json($scheduleSubjectOptions),
             addedSubjects: [],
             addedDays: [],
-            addedRooms: [],
+            addedRooms: @json($scheduleRoomOptions),
             addedTimeSlots: [],
             addedSchedules: [],
             scheduleInstructorOptions: @json($scheduleInstructorOptions),
@@ -1209,11 +1221,19 @@
 
                 return response.json();
             },
-            async submitScheduleForm(form, overwrite = false) {
+            async submitScheduleForm(form, overwrite = false, merge = false, additional = false) {
                 const formData = new FormData(form);
 
                 if (overwrite) {
                     formData.set('overwrite_schedule', '1');
+                }
+
+                if (merge) {
+                    formData.set('merge_schedule', '1');
+                }
+
+                if (additional) {
+                    formData.set('additional_schedule', '1');
                 }
 
                 const response = await fetch(form.action, {
@@ -1229,6 +1249,21 @@
                 if (response.status === 409 && data.requires_confirmation) {
                     const error = new Error(this.responseErrorMessage(data, 'This subject already has a schedule.'));
                     error.requiresScheduleOverwrite = true;
+                    error.schedule = data.schedule || null;
+                    throw error;
+                }
+
+                if (response.status === 409 && data.requires_additional_confirmation) {
+                    const error = new Error(this.responseErrorMessage(data, 'This subject already has a schedule.'));
+                    error.requiresAdditionalSchedule = true;
+                    error.schedule = data.schedule || null;
+                    throw error;
+                }
+
+                if (response.status === 409 && data.requires_merge_confirmation) {
+                    const error = new Error(this.responseErrorMessage(data, 'This class can share the current schedule.'));
+                    error.requiresScheduleMerge = true;
+                    error.currentScheduledClass = data.current_scheduled_class || '';
                     error.schedule = data.schedule || null;
                     throw error;
                 }
@@ -1454,11 +1489,6 @@
                         this.scheduleForOptions.sort();
                     }
 
-                    const instructor = (schedule.instructor || '').trim();
-                    if (instructor && !this.scheduleInstructorOptions.some((item) => item.toLowerCase() === instructor.toLowerCase())) {
-                        this.scheduleInstructorOptions.push(instructor);
-                        this.scheduleInstructorOptions.sort();
-                    }
                 });
                 this.scheduleCount = (this.scheduleRows || []).length + (this.addedSchedules || []).length;
             },

@@ -11,6 +11,7 @@ use App\Models\DepartmentHead;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
 use App\Models\IdTemplate;
+use App\Models\Instructor;
 use App\Models\Room;
 use App\Models\StudentId;
 use App\Models\Subject;
@@ -118,25 +119,27 @@ class DashboardController extends Controller
             ->orderBy('code')
             ->get();
         $days = Day::orderBy('sort_order')->orderBy('name')->get();
-        $rooms = Room::orderBy('name')->get();
+        $rooms = Room::where('is_active', true)->orderBy('name')->get();
+        $instructors = Instructor::where('is_active', true)->orderBy('name')->get();
         $timeSlots = TimeSlot::orderBy('start_time')->get();
         $subjectSchedules = $this->activeScheduleQuery($academicYear)
             ->with(['subject', 'day', 'timeSlot', 'room'])
             ->latest()
             ->get();
-        $currentScheduleRooms = $subjectSchedules
-            ->pluck('room')
-            ->filter()
-            ->unique('id')
-            ->sortBy('name')
-            ->values();
-        $scheduleInstructorOptions = $subjectSchedules
-            ->pluck('instructor')
-            ->map(fn ($instructor) => trim((string) $instructor))
-            ->filter()
-            ->unique(fn ($instructor) => strtolower($instructor))
-            ->sort()
-            ->values();
+        $currentScheduleRooms = $rooms;
+        $scheduleRoomOptions = $currentScheduleRooms->map(fn (Room $room) => [
+            'id' => $room->id,
+            'name' => $room->name,
+        ])->values();
+        $instructorOptions = $instructors->map(fn (Instructor $instructor) => [
+            'id' => $instructor->id,
+            'title' => $instructor->title,
+            'first_name' => $instructor->first_name,
+            'middle_initial' => $instructor->middle_initial,
+            'last_name' => $instructor->last_name,
+            'name' => $instructor->name,
+        ])->values();
+        $scheduleInstructorOptions = $instructors->pluck('name')->values();
         $scheduleForOptions = $subjectSchedules
             ->pluck('schedule_for')
             ->map(fn ($scheduleFor) => trim((string) $scheduleFor))
@@ -273,7 +276,10 @@ class DashboardController extends Controller
             'subjects',
             'days',
             'rooms',
+            'instructors',
+            'instructorOptions',
             'currentScheduleRooms',
+            'scheduleRoomOptions',
             'timeSlots',
             'scheduleInstructorOptions',
             'scheduleForOptions',

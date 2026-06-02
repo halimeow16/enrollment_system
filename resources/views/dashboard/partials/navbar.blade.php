@@ -13,6 +13,8 @@
             ownUpdateUrl: @js(route('account.update')),
             accountsStoreUrl: @js(route('accounts.store')),
             accountsBaseUrl: @js(url('/accounts')),
+            databaseExportUrl: @js(route('account.database.export')),
+            databaseImportUrl: @js(route('account.database.import')),
             isAdmin: @js(auth()->user()?->user_type === 'admin'),
         })"
         @dashboard-tab-changed.window="activeTab = $event.detail.tab"
@@ -158,6 +160,14 @@
                                 class="flex w-full items-center gap-2 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition">
                             <i data-lucide="users-round" class="h-4 w-4"></i>
                             Accounts
+                        </button>
+                        <button type="button"
+                                x-show="isAdmin"
+                                @click="settingsTab = 'database'"
+                                :class="settingsTab === 'database' ? 'bg-blue-500/20 text-blue-100 border-blue-300/20' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'"
+                                class="flex w-full items-center gap-2 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition">
+                            <i data-lucide="database" class="h-4 w-4"></i>
+                            Database
                         </button>
                     </div>
                 </aside>
@@ -306,6 +316,74 @@
                             </div>
                         </div>
                     </section>
+
+                    <section x-show="settingsTab === 'database' && isAdmin" x-cloak class="space-y-5">
+                        <form @submit.prevent="exportDatabase($event.target)"
+                              class="rounded-3xl border border-white/10 bg-white/5 p-5">
+                            @csrf
+                            <div class="mb-5">
+                                <h3 class="font-extrabold text-white">Database Export</h3>
+                                <p class="mt-1 text-xs text-slate-400">Download an encrypted backup file for this system.</p>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                                <label class="text-xs font-semibold text-slate-300">
+                                    Confirm Password
+                                    <input type="password"
+                                           name="password"
+                                           required
+                                           autocomplete="current-password"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-blue-300/40">
+                                </label>
+                                <button type="submit"
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                                    <i data-lucide="download" class="h-4 w-4"></i>
+                                    Export
+                                </button>
+                            </div>
+                        </form>
+
+                        <form @submit.prevent="restoreDatabase($event.target)"
+                              class="rounded-3xl border border-red-300/20 bg-red-500/10 p-5">
+                            @csrf
+                            <div class="mb-5">
+                                <h3 class="font-extrabold text-red-100">Database Upload</h3>
+                                <p class="mt-1 text-xs text-red-100/75">Uploading a backup will replace all current application data with the uploaded data.</p>
+                            </div>
+
+                            <div class="grid gap-4">
+                                <label class="text-xs font-semibold text-slate-300">
+                                    Encrypted Backup File
+                                    <input type="file"
+                                           name="backup_file"
+                                           required
+                                           accept=".esbackup,application/octet-stream"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white file:mr-4 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-bold file:text-slate-900">
+                                </label>
+                                <label class="text-xs font-semibold text-slate-300">
+                                    Confirm Password
+                                    <input type="password"
+                                           name="password"
+                                           required
+                                           autocomplete="current-password"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-300/40">
+                                </label>
+                                <label class="flex items-start gap-3 rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-xs font-semibold text-red-100">
+                                    <input type="checkbox"
+                                           name="replace_confirmation"
+                                           value="1"
+                                           required
+                                           class="mt-0.5 h-4 w-4 rounded border-red-200 text-red-500">
+                                    <span>I understand that all current data will be replaced with the uploaded backup data.</span>
+                                </label>
+                                <button type="submit"
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-600">
+                                    <i data-lucide="upload" class="h-4 w-4"></i>
+                                    Upload and Replace
+                                </button>
+                            </div>
+                        </form>
+                    </section>
                 </div>
             </div>
         </div>
@@ -449,6 +527,8 @@
             ownUpdateUrl: config.ownUpdateUrl,
             accountsStoreUrl: config.accountsStoreUrl,
             accountsBaseUrl: config.accountsBaseUrl,
+            databaseExportUrl: config.databaseExportUrl,
+            databaseImportUrl: config.databaseImportUrl,
             logsUrl: config.logsUrl,
             isAdmin: config.isAdmin,
             responseErrorMessage(data, fallback) {
@@ -661,6 +741,49 @@
                     this.toast('success', 'Account removed', 'The account was removed.');
                 } catch (error) {
                     this.toast('error', 'Remove failed', error.message);
+                }
+            },
+            async exportDatabase(form) {
+                try {
+                    const response = await fetch(this.databaseExportUrl, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'Accept': 'application/octet-stream,application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (! response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        throw new Error(this.responseErrorMessage(data, 'Unable to export database. Please confirm your password and try again.'));
+                    }
+
+                    const blob = await response.blob();
+                    const disposition = response.headers.get('content-disposition') || '';
+                    const fileName = disposition.match(/filename="?([^"]+)"?/i)?.[1] || 'enrollment-system.esbackup';
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                    form.reset();
+                    this.toast('success', 'Database exported', 'Encrypted backup downloaded.');
+                } catch (error) {
+                    this.toast('error', 'Export failed', error.message);
+                }
+            },
+            async restoreDatabase(form) {
+                try {
+                    const data = await this.requestJson(this.databaseImportUrl, form, 'POST');
+                    form.reset();
+                    this.toast('success', 'Database restored', data.message || 'The encrypted backup was restored.');
+                    window.setTimeout(() => window.location.reload(), 1200);
+                } catch (error) {
+                    this.toast('error', 'Restore failed', error.message);
                 }
             },
             upsertUser(user) {

@@ -11,6 +11,7 @@ use App\Models\Enrollment;
 use App\Models\EnrollmentTemplate;
 use App\Models\FeeConfiguration;
 use App\Models\IdTemplate;
+use App\Models\Instructor;
 use App\Models\Room;
 use App\Models\Subject;
 use App\Models\SubjectSchedule;
@@ -156,21 +157,108 @@ class AcademicConfigurationController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
-            'building' => ['nullable', 'string', 'max:80'],
-            'capacity' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $room = Room::updateOrCreate(['name' => $data['name']], $data + ['is_active' => true]);
-        ActivityLog::record('schedule_room_saved', $room, [], $room->only(['name', 'building', 'capacity', 'is_active']), $request);
+        ActivityLog::record('schedule_room_saved', $room, [], $room->only(['name', 'is_active']), $request);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => 'Room saved.',
-                'room' => ['id' => $room->id, 'name' => $room->name],
+                'room' => [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                ],
             ]);
         }
 
         return back()->with('success', 'Room saved.');
+    }
+
+    public function destroyRoom(Request $request, Room $room): RedirectResponse|JsonResponse
+    {
+        $oldValues = $room->only(['name', 'is_active']);
+        $room->update(['is_active' => false]);
+        ActivityLog::record('schedule_room_removed', $room, $oldValues, $room->fresh()->only(['name', 'is_active']), $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Room removed.',
+                'room_id' => $room->id,
+            ]);
+        }
+
+        return back()->with('success', 'Room removed.');
+    }
+
+    public function storeInstructor(Request $request): RedirectResponse|JsonResponse
+    {
+        $data = $this->validateInstructor($request);
+        $data['name'] = Instructor::displayName($data);
+        $this->ensureUniqueInstructorName($data['name'], activeOnly: true);
+
+        $instructor = Instructor::updateOrCreate(['name' => $data['name']], $data + ['is_active' => true]);
+        ActivityLog::record('schedule_instructor_saved', $instructor, [], $instructor->only([
+            'title', 'first_name', 'middle_initial', 'last_name', 'name', 'is_active',
+        ]), $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Instructor saved.',
+                'instructor' => $this->instructorPayload($instructor),
+            ], 201);
+        }
+
+        return back()->with('success', 'Instructor saved.');
+    }
+
+    public function updateInstructor(Request $request, Instructor $instructor): RedirectResponse|JsonResponse
+    {
+        $data = $this->validateInstructor($request);
+        $data['name'] = Instructor::displayName($data);
+        $this->ensureUniqueInstructorName($data['name'], $instructor);
+
+        $oldName = $instructor->name;
+        $oldValues = $instructor->only(['title', 'first_name', 'middle_initial', 'last_name', 'name', 'is_active']);
+        $instructor->update($data + ['is_active' => true]);
+
+        if ($oldName !== $instructor->name) {
+            SubjectSchedule::where('instructor', $oldName)
+                ->whereNull('archived_at')
+                ->update(['instructor' => $instructor->name]);
+        }
+
+        ActivityLog::record('schedule_instructor_updated', $instructor, $oldValues, $instructor->fresh()->only([
+            'title', 'first_name', 'middle_initial', 'last_name', 'name', 'is_active',
+        ]), $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Instructor updated.',
+                'instructor' => $this->instructorPayload($instructor->fresh()),
+                'old_name' => $oldName,
+            ]);
+        }
+
+        return back()->with('success', 'Instructor updated.');
+    }
+
+    public function destroyInstructor(Request $request, Instructor $instructor): RedirectResponse|JsonResponse
+    {
+        $oldValues = $instructor->only(['title', 'first_name', 'middle_initial', 'last_name', 'name', 'is_active']);
+        $instructor->update(['is_active' => false]);
+        ActivityLog::record('schedule_instructor_removed', $instructor, $oldValues, $instructor->fresh()->only([
+            'title', 'first_name', 'middle_initial', 'last_name', 'name', 'is_active',
+        ]), $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Instructor removed.',
+                'instructor_id' => $instructor->id,
+            ]);
+        }
+
+        return back()->with('success', 'Instructor removed.');
     }
 
     public function storeTimeSlot(Request $request): RedirectResponse|JsonResponse
@@ -210,8 +298,8 @@ class AcademicConfigurationController extends Controller
             'day_ids.*' => ['required', 'exists:days,id'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'room_name' => ['required', 'string', 'max:80'],
-            'instructor' => ['required', 'string', 'max:120'],
+            'room_name' => ['required', 'string', 'max:80', Rule::exists('rooms', 'name')->where('is_active', true)],
+            'instructor' => ['required', 'string', 'max:120', Rule::exists('instructors', 'name')->where('is_active', true)],
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
             'schedule_for' => ['nullable', 'string', 'max:80'],
         ]);
@@ -230,10 +318,7 @@ class AcademicConfigurationController extends Controller
                 'is_active' => true,
             ]
         );
-        $room = Room::updateOrCreate(
-            ['name' => trim($data['room_name'])],
-            ['is_active' => true]
-        );
+        $room = Room::where('name', trim($data['room_name']))->where('is_active', true)->firstOrFail();
         $existingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $data['subject_id'])
             ->where('schedule_type', $data['schedule_type'])
@@ -243,20 +328,8 @@ class AcademicConfigurationController extends Controller
             ->get();
         $existingSchedule = $existingSchedules->first();
         $shouldOverwrite = $request->boolean('overwrite_schedule');
-
-        if ($existingSchedule && ! $shouldOverwrite) {
-            $message = $this->subjectScheduleLabel($subject, $data['schedule_type']) . " for {$data['schedule_for']} already has a schedule. Do you want to replace it?";
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => $message,
-                    'requires_confirmation' => true,
-                    'schedule' => $this->schedulePayload($existingSchedule),
-                ], 409);
-            }
-
-            return back()->withErrors(['schedule' => $message])->withInput();
-        }
+        $shouldMerge = $request->boolean('merge_schedule');
+        $shouldAddAdditional = $request->boolean('additional_schedule');
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->when($existingSchedules->isNotEmpty() && $shouldOverwrite, fn ($query) => $query->whereNotIn('id', $existingSchedules->pluck('id')))
@@ -269,10 +342,38 @@ class AcademicConfigurationController extends Controller
             })
             ->get();
 
+        $mergeCandidates = $overlappingSchedules
+            ->filter(fn (SubjectSchedule $schedule) => $this->isScheduleMergeCandidate($schedule, $subject, $data, $room, $timeSlot))
+            ->values();
+
+        if ($mergeCandidates->isNotEmpty() && ! $shouldMerge) {
+            $currentScheduledClasses = $mergeCandidates
+                ->map(fn (SubjectSchedule $schedule) => $this->scheduleClassLabel($schedule))
+                ->unique()
+                ->values()
+                ->implode(', ');
+            $message = "This schedule matches {$currentScheduledClasses}. Type merge to combine this class with the current scheduled class.";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'requires_merge_confirmation' => true,
+                    'current_scheduled_class' => $currentScheduledClasses,
+                    'schedule' => $this->schedulePayload($mergeCandidates->first()),
+                ], 409);
+            }
+
+            return back()->withErrors(['schedule' => $message])->withInput();
+        }
+
         $conflicts = $overlappingSchedules
-            ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room) {
+            ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room, $timeSlot, $shouldMerge) {
                 $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
                 $existingSubjectLabel = $this->subjectScheduleLabel($schedule->subject, $schedule->schedule_type);
+
+                if ($shouldMerge && $this->isScheduleMergeCandidate($schedule, $subject, $data, $room, $timeSlot)) {
+                    return null;
+                }
 
                 if ((int) $schedule->room_id === (int) $room->id) {
                     return "Room {$schedule->room->name} is already used by {$existingSubjectLabel}.";
@@ -317,6 +418,20 @@ class AcademicConfigurationController extends Controller
             return back()->withErrors(['schedule' => $conflicts->implode(' ')])->withInput();
         }
 
+        if ($existingSchedule && ! $shouldOverwrite && ! $shouldAddAdditional) {
+            $message = $this->subjectScheduleLabel($subject, $data['schedule_type']) . " for {$data['schedule_for']} already has a schedule. Add this as another meeting or replace the existing schedule?";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'requires_additional_confirmation' => true,
+                    'schedule' => $this->schedulePayload($existingSchedule),
+                ], 409);
+            }
+
+            return back()->withErrors(['schedule' => $message])->withInput();
+        }
+
         $removedScheduleIds = [];
         if ($existingSchedules->isNotEmpty() && $shouldOverwrite) {
             $oldValues = $existingSchedules->map(fn (SubjectSchedule $schedule) => [
@@ -333,6 +448,20 @@ class AcademicConfigurationController extends Controller
             $message = 'Schedule replaced.';
             $statusCode = 200;
             $logAction = 'subject_schedule_replaced';
+        } elseif ($mergeCandidates->isNotEmpty() && $shouldMerge) {
+            $oldValues = $mergeCandidates->map(fn (SubjectSchedule $schedule) => [
+                'subject' => $schedule->subject->code,
+                'class' => $this->scheduleClassLabel($schedule),
+                'day' => $schedule->day->name,
+                'time' => $this->scheduleTimeLabel($schedule),
+                'room' => $schedule->room->name,
+                'instructor' => $schedule->instructor,
+                'schedule_type' => $schedule->schedule_type,
+                'schedule_for' => $schedule->schedule_for,
+            ])->values()->all();
+            $message = 'Schedule merged.';
+            $statusCode = 201;
+            $logAction = 'subject_schedule_merged';
         } else {
             $oldValues = [];
             $message = 'Schedule assigned.';
@@ -340,7 +469,11 @@ class AcademicConfigurationController extends Controller
             $logAction = 'subject_schedule_assigned';
         }
 
-        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room) {
+        $unitValue = $existingSchedules->isNotEmpty() && $shouldAddAdditional
+            ? $this->prepareAdditionalScheduleUnits($existingSchedules, $subject, $data['schedule_type'])
+            : $this->initialScheduleUnitValue($subject, $data['schedule_type'], $timeSlot);
+
+        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room, $unitValue) {
             return SubjectSchedule::create([
                 'subject_id' => $data['subject_id'],
                 'day_id' => $dayId,
@@ -349,6 +482,7 @@ class AcademicConfigurationController extends Controller
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
                 'schedule_for' => $data['schedule_for'],
+                'unit_value' => $unitValue,
                 'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
@@ -371,6 +505,8 @@ class AcademicConfigurationController extends Controller
                 'schedules' => $schedules->map(fn (SubjectSchedule $schedule) => $this->schedulePayload($schedule))->values(),
                 'removed_schedule_ids' => $removedScheduleIds,
                 'overwritten' => $existingSchedules->isNotEmpty() && $shouldOverwrite,
+                'additional' => $existingSchedules->isNotEmpty() && $shouldAddAdditional,
+                'merged' => $mergeCandidates->isNotEmpty() && $shouldMerge,
                 'room' => [
                     'id' => $room->id,
                     'name' => $room->name,
@@ -393,14 +529,15 @@ class AcademicConfigurationController extends Controller
             'day_ids.*' => ['required', 'exists:days,id'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'room_name' => ['required', 'string', 'max:80'],
-            'instructor' => ['required', 'string', 'max:120'],
+            'room_name' => ['required', 'string', 'max:80', Rule::exists('rooms', 'name')->where('is_active', true)],
+            'instructor' => ['required', 'string', 'max:120', Rule::exists('instructors', 'name')->where('is_active', true)],
             'schedule_type' => ['required', Rule::in(['LEC', 'LAB'])],
             'schedule_for' => ['nullable', 'string', 'max:80'],
         ]);
         $dayIds = collect($data['day_ids'])->map(fn ($dayId) => (int) $dayId)->unique()->values();
         $data['schedule_for'] = $this->normalizeScheduleFor($data['schedule_for'] ?? null);
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
+        $shouldMerge = $request->boolean('merge_schedule');
 
         $subject = Subject::findOrFail($data['subject_id']);
         $schedule->load(['subject', 'day', 'timeSlot', 'room']);
@@ -408,6 +545,9 @@ class AcademicConfigurationController extends Controller
             ->where('subject_id', $schedule->subject_id)
             ->where('schedule_type', $schedule->schedule_type)
             ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
+            ->where('time_slot_id', $schedule->time_slot_id)
+            ->where('room_id', $schedule->room_id)
+            ->where('instructor', $schedule->instructor)
             ->whereNull('archived_at')
             ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
             ->get();
@@ -422,10 +562,7 @@ class AcademicConfigurationController extends Controller
                 'is_active' => true,
             ]
         );
-        $room = Room::updateOrCreate(
-            ['name' => trim($data['room_name'])],
-            ['is_active' => true]
-        );
+        $room = Room::where('name', trim($data['room_name']))->where('is_active', true)->firstOrFail();
 
         $overlappingSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->whereNotIn('id', $relatedScheduleIds)
@@ -438,10 +575,38 @@ class AcademicConfigurationController extends Controller
             })
             ->get();
 
+        $mergeCandidates = $overlappingSchedules
+            ->filter(fn (SubjectSchedule $existingSchedule) => $this->isScheduleMergeCandidate($existingSchedule, $subject, $data, $room, $timeSlot))
+            ->values();
+
+        if ($mergeCandidates->isNotEmpty() && ! $shouldMerge) {
+            $currentScheduledClasses = $mergeCandidates
+                ->map(fn (SubjectSchedule $existingSchedule) => $this->scheduleClassLabel($existingSchedule))
+                ->unique()
+                ->values()
+                ->implode(', ');
+            $message = "This schedule matches {$currentScheduledClasses}. Type merge to combine this class with the current scheduled class.";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'requires_merge_confirmation' => true,
+                    'current_scheduled_class' => $currentScheduledClasses,
+                    'schedule' => $this->schedulePayload($mergeCandidates->first()),
+                ], 409);
+            }
+
+            return back()->withErrors(['schedule' => $message])->withInput();
+        }
+
         $conflicts = $overlappingSchedules
-            ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room) {
+            ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room, $timeSlot, $shouldMerge) {
                 $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
                 $existingSubjectLabel = $this->subjectScheduleLabel($existingSchedule->subject, $existingSchedule->schedule_type);
+
+                if ($shouldMerge && $this->isScheduleMergeCandidate($existingSchedule, $subject, $data, $room, $timeSlot)) {
+                    return null;
+                }
 
                 if ((int) $existingSchedule->room_id === (int) $room->id) {
                     return "Room {$existingSchedule->room->name} is already used by {$existingSubjectLabel}.";
@@ -495,10 +660,15 @@ class AcademicConfigurationController extends Controller
             'schedule_type' => $schedule->schedule_type,
             'schedule_for' => $schedule->schedule_for,
         ])->values()->all();
+        $message = $mergeCandidates->isNotEmpty() && $shouldMerge ? 'Schedule merged.' : 'Schedule updated.';
+        $logAction = $mergeCandidates->isNotEmpty() && $shouldMerge ? 'subject_schedule_merged' : 'subject_schedule_updated';
         $removedScheduleIds = $relatedScheduleIds->values()->all();
         SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
 
-        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room) {
+        $unitValue = $relatedSchedules->pluck('unit_value')->filter(fn ($value) => $value !== null)->first()
+            ?? $this->initialScheduleUnitValue($subject, $data['schedule_type'], $timeSlot);
+
+        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room, $unitValue) {
             return SubjectSchedule::create([
                 'subject_id' => $data['subject_id'],
                 'day_id' => $dayId,
@@ -507,12 +677,13 @@ class AcademicConfigurationController extends Controller
                 'instructor' => $data['instructor'],
                 'schedule_type' => $data['schedule_type'],
                 'schedule_for' => $data['schedule_for'],
+                'unit_value' => $unitValue,
                 'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
             ])->load(['subject', 'day', 'timeSlot', 'room']);
         });
         $schedule = $schedules->first();
 
-        ActivityLog::record('subject_schedule_updated', $schedule, $oldValues, [
+        ActivityLog::record($logAction, $schedule, $oldValues, [
             'subject' => $schedule->subject->code,
             'days' => $schedules->pluck('day.name')->implode(', '),
             'time' => $this->scheduleTimeLabel($schedule),
@@ -524,10 +695,11 @@ class AcademicConfigurationController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Schedule updated.',
+                'message' => $message,
                 'schedule' => $this->schedulePayload($schedule),
                 'schedules' => $schedules->map(fn (SubjectSchedule $schedule) => $this->schedulePayload($schedule))->values(),
                 'removed_schedule_ids' => $removedScheduleIds,
+                'merged' => $mergeCandidates->isNotEmpty() && $shouldMerge,
                 'room' => [
                     'id' => $room->id,
                     'name' => $room->name,
@@ -539,7 +711,7 @@ class AcademicConfigurationController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Schedule updated.');
+        return back()->with('success', $message);
     }
 
     public function destroySchedule(Request $request, SubjectSchedule $schedule): RedirectResponse|JsonResponse
@@ -1114,6 +1286,30 @@ class AcademicConfigurationController extends Controller
         ]);
     }
 
+    private function validateInstructor(Request $request): array
+    {
+        return $request->validate([
+            'title' => ['required', Rule::in(['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Engr.', 'Mx.'])],
+            'first_name' => ['required', 'string', 'max:80'],
+            'middle_initial' => ['nullable', 'string', 'max:10'],
+            'last_name' => ['required', 'string', 'max:80'],
+        ]);
+    }
+
+    private function ensureUniqueInstructorName(string $name, ?Instructor $instructor = null, bool $activeOnly = false): void
+    {
+        $exists = Instructor::where('name', $name)
+            ->when($instructor, fn ($query) => $query->whereKeyNot($instructor->id))
+            ->when($activeOnly, fn ($query) => $query->where('is_active', true))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'first_name' => 'An instructor with this full name already exists.',
+            ]);
+        }
+    }
+
     private function subjectPayload(Subject $subject): array
     {
         return [
@@ -1127,6 +1323,18 @@ class AcademicConfigurationController extends Controller
             'lecture_units' => (int) $subject->lecture_units,
             'laboratory_units' => (int) $subject->laboratory_units,
             'total_units' => (int) $subject->total_units,
+        ];
+    }
+
+    private function instructorPayload(Instructor $instructor): array
+    {
+        return [
+            'id' => $instructor->id,
+            'title' => $instructor->title,
+            'first_name' => $instructor->first_name,
+            'middle_initial' => $instructor->middle_initial,
+            'last_name' => $instructor->last_name,
+            'name' => $instructor->name,
         ];
     }
 
@@ -1191,18 +1399,97 @@ class AcademicConfigurationController extends Controller
         return $schedule->subject->name . ' - ' . $type;
     }
 
+    private function prepareAdditionalScheduleUnits($existingSchedules, Subject $subject, string $scheduleType): int
+    {
+        $baseUnits = $this->subjectScheduleUnitValue($subject, $scheduleType);
+        $usedUnits = $existingSchedules
+            ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
+                $schedule->time_slot_id,
+                $schedule->room_id,
+                strtolower(trim((string) $schedule->instructor)),
+            ]))
+            ->sortBy(fn ($group) => optional($group->first()->created_at)->timestamp ?? 0)
+            ->sum(function ($group): int {
+                $schedule = $group->first();
+                $unitValue = $this->splitMeetingUnitValue($schedule->timeSlot);
+
+                SubjectSchedule::whereIn('id', $group->pluck('id')->all())
+                    ->update(['unit_value' => $unitValue]);
+
+                return $unitValue;
+            });
+
+        return max($baseUnits - $usedUnits, 0);
+    }
+
+    private function initialScheduleUnitValue(Subject $subject, string $scheduleType, TimeSlot $timeSlot): int
+    {
+        return $this->exactHourUnitValue($timeSlot) ?? $this->subjectScheduleUnitValue($subject, $scheduleType);
+    }
+
+    private function splitMeetingUnitValue(?TimeSlot $timeSlot): int
+    {
+        return $this->exactHourUnitValue($timeSlot) ?? 1;
+    }
+
+    private function exactHourUnitValue(?TimeSlot $timeSlot): ?int
+    {
+        if (! $timeSlot?->start_time || ! $timeSlot?->end_time) {
+            return null;
+        }
+
+        $minutes = (strtotime((string) $timeSlot->end_time) - strtotime((string) $timeSlot->start_time)) / 60;
+
+        return match ((int) $minutes) {
+            60 => 1,
+            120 => 2,
+            default => null,
+        };
+    }
+
+    private function subjectScheduleUnitValue(Subject $subject, string $scheduleType): int
+    {
+        return match ($scheduleType) {
+            'LAB' => (int) $subject->laboratory_units,
+            'LEC' => (int) $subject->lecture_units,
+            default => (int) $subject->total_units,
+        };
+    }
+
     private function scheduleUnits(SubjectSchedule $schedule): int
     {
-        return match ($schedule->schedule_type) {
-            'LAB' => (int) $schedule->subject->laboratory_units,
-            'LEC' => (int) $schedule->subject->lecture_units,
-            default => (int) $schedule->subject->total_units,
-        };
+        return $schedule->unit_value ?? $this->subjectScheduleUnitValue($schedule->subject, $schedule->schedule_type);
     }
 
     private function scheduleCourseGroup(SubjectSchedule $schedule): string
     {
         return trim($schedule->subject->course_code . ' ' . $schedule->subject->year_level);
+    }
+
+    private function scheduleClassLabel(SubjectSchedule $schedule): string
+    {
+        return trim(implode('/', array_filter([
+            $schedule->subject->course_code,
+            $schedule->subject->year_level,
+            $schedule->subject->semester,
+            $schedule->schedule_for ?: 'Whole Class',
+        ])));
+    }
+
+    private function isScheduleMergeCandidate(
+        SubjectSchedule $schedule,
+        Subject $subject,
+        array $data,
+        Room $room,
+        TimeSlot $timeSlot
+    ): bool {
+        return (int) $schedule->subject_id !== (int) $subject->id
+            && (int) $schedule->room_id === (int) $room->id
+            && strtolower(trim((string) $schedule->instructor)) === strtolower(trim((string) $data['instructor']))
+            && strtolower(trim((string) $schedule->subject?->code)) === strtolower(trim((string) $subject->code))
+            && ($schedule->schedule_type ?: 'LEC') === ($data['schedule_type'] ?: 'LEC')
+            && (string) $schedule->timeSlot?->start_time === (string) $timeSlot->start_time
+            && (string) $schedule->timeSlot?->end_time === (string) $timeSlot->end_time;
     }
 
     private function subjectScheduleLabel(?Subject $subject, ?string $type): string
@@ -1268,6 +1555,7 @@ class AcademicConfigurationController extends Controller
         return $schedules
             ->sortBy(fn (SubjectSchedule $schedule) => $schedule->day?->sort_order ?? 999)
             ->map(fn (SubjectSchedule $schedule) => $this->scheduleDayLabel($schedule))
+            ->uniqueStrict()
             ->implode('');
     }
 
@@ -1349,7 +1637,7 @@ class AcademicConfigurationController extends Controller
         string $semesterLabel,
         $schedules
     ): string {
-        $scheduleRows = $this->scheduleDocumentRows($schedules);
+        $scheduleRows = $this->mergedScheduleDocumentRows($schedules);
         $logoPath = public_path('images/logo1.png');
         $hasLogo = file_exists($logoPath);
         $docxPath = storage_path('app/instructor-schedule-' . Str::uuid() . '.docx');
@@ -1386,7 +1674,7 @@ class AcademicConfigurationController extends Controller
         string $semesterLabel,
         $schedules
     ): string {
-        $scheduleRows = $this->scheduleDocumentRows($schedules);
+        $scheduleRows = $this->mergedScheduleDocumentRows($schedules);
         $logoPath = public_path('images/logo1.png');
         $hasLogo = file_exists($logoPath);
         $docxPath = storage_path('app/room-schedule-' . Str::uuid() . '.docx');
@@ -1431,6 +1719,29 @@ class AcademicConfigurationController extends Controller
             ->map(fn ($group) => [
                 'schedule' => $group->first(),
                 'day_label' => $this->scheduleDayLabels($group),
+            ])
+            ->values();
+    }
+
+    private function mergedScheduleDocumentRows($schedules)
+    {
+        return $schedules
+            ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
+                strtolower(trim((string) $schedule->subject?->code)),
+                $schedule->schedule_type,
+                $schedule->schedule_for ?: 'Whole Class',
+                $schedule->time_slot_id,
+                $schedule->room_id,
+                strtolower(trim((string) $schedule->instructor)),
+            ]))
+            ->map(fn ($group) => [
+                'schedule' => $group->first(),
+                'day_label' => $this->scheduleDayLabels($group),
+                'course_label' => $group
+                    ->map(fn (SubjectSchedule $schedule) => $this->scheduleCourseGroup($schedule))
+                    ->uniqueStrict()
+                    ->values()
+                    ->implode('/'),
             ])
             ->values();
     }
@@ -1584,7 +1895,7 @@ class AcademicConfigurationController extends Controller
                     [$row['day_label'], 900, ['align' => 'center']],
                     [$this->scheduleTimeLabel($schedule), 2500, ['align' => 'center']],
                     [$schedule->room->name, 1100, ['align' => 'center']],
-                    [$this->scheduleCourseGroup($schedule), 2340, ['align' => 'center']],
+                    [$row['course_label'] ?? $this->scheduleCourseGroup($schedule), 2340, ['align' => 'center']],
                 ]);
             })->implode('');
 
@@ -1669,7 +1980,7 @@ class AcademicConfigurationController extends Controller
                     [$this->scheduleTimeLabel($schedule), 2500, ['align' => 'center']],
                     [$schedule->subject->code, 1250, ['align' => 'center']],
                     [$description, 6800],
-                    [$this->scheduleCourseGroup($schedule), 1440, ['align' => 'center']],
+                    [$row['course_label'] ?? $this->scheduleCourseGroup($schedule), 1440, ['align' => 'center']],
                     [$schedule->instructor ?: '', 2600],
                 ]);
             })->implode('');

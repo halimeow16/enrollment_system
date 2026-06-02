@@ -85,6 +85,12 @@ Route::middleware('auth')->group(function () {
 
     Route::put('/account', [AccountSettingsController::class, 'updateOwn'])
         ->name('account.update');
+    Route::post('/account/database/export', [AccountSettingsController::class, 'exportDatabase'])
+        ->middleware('role:admin')
+        ->name('account.database.export');
+    Route::post('/account/database/import', [AccountSettingsController::class, 'importDatabase'])
+        ->middleware('role:admin')
+        ->name('account.database.import');
 
     Route::middleware('role:admin,registrar,department_head')->group(function () {
         Route::get('/enrollments/{enrollment}/form', [EnrollmentController::class, 'show'])
@@ -120,6 +126,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/subjects/{subject}', [AcademicConfigurationController::class, 'destroySubject'])->name('subjects.destroy');
         Route::post('/days', [AcademicConfigurationController::class, 'storeDay'])->name('days.store');
         Route::post('/rooms', [AcademicConfigurationController::class, 'storeRoom'])->name('rooms.store');
+        Route::delete('/rooms/{room}', [AcademicConfigurationController::class, 'destroyRoom'])->name('rooms.destroy');
+        Route::post('/instructors', [AcademicConfigurationController::class, 'storeInstructor'])->name('instructors.store');
+        Route::put('/instructors/{instructor}', [AcademicConfigurationController::class, 'updateInstructor'])->name('instructors.update');
+        Route::delete('/instructors/{instructor}', [AcademicConfigurationController::class, 'destroyInstructor'])->name('instructors.destroy');
         Route::post('/time-slots', [AcademicConfigurationController::class, 'storeTimeSlot'])->name('time-slots.store');
         Route::post('/schedules', [AcademicConfigurationController::class, 'storeSchedule'])->name('schedules.store');
         Route::get('/schedules/pdf', [AcademicConfigurationController::class, 'downloadSchedulePdf'])->name('schedules.pdf');

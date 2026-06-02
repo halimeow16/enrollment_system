@@ -18,6 +18,7 @@ class SubjectSchedule extends Model
         'instructor',
         'schedule_type',
         'schedule_for',
+        'unit_value',
         'school_year',
         'archived_at',
         'archived_school_year',
@@ -25,6 +26,7 @@ class SubjectSchedule extends Model
 
     protected $casts = [
         'archived_at' => 'datetime',
+        'unit_value' => 'integer',
     ];
 
     public function subject(): BelongsTo
