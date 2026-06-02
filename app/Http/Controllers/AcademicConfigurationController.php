@@ -367,11 +367,15 @@ class AcademicConfigurationController extends Controller
         }
 
         $conflicts = $overlappingSchedules
-            ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room, $timeSlot, $shouldMerge) {
+            ->map(function (SubjectSchedule $schedule) use ($data, $subject, $room, $timeSlot, $shouldMerge, $dayIds, $academicYear) {
                 $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
                 $existingSubjectLabel = $this->subjectScheduleLabel($schedule->subject, $schedule->schedule_type);
 
                 if ($shouldMerge && $this->isScheduleMergeCandidate($schedule, $subject, $data, $room, $timeSlot)) {
+                    return null;
+                }
+
+                if ($this->isCombinedLectureLabCandidate($schedule, $subject, $data, $room, $timeSlot, $dayIds, $academicYear)) {
                     return null;
                 }
 
@@ -543,7 +547,6 @@ class AcademicConfigurationController extends Controller
         $schedule->load(['subject', 'day', 'timeSlot', 'room']);
         $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $schedule->subject_id)
-            ->where('schedule_type', $schedule->schedule_type)
             ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
             ->where('time_slot_id', $schedule->time_slot_id)
             ->where('room_id', $schedule->room_id)
@@ -600,11 +603,15 @@ class AcademicConfigurationController extends Controller
         }
 
         $conflicts = $overlappingSchedules
-            ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room, $timeSlot, $shouldMerge) {
+            ->map(function (SubjectSchedule $existingSchedule) use ($data, $subject, $room, $timeSlot, $shouldMerge, $dayIds, $academicYear) {
                 $newSubjectLabel = $this->subjectScheduleLabel($subject, $data['schedule_type']);
                 $existingSubjectLabel = $this->subjectScheduleLabel($existingSchedule->subject, $existingSchedule->schedule_type);
 
                 if ($shouldMerge && $this->isScheduleMergeCandidate($existingSchedule, $subject, $data, $room, $timeSlot)) {
+                    return null;
+                }
+
+                if ($this->isCombinedLectureLabCandidate($existingSchedule, $subject, $data, $room, $timeSlot, $dayIds, $academicYear)) {
                     return null;
                 }
 
@@ -665,22 +672,36 @@ class AcademicConfigurationController extends Controller
         $removedScheduleIds = $relatedScheduleIds->values()->all();
         SubjectSchedule::whereIn('id', $removedScheduleIds)->delete();
 
-        $unitValue = $relatedSchedules->pluck('unit_value')->filter(fn ($value) => $value !== null)->first()
-            ?? $this->initialScheduleUnitValue($subject, $data['schedule_type'], $timeSlot);
+        $scheduleTypes = $relatedSchedules
+            ->pluck('schedule_type')
+            ->map(fn (?string $type) => $type ?: 'LEC')
+            ->uniqueStrict()
+            ->values();
+        if ($scheduleTypes->count() <= 1) {
+            $scheduleTypes = collect([$data['schedule_type']]);
+        }
 
-        $schedules = $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room, $unitValue) {
-            return SubjectSchedule::create([
-                'subject_id' => $data['subject_id'],
-                'day_id' => $dayId,
-                'time_slot_id' => $timeSlot->id,
-                'room_id' => $room->id,
-                'instructor' => $data['instructor'],
-                'schedule_type' => $data['schedule_type'],
-                'schedule_for' => $data['schedule_for'],
-                'unit_value' => $unitValue,
-                'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
-            ])->load(['subject', 'day', 'timeSlot', 'room']);
-        });
+        $schedules = $scheduleTypes->flatMap(function (string $scheduleType) use ($dayIds, $relatedSchedules, $subject, $data, $timeSlot, $room) {
+            $unitValue = $relatedSchedules
+                ->where('schedule_type', $scheduleType)
+                ->pluck('unit_value')
+                ->filter(fn ($value) => $value !== null)
+                ->first() ?? $this->initialScheduleUnitValue($subject, $scheduleType, $timeSlot);
+
+            return $dayIds->map(function (int $dayId) use ($data, $timeSlot, $room, $scheduleType, $unitValue) {
+                return SubjectSchedule::create([
+                    'subject_id' => $data['subject_id'],
+                    'day_id' => $dayId,
+                    'time_slot_id' => $timeSlot->id,
+                    'room_id' => $room->id,
+                    'instructor' => $data['instructor'],
+                    'schedule_type' => $scheduleType,
+                    'schedule_for' => $data['schedule_for'],
+                    'unit_value' => $unitValue,
+                    'school_year' => AppSetting::getValue('academic_year', '2026-2027'),
+                ])->load(['subject', 'day', 'timeSlot', 'room']);
+            });
+        })->values();
         $schedule = $schedules->first();
 
         ActivityLog::record($logAction, $schedule, $oldValues, [
@@ -719,7 +740,6 @@ class AcademicConfigurationController extends Controller
         $schedule->load(['subject', 'day', 'timeSlot', 'room']);
         $relatedSchedules = SubjectSchedule::with(['subject', 'day', 'timeSlot', 'room'])
             ->where('subject_id', $schedule->subject_id)
-            ->where('schedule_type', $schedule->schedule_type)
             ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
             ->where('time_slot_id', $schedule->time_slot_id)
             ->where('room_id', $schedule->room_id)
@@ -759,6 +779,7 @@ class AcademicConfigurationController extends Controller
             'course_code' => ['required', 'string', 'max:30'],
             'year_level' => ['required', 'string', 'max:20'],
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+            'preview' => ['nullable', 'boolean'],
         ]);
 
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
@@ -777,6 +798,27 @@ class AcademicConfigurationController extends Controller
             ->get();
 
         $courseName = $this->scheduleCourseName($data['course_code']);
+
+        if ($request->boolean('preview')) {
+            $pdfContent = $this->buildSchedulePdf(
+                $academicYear,
+                $courseName,
+                $this->scheduleYearLabel($data['year_level']),
+                $this->scheduleSemesterLabel($data['semester']),
+                $schedules
+            );
+
+            $previewName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule-preview.pdf')
+                ->replace([' ', '/'], '-')
+                ->lower()
+                ->toString();
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $previewName . '"',
+            ]);
+        }
+
         $fileName = str($data['course_code'] . '-' . $data['year_level'] . '-' . $data['semester'] . '-schedule.docx')
             ->replace([' ', '/'], '-')
             ->lower()
@@ -802,6 +844,7 @@ class AcademicConfigurationController extends Controller
         $data = $request->validate([
             'instructor' => ['required', 'string', 'max:120'],
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+            'preview' => ['nullable', 'boolean'],
         ]);
 
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
@@ -817,6 +860,24 @@ class AcademicConfigurationController extends Controller
             ->orderBy('time_slots.start_time')
             ->select('subject_schedules.*')
             ->get();
+
+        if ($request->boolean('preview')) {
+            $pdfContent = $this->buildInstructorSchedulePdfPreview(
+                $instructor,
+                $academicYear,
+                $this->scheduleSemesterLabel($data['semester']),
+                $schedules
+            );
+            $previewName = Str::of($instructor . '-' . $data['semester'] . '-' . $academicYear . '-faculty-loading-preview.pdf')
+                ->replace([' ', '/', '\\'], '-')
+                ->lower()
+                ->toString();
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $previewName . '"',
+            ]);
+        }
 
         $fileName = Str::of($instructor . '-' . $data['semester'] . '-' . $academicYear . '-faculty-loading.docx')
             ->replace([' ', '/', '\\'], '-')
@@ -842,6 +903,7 @@ class AcademicConfigurationController extends Controller
         $data = $request->validate([
             'room_name' => ['required', 'string', 'max:80'],
             'semester' => ['required', Rule::in(['1st', '2nd', 'Summer'])],
+            'preview' => ['nullable', 'boolean'],
         ]);
 
         $academicYear = AppSetting::getValue('academic_year', '2026-2027');
@@ -857,6 +919,24 @@ class AcademicConfigurationController extends Controller
             ->orderBy('time_slots.start_time')
             ->select('subject_schedules.*')
             ->get();
+
+        if ($request->boolean('preview')) {
+            $pdfContent = $this->buildRoomSchedulePdfPreview(
+                $roomName,
+                $academicYear,
+                $this->scheduleSemesterLabel($data['semester']),
+                $schedules
+            );
+            $previewName = Str::of($roomName . '-' . $data['semester'] . '-' . $academicYear . '-room-schedule-preview.pdf')
+                ->replace([' ', '/', '\\'], '-')
+                ->lower()
+                ->toString();
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $previewName . '"',
+            ]);
+        }
 
         $fileName = Str::of($roomName . '-' . $data['semester'] . '-' . $academicYear . '-room-schedule.docx')
             ->replace([' ', '/', '\\'], '-')
@@ -1399,6 +1479,14 @@ class AcademicConfigurationController extends Controller
         return $schedule->subject->name . ' - ' . $type;
     }
 
+    private function scheduleSubjectNameForRow(array $row): string
+    {
+        $schedule = $row['schedule'];
+        $type = $row['type_label'] ?? ($schedule->schedule_type ?: ($schedule->subject->type === 'LAB' ? 'LAB' : 'LEC'));
+
+        return $schedule->subject->name . ' - ' . $type;
+    }
+
     private function prepareAdditionalScheduleUnits($existingSchedules, Subject $subject, string $scheduleType): int
     {
         $baseUnits = $this->subjectScheduleUnitValue($subject, $scheduleType);
@@ -1461,6 +1549,13 @@ class AcademicConfigurationController extends Controller
         return $schedule->unit_value ?? $this->subjectScheduleUnitValue($schedule->subject, $schedule->schedule_type);
     }
 
+    private function scheduleGroupUnits($group): int
+    {
+        return $group
+            ->groupBy(fn (SubjectSchedule $schedule) => $schedule->schedule_type ?: 'LEC')
+            ->sum(fn ($typedSchedules) => $typedSchedules->max(fn (SubjectSchedule $schedule) => $this->scheduleUnits($schedule)));
+    }
+
     private function scheduleCourseGroup(SubjectSchedule $schedule): string
     {
         return trim($schedule->subject->course_code . ' ' . $schedule->subject->year_level);
@@ -1490,6 +1585,57 @@ class AcademicConfigurationController extends Controller
             && ($schedule->schedule_type ?: 'LEC') === ($data['schedule_type'] ?: 'LEC')
             && (string) $schedule->timeSlot?->start_time === (string) $timeSlot->start_time
             && (string) $schedule->timeSlot?->end_time === (string) $timeSlot->end_time;
+    }
+
+    private function isCombinedLectureLabCandidate(
+        SubjectSchedule $schedule,
+        Subject $subject,
+        array $data,
+        Room $room,
+        TimeSlot $timeSlot,
+        $dayIds,
+        string $academicYear
+    ): bool {
+        if (! ((int) $schedule->room_id === (int) $room->id
+            && strtolower(trim((string) $schedule->instructor)) === strtolower(trim((string) $data['instructor']))
+            && strtolower(trim((string) $schedule->subject?->code)) === strtolower(trim((string) $subject->code))
+            && ($schedule->schedule_type ?: 'LEC') !== ($data['schedule_type'] ?: 'LEC')
+            && in_array($schedule->schedule_type ?: 'LEC', ['LEC', 'LAB'], true)
+            && in_array($data['schedule_type'] ?: 'LEC', ['LEC', 'LAB'], true)
+            && (string) $schedule->timeSlot?->start_time === (string) $timeSlot->start_time
+            && (string) $schedule->timeSlot?->end_time === (string) $timeSlot->end_time)) {
+            return false;
+        }
+
+        $existingDayIds = SubjectSchedule::where('subject_id', $schedule->subject_id)
+            ->where('schedule_type', $schedule->schedule_type ?: 'LEC')
+            ->where('schedule_for', $schedule->schedule_for ?: 'Whole Class')
+            ->where('time_slot_id', $schedule->time_slot_id)
+            ->where('room_id', $schedule->room_id)
+            ->where('instructor', $schedule->instructor)
+            ->whereNull('archived_at')
+            ->where(fn ($query) => $query->where('school_year', $academicYear)->orWhereNull('school_year'))
+            ->pluck('day_id')
+            ->map(fn ($dayId) => (int) $dayId)
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $existingDayIds->all() === $dayIds->sort()->values()->all();
+    }
+
+    private function scheduleTypeLabelForGroup($group): string
+    {
+        $types = $group
+            ->pluck('schedule_type')
+            ->map(fn (?string $type) => $type ?: 'LEC')
+            ->uniqueStrict()
+            ->sort()
+            ->values();
+
+        return $types->contains('LEC') && $types->contains('LAB')
+            ? 'LEC/LAB'
+            : (string) ($types->first() ?: 'LEC');
     }
 
     private function subjectScheduleLabel(?Subject $subject, ?string $type): string
@@ -1710,7 +1856,6 @@ class AcademicConfigurationController extends Controller
         return $schedules
             ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
                 $schedule->subject_id,
-                $schedule->schedule_type,
                 $schedule->schedule_for ?: 'Whole Class',
                 $schedule->time_slot_id,
                 $schedule->room_id,
@@ -1719,6 +1864,8 @@ class AcademicConfigurationController extends Controller
             ->map(fn ($group) => [
                 'schedule' => $group->first(),
                 'day_label' => $this->scheduleDayLabels($group),
+                'type_label' => $this->scheduleTypeLabelForGroup($group),
+                'units' => $this->scheduleGroupUnits($group),
             ])
             ->values();
     }
@@ -1728,7 +1875,6 @@ class AcademicConfigurationController extends Controller
         return $schedules
             ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
                 strtolower(trim((string) $schedule->subject?->code)),
-                $schedule->schedule_type,
                 $schedule->schedule_for ?: 'Whole Class',
                 $schedule->time_slot_id,
                 $schedule->room_id,
@@ -1737,6 +1883,8 @@ class AcademicConfigurationController extends Controller
             ->map(fn ($group) => [
                 'schedule' => $group->first(),
                 'day_label' => $this->scheduleDayLabels($group),
+                'type_label' => $this->scheduleTypeLabelForGroup($group),
+                'units' => $this->scheduleGroupUnits($group),
                 'course_label' => $group
                     ->map(fn (SubjectSchedule $schedule) => $this->scheduleCourseGroup($schedule))
                     ->uniqueStrict()
@@ -1813,7 +1961,7 @@ class AcademicConfigurationController extends Controller
             ])
             : $scheduleRows->map(function (array $row): string {
                 $schedule = $row['schedule'];
-                $subjectName = $this->scheduleSubjectName($schedule);
+                $subjectName = $this->scheduleSubjectNameForRow($row);
                 if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
                     $subjectName .= ' (' . $schedule->schedule_for . ')';
                 }
@@ -1883,7 +2031,7 @@ class AcademicConfigurationController extends Controller
             ])
             : $scheduleRows->map(function (array $row): string {
                 $schedule = $row['schedule'];
-                $description = $this->scheduleSubjectName($schedule);
+                $description = $this->scheduleSubjectNameForRow($row);
                 if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
                     $description .= ' (' . $schedule->schedule_for . ')';
                 }
@@ -1891,7 +2039,7 @@ class AcademicConfigurationController extends Controller
                 return $this->docxTableRow([
                     [$schedule->subject->code, 1250, ['align' => 'center']],
                     [$description, 6500],
-                    [$this->scheduleUnits($schedule), 850, ['align' => 'center']],
+                    [$row['units'] ?? $this->scheduleUnits($schedule), 850, ['align' => 'center']],
                     [$row['day_label'], 900, ['align' => 'center']],
                     [$this->scheduleTimeLabel($schedule), 2500, ['align' => 'center']],
                     [$schedule->room->name, 1100, ['align' => 'center']],
@@ -1899,7 +2047,7 @@ class AcademicConfigurationController extends Controller
                 ]);
             })->implode('');
 
-        $totalUnits = $scheduleRows->sum(fn (array $row) => $this->scheduleUnits($row['schedule']));
+        $totalUnits = $scheduleRows->sum(fn (array $row) => $row['units'] ?? $this->scheduleUnits($row['schedule']));
 
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
@@ -1970,7 +2118,7 @@ class AcademicConfigurationController extends Controller
             ])
             : $scheduleRows->map(function (array $row): string {
                 $schedule = $row['schedule'];
-                $description = $this->scheduleSubjectName($schedule);
+                $description = $this->scheduleSubjectNameForRow($row);
                 if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
                     $description .= ' (' . $schedule->schedule_for . ')';
                 }
@@ -2088,6 +2236,200 @@ class AcademicConfigurationController extends Controller
         return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
     }
 
+    private function buildInstructorSchedulePdfPreview(
+        string $instructor,
+        string $academicYear,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $scheduleRows = $this->mergedScheduleDocumentRows($schedules);
+        $pdf = $this->scheduleReportPdf('Faculty Schedule Preview');
+        $this->drawScheduleReportHeader($pdf, 'COLLEGE FACULTY LOADING', [
+            ['Name of Instructor', $instructor],
+            ['Academic Year', $academicYear],
+            ['Semester', $semesterLabel],
+        ]);
+
+        $columns = [
+            ['Code', 24],
+            ['Description', 100],
+            ['Units', 14],
+            ['Day', 18],
+            ['Time', 45],
+            ['Room', 22],
+            ['Course', 60],
+        ];
+        $this->drawPdfTableHeader($pdf, $columns);
+
+        if ($scheduleRows->isEmpty()) {
+            $pdf->Cell(283, 9, 'No schedules found for this instructor.', 1, 1, 'C');
+
+            return $pdf->Output('', 'S');
+        }
+
+        $totalUnits = 0;
+        foreach ($scheduleRows as $row) {
+            $schedule = $row['schedule'];
+            $description = $this->scheduleSubjectNameForRow($row);
+            if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                $description .= ' (' . $schedule->schedule_for . ')';
+            }
+
+            $units = $row['units'] ?? $this->scheduleUnits($schedule);
+            $totalUnits += $units;
+            $this->drawPdfTableRow($pdf, [
+                [$schedule->subject->code, 24, 'C'],
+                [$description, 100, 'L'],
+                [(string) $units, 14, 'C'],
+                [$row['day_label'], 18, 'C'],
+                [$this->scheduleTimeLabel($schedule), 45, 'C'],
+                [$schedule->room->name, 22, 'C'],
+                [$row['course_label'] ?? $this->scheduleCourseGroup($schedule), 60, 'C'],
+            ]);
+        }
+
+        $this->drawPdfTableRow($pdf, [
+            ['Total Units', 124, 'R'],
+            [(string) $totalUnits, 14, 'C'],
+            ['', 145, 'C'],
+        ], true);
+
+        return $pdf->Output('', 'S');
+    }
+
+    private function buildRoomSchedulePdfPreview(
+        string $roomName,
+        string $academicYear,
+        string $semesterLabel,
+        $schedules
+    ): string {
+        $scheduleRows = $this->mergedScheduleDocumentRows($schedules);
+        $pdf = $this->scheduleReportPdf('Room Schedule Preview');
+        $this->drawScheduleReportHeader($pdf, 'ROOM SCHEDULE', [
+            ['Room', $roomName],
+            ['Academic Year', $academicYear],
+            ['Semester', $semesterLabel],
+        ]);
+
+        $columns = [
+            ['Day', 18],
+            ['Time', 45],
+            ['Code', 24],
+            ['Description', 100],
+            ['Course', 45],
+            ['Instructor', 51],
+        ];
+        $this->drawPdfTableHeader($pdf, $columns);
+
+        if ($scheduleRows->isEmpty()) {
+            $pdf->Cell(283, 9, 'No schedules found for this room.', 1, 1, 'C');
+
+            return $pdf->Output('', 'S');
+        }
+
+        foreach ($scheduleRows as $row) {
+            $schedule = $row['schedule'];
+            $description = $this->scheduleSubjectNameForRow($row);
+            if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
+                $description .= ' (' . $schedule->schedule_for . ')';
+            }
+
+            $this->drawPdfTableRow($pdf, [
+                [$row['day_label'], 18, 'C'],
+                [$this->scheduleTimeLabel($schedule), 45, 'C'],
+                [$schedule->subject->code, 24, 'C'],
+                [$description, 100, 'L'],
+                [$row['course_label'] ?? $this->scheduleCourseGroup($schedule), 45, 'C'],
+                [$schedule->instructor ?: '', 51, 'L'],
+            ]);
+        }
+
+        return $pdf->Output('', 'S');
+    }
+
+    private function scheduleReportPdf(string $title): \TCPDF
+    {
+        $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('COMTEQ Enrollment System');
+        $pdf->SetTitle($title);
+        $pdf->SetMargins(7, 7, 7);
+        $pdf->SetAutoPageBreak(true, 8);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->AddPage();
+
+        return $pdf;
+    }
+
+    private function drawScheduleReportHeader(\TCPDF $pdf, string $title, array $details): void
+    {
+        $logoPath = public_path('images/logo1-schedule.jpg');
+        if (file_exists($logoPath)) {
+            $pdf->Image($logoPath, 10, -1, 78, 0, 'JPG');
+        }
+
+        $pdf->SetTextColor(132, 151, 210);
+        $pdf->SetFont('helvetica', 'B', 18);
+        $pdf->SetXY(88, 7);
+        $pdf->Cell(200, 8, 'COMTEQ COMPUTER AND BUSINESS COLLEGE, INC.', 0, 1, 'L');
+        $pdf->SetTextColor(110, 110, 110);
+        $pdf->SetFont('helvetica', 'B', 10);
+        $pdf->SetX(88);
+        $pdf->Cell(200, 5, '#63 Fendler st., East Tapinac, Olongapo City, Philippines', 0, 1, 'L');
+        $pdf->SetX(88);
+        $pdf->Cell(200, 5, 'Mobile no.: 09428197810 | Tel No.: (047) 602-4778 | www.comteq.edu.ph', 0, 1, 'L');
+        $pdf->SetDrawColor(120, 120, 120);
+        $pdf->Line(7, 29, 290, 29);
+
+        $pdf->SetY(33);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('helvetica', 'B', 14);
+        $pdf->Cell(0, 7, $title, 0, 1, 'C');
+        $pdf->SetFont('helvetica', '', 10);
+        foreach ($details as [$label, $value]) {
+            $pdf->Cell(45, 6, $label . ':', 0, 0, 'L');
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->Cell(0, 6, $value, 0, 1, 'L');
+            $pdf->SetFont('helvetica', '', 10);
+        }
+        $pdf->Ln(2);
+    }
+
+    private function drawPdfTableHeader(\TCPDF $pdf, array $columns): void
+    {
+        $pdf->SetFillColor(0, 0, 0);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('helvetica', 'B', 9);
+        foreach ($columns as [$label, $width]) {
+            $pdf->Cell($width, 8, $label, 1, 0, 'C', true);
+        }
+        $pdf->Ln();
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('helvetica', '', 8.5);
+    }
+
+    private function drawPdfTableRow(\TCPDF $pdf, array $cells, bool $bold = false): void
+    {
+        if ($pdf->GetY() > 190) {
+            $pdf->AddPage();
+        }
+
+        $pdf->SetFont('helvetica', $bold ? 'B' : '', 8.5);
+        $rowHeight = 8;
+        foreach ($cells as [$text, $width]) {
+            $rowHeight = max($rowHeight, (int) ceil($pdf->GetStringWidth((string) $text) / max(1, ($width - 3))) * 5);
+        }
+
+        $x = $pdf->GetX();
+        $y = $pdf->GetY();
+        $offset = 0;
+        foreach ($cells as [$text, $width, $align]) {
+            $pdf->MultiCell($width, $rowHeight, (string) $text, 1, $align, false, 0, $x + $offset, $y, true, 0, false, true, $rowHeight, 'M');
+            $offset += $width;
+        }
+        $pdf->Ln($rowHeight);
+    }
+
     private function buildSchedulePdf(
         string $academicYear,
         string $courseName,
@@ -2173,7 +2515,6 @@ class AcademicConfigurationController extends Controller
         $scheduleRows = $schedules
             ->groupBy(fn (SubjectSchedule $schedule) => implode('|', [
                 $schedule->subject_id,
-                $schedule->schedule_type,
                 $schedule->schedule_for ?: 'Whole Class',
                 $schedule->time_slot_id,
                 $schedule->room_id,
@@ -2182,6 +2523,8 @@ class AcademicConfigurationController extends Controller
             ->map(fn ($group) => [
                 'schedule' => $group->first(),
                 'day_label' => $this->scheduleDayLabels($group),
+                'type_label' => $this->scheduleTypeLabelForGroup($group),
+                'units' => $this->scheduleGroupUnits($group),
             ])
             ->values();
 
@@ -2194,7 +2537,7 @@ class AcademicConfigurationController extends Controller
                 $pdf->SetFont('helvetica', '', 10.5);
             }
 
-            $subjectName = $this->scheduleSubjectName($schedule);
+            $subjectName = $this->scheduleSubjectNameForRow($row);
             if (($schedule->schedule_for ?: 'Whole Class') !== 'Whole Class') {
                 $subjectName .= ' (' . $schedule->schedule_for . ')';
             }

@@ -729,10 +729,19 @@
                                 <option value="Summer">Summer</option>
                             </select>
                         </div>
-                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/20 px-4 py-2 text-sm font-bold text-blue-100 transition hover:bg-blue-500/30">
-                            <i data-lucide="file-down" class="h-4 w-4"></i>
-                            Download DOCX
-                        </button>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <button type="submit"
+                                    name="preview"
+                                    value="1"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-slate-100 transition hover:bg-white/15">
+                                <i data-lucide="eye" class="h-4 w-4"></i>
+                                Preview
+                            </button>
+                            <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300/20 bg-blue-500/20 px-4 py-2 text-sm font-bold text-blue-100 transition hover:bg-blue-500/30">
+                                <i data-lucide="file-down" class="h-4 w-4"></i>
+                                Download
+                            </button>
+                        </div>
                     </form>
 
                     <form action="{{ route('academic.schedules.instructor') }}"
@@ -754,10 +763,19 @@
                                 <option value="Summer">Summer</option>
                             </select>
                         </div>
-                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30">
-                            <i data-lucide="file-user" class="h-4 w-4"></i>
-                            Download DOCX
-                        </button>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <button type="submit"
+                                    name="preview"
+                                    value="1"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-slate-100 transition hover:bg-white/15">
+                                <i data-lucide="eye" class="h-4 w-4"></i>
+                                Preview
+                            </button>
+                            <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-500/30">
+                                <i data-lucide="file-user" class="h-4 w-4"></i>
+                                Download
+                            </button>
+                        </div>
                     </form>
 
                     <form action="{{ route('academic.schedules.room') }}"
@@ -779,10 +797,19 @@
                                 <option value="Summer">Summer</option>
                             </select>
                         </div>
-                        <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-500/20 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-500/30">
-                            <i data-lucide="door-open" class="h-4 w-4"></i>
-                            Download DOCX
-                        </button>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <button type="submit"
+                                    name="preview"
+                                    value="1"
+                                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-slate-100 transition hover:bg-white/15">
+                                <i data-lucide="eye" class="h-4 w-4"></i>
+                                Preview
+                            </button>
+                            <button class="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-500/20 px-4 py-2 text-sm font-bold text-cyan-100 transition hover:bg-cyan-500/30">
+                                <i data-lucide="door-open" class="h-4 w-4"></i>
+                                Download
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -1364,7 +1391,6 @@
             scheduleGroupKey(schedule) {
                 return [
                     schedule.subject?.id || '',
-                    schedule.schedule_type || '',
                     schedule.start_time || '',
                     schedule.end_time || '',
                     schedule.room_id || schedule.room || '',
@@ -1377,11 +1403,12 @@
 
                 rows.forEach((schedule) => {
                     const key = this.scheduleGroupKey(schedule);
-                    const group = groups.get(key) || { ...schedule, schedule_ids: [], day_ids: [], days: [] };
+                    const group = groups.get(key) || { ...schedule, schedule_ids: [], day_ids: [], days: [], schedule_types: [] };
 
                     group.schedule_ids.push(schedule.id);
                     group.day_ids.push(schedule.day_id);
                     group.days.push(schedule.day);
+                    group.schedule_types.push(schedule.schedule_type || 'LEC');
                     group.id = Math.min(...group.schedule_ids);
                     group.update_url = schedule.update_url;
                     group.delete_url = schedule.delete_url;
@@ -1391,12 +1418,19 @@
                 return [...groups.values()].map((schedule) => {
                     const orderedDays = [...new Set(schedule.days)]
                         .sort((a, b) => this.scheduleDayOrder(a) - this.scheduleDayOrder(b));
+                    const scheduleTypes = [...new Set(schedule.schedule_types || [schedule.schedule_type || 'LEC'])];
+                    const typeLabel = scheduleTypes.includes('LEC') && scheduleTypes.includes('LAB')
+                        ? 'LEC/LAB'
+                        : (scheduleTypes[0] || 'LEC');
+                    const subjectName = schedule.subject?.name || 'No subject';
 
                     return {
                         ...schedule,
                         days: orderedDays,
                         day_ids: [...new Set(schedule.day_ids)],
                         day_label: orderedDays.map((day) => this.scheduleDayCode(day)).join(''),
+                        schedule_type_label: typeLabel,
+                        subject_display_name: `${subjectName} - ${typeLabel}`,
                     };
                 });
             },
