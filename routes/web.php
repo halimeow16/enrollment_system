@@ -11,7 +11,7 @@ use App\Http\Controllers\AcademicConfigurationController;
 
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('dashboard')
+        ? redirect()->route('office')
         : redirect()->route('enrollment.create');
 });
 
@@ -75,10 +75,10 @@ Route::prefix('address-data')->name('address-data.')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
-    Route::get('/dashboard/enrollments/live', [DashboardController::class, 'liveEnrollments'])
-        ->name('dashboard.enrollments.live');
+    Route::get('/office', [DashboardController::class, 'index'])
+        ->name('office');
+    Route::get('/office/enrollments/live', [DashboardController::class, 'liveEnrollments'])
+        ->name('office.enrollments.live');
     Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])
         ->middleware('role:admin')
         ->name('activity-logs.index');

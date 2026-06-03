@@ -13,7 +13,7 @@ class AuthController extends Controller
     public function showLogin(): View|RedirectResponse
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route('office');
         }
 
         return view('auth.login');
@@ -39,7 +39,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
         ActivityLog::record('login', $request->user(), [], ['email' => $request->user()->email], $request);
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route('office'));
     }
 
     public function logout(Request $request): RedirectResponse

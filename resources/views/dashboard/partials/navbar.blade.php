@@ -323,20 +323,38 @@
                             @csrf
                             <div class="mb-5">
                                 <h3 class="font-extrabold text-white">Database Export</h3>
-                                <p class="mt-1 text-xs text-slate-400">Download an encrypted backup file for this system.</p>
+                                <p class="mt-1 text-xs text-slate-400">Download a portable encrypted backup file for this system.</p>
                             </div>
 
-                            <div class="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                            <div class="grid gap-4 md:grid-cols-2">
                                 <label class="text-xs font-semibold text-slate-300">
-                                    Confirm Password
+                                    Admin Password
                                     <input type="password"
                                            name="password"
                                            required
                                            autocomplete="current-password"
                                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-blue-300/40">
                                 </label>
+                                <label class="text-xs font-semibold text-slate-300">
+                                    Backup Password
+                                    <input type="password"
+                                           name="backup_password"
+                                           required
+                                           minlength="8"
+                                           autocomplete="new-password"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-blue-300/40">
+                                </label>
+                                <label class="text-xs font-semibold text-slate-300 md:col-span-2">
+                                    Confirm Backup Password
+                                    <input type="password"
+                                           name="backup_password_confirmation"
+                                           required
+                                           minlength="8"
+                                           autocomplete="new-password"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-blue-300/40">
+                                </label>
                                 <button type="submit"
-                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0]">
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1552d4] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f43b0] md:col-span-2">
                                     <i data-lucide="download" class="h-4 w-4"></i>
                                     Export
                                 </button>
@@ -361,9 +379,17 @@
                                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white file:mr-4 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-bold file:text-slate-900">
                                 </label>
                                 <label class="text-xs font-semibold text-slate-300">
-                                    Confirm Password
+                                    Admin Password
                                     <input type="password"
                                            name="password"
+                                           required
+                                           autocomplete="current-password"
+                                           class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-300/40">
+                                </label>
+                                <label class="text-xs font-semibold text-slate-300">
+                                    Backup Password
+                                    <input type="password"
+                                           name="backup_password"
                                            required
                                            autocomplete="current-password"
                                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-300/40">

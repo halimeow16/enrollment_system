@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 class AccountSettingsController extends Controller
 {
     private const BACKUP_VERSION = 1;
+    private const BACKUP_ENCRYPTION_VERSION = 2;
+    private const BACKUP_KDF_ITERATIONS = 200000;
 
     public function updateOwn(Request $request): JsonResponse
     {
@@ -169,6 +171,7 @@ class AccountSettingsController extends Controller
 
         $data = $request->validate([
             'password' => ['required', 'string'],
+            'backup_password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $this->confirmPassword($request, $data['password']);
@@ -182,7 +185,7 @@ class AccountSettingsController extends Controller
                 ->mapWithKeys(fn (string $table) => [$table => $this->backupTableRows($table)])
                 ->all(),
         ];
-        $encrypted = Crypt::encryptString(base64_encode(gzencode(json_encode($payload, JSON_THROW_ON_ERROR), 9)));
+        $encrypted = $this->encryptBackupPayload($payload, $data['backup_password']);
         $fileName = 'enrollment-system-' . now()->format('Y-m-d-His') . '.esbackup';
 
         ActivityLog::record('database_exported', null, [], [
@@ -202,6 +205,7 @@ class AccountSettingsController extends Controller
 
         $data = $request->validate([
             'password' => ['required', 'string'],
+            'backup_password' => ['required', 'string'],
             'backup_file' => ['required', 'file', 'max:51200'],
             'replace_confirmation' => ['accepted'],
         ], [
@@ -212,10 +216,10 @@ class AccountSettingsController extends Controller
 
         try {
             $encrypted = $request->file('backup_file')->get();
-            $payload = json_decode(gzdecode(base64_decode(Crypt::decryptString($encrypted), true)), true, 512, JSON_THROW_ON_ERROR);
+            $payload = $this->decryptBackupPayload($encrypted, $data['backup_password']);
         } catch (\Throwable) {
             throw ValidationException::withMessages([
-                'backup_file' => 'The uploaded backup could not be decrypted or is not a valid enrollment system backup.',
+                'backup_file' => 'The uploaded backup could not be decrypted. Check the backup password and make sure this is a valid enrollment system backup.',
             ]);
         }
 
@@ -283,6 +287,81 @@ class AccountSettingsController extends Controller
                 'password' => 'Password confirmation is incorrect.',
             ]);
         }
+    }
+
+    private function encryptBackupPayload(array $payload, string $password): string
+    {
+        $salt = random_bytes(16);
+        $iv = random_bytes(12);
+        $tag = '';
+        $key = $this->backupEncryptionKey($password, $salt);
+        $plainText = gzencode(json_encode($payload, JSON_THROW_ON_ERROR), 9);
+        $cipherText = openssl_encrypt($plainText, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+
+        if ($cipherText === false) {
+            throw new \RuntimeException('Unable to encrypt database backup.');
+        }
+
+        return json_encode([
+            'format' => 'comteq-enrollment-backup',
+            'version' => self::BACKUP_ENCRYPTION_VERSION,
+            'cipher' => 'aes-256-gcm',
+            'kdf' => 'pbkdf2-sha256',
+            'iterations' => self::BACKUP_KDF_ITERATIONS,
+            'salt' => base64_encode($salt),
+            'iv' => base64_encode($iv),
+            'tag' => base64_encode($tag),
+            'data' => base64_encode($cipherText),
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    private function decryptBackupPayload(string $encrypted, string $password): array
+    {
+        $metadata = json_decode($encrypted, true);
+
+        if (is_array($metadata) && ($metadata['format'] ?? null) === 'comteq-enrollment-backup') {
+            if (($metadata['version'] ?? null) !== self::BACKUP_ENCRYPTION_VERSION) {
+                throw new \RuntimeException('Unsupported backup encryption version.');
+            }
+
+            $salt = base64_decode((string) ($metadata['salt'] ?? ''), true);
+            $iv = base64_decode((string) ($metadata['iv'] ?? ''), true);
+            $tag = base64_decode((string) ($metadata['tag'] ?? ''), true);
+            $cipherText = base64_decode((string) ($metadata['data'] ?? ''), true);
+
+            if ($salt === false || $iv === false || $tag === false || $cipherText === false) {
+                throw new \RuntimeException('Invalid encrypted backup.');
+            }
+
+            $key = $this->backupEncryptionKey($password, $salt, (int) ($metadata['iterations'] ?? self::BACKUP_KDF_ITERATIONS));
+            $plainText = openssl_decrypt($cipherText, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+
+            if ($plainText === false) {
+                throw new \RuntimeException('Invalid backup password.');
+            }
+
+            $json = gzdecode($plainText);
+
+            if ($json === false) {
+                throw new \RuntimeException('Invalid backup payload.');
+            }
+
+            return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        $legacy = Crypt::decryptString($encrypted);
+        $json = gzdecode(base64_decode($legacy, true));
+
+        if ($json === false) {
+            throw new \RuntimeException('Invalid legacy backup payload.');
+        }
+
+        return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    private function backupEncryptionKey(string $password, string $salt, int $iterations = self::BACKUP_KDF_ITERATIONS): string
+    {
+        return hash_pbkdf2('sha256', $password, $salt, $iterations, 32, true);
     }
 
     private function backupTables(): array

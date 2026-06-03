@@ -96,7 +96,7 @@
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
             <div>
                 <h2 class="text-sm font-bold text-slate-900">New Enrollment Form</h2>
-                <p class="text-xs text-slate-500">Loaded inside the dashboard so the workspace does not redirect.</p>
+                <p class="text-xs text-slate-500">Loaded inside the office so the workspace does not redirect.</p>
             </div>
             <button type="button"
                     @click="switchTab(previousTab || 'overview')"
@@ -932,7 +932,7 @@
             academicYear: @json($academicYear),
             enrollmentCount: {{ $allEnrollments->count() }},
             enrollmentStatuses: @json($allEnrollments->pluck('enrollment_status', 'id')),
-            enrollmentRefreshUrl: @json(route('dashboard.enrollments.live')),
+            enrollmentRefreshUrl: @json(route('office.enrollments.live')),
             enrollmentRefreshTimer: null,
             idGenerationStatuses: @json($idGenerationStatuses),
             idGenerationStatusUrl: @json(route('id-generation.statuses')),

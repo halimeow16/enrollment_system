@@ -94,7 +94,7 @@
                 <div>
                     <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">School Term</p>
                     <h3 class="mt-1 text-lg font-extrabold text-white">Academic Year</h3>
-                    <p class="mt-1 text-xs leading-5 text-slate-300">This value is used on the dashboard and locked into new enrollment forms.</p>
+                    <p class="mt-1 text-xs leading-5 text-slate-300">This value is used in the office and locked into new enrollment forms.</p>
                 </div>
 
                 <form action="{{ route('academic.academic-year.update') }}"
@@ -154,7 +154,7 @@
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Current Behavior</p>
                 <div class="mt-4 grid gap-3 md:grid-cols-3">
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p class="text-xs font-bold text-slate-300">Dashboard</p>
+                        <p class="text-xs font-bold text-slate-300">Office</p>
                         <p class="mt-2 text-lg font-extrabold text-white">A.Y. <span x-text="academicYear"></span></p>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-white/5 p-4">

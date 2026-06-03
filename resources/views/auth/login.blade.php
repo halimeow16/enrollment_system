@@ -18,7 +18,7 @@
     </style>
 </head>
 
-<body class="min-h-screen overflow-hidden bg-[#071224] relative">
+<body class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#071224] px-6 py-8">
 
     <!-- Background Glow -->
     <div class="absolute top-[-120px] left-[-120px] h-[320px] w-[320px] rounded-full bg-blue-600/20 blur-3xl"></div>
@@ -31,7 +31,7 @@
                 background-size: 40px 40px;">
     </div>
 
-    <main class="relative z-10 min-h-screen flex items-center justify-center px-6 py-10">
+    <main class="relative z-10 flex w-full items-center justify-center">
 
         <div class="grid w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-white/5 glass shadow-2xl lg:grid-cols-2">
 

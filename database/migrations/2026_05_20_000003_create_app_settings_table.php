@@ -17,7 +17,7 @@ return new class extends Migration
 
         DB::table('app_settings')->insertOrIgnore([
             'key' => 'academic_year',
-            'value' => '2025-2026',
+            'value' => '2026-2027',
         ]);
     }
 
