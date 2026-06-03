@@ -5,6 +5,8 @@ set "PROJECT_DIR=%~dp0"
 for %%I in ("%PROJECT_DIR%.") do set "PROJECT_DIR=%%~fI"
 set "XAMPP_DIR=C:\xampp"
 set "PHP_EXE=php"
+set "MYSQL_DEFAULTS_FILE=%XAMPP_DIR%\mysql\bin\my.ini"
+set "MYSQL_RUNTIME_DEFAULTS=%PROJECT_DIR%\storage\app\mysql-runtime-my.ini"
 
 where php >nul 2>nul
 if errorlevel 1 if exist "%XAMPP_DIR%\php\php.exe" (
@@ -37,8 +39,15 @@ if not exist "%XAMPP_DIR%" (
 
 echo Starting MySQL...
 
-if exist "%XAMPP_DIR%\mysql\bin\mysqld.exe" (
-    start "" /B "%XAMPP_DIR%\mysql\bin\mysqld.exe" --defaults-file="%XAMPP_DIR%\mysql\bin\my.ini" --standalone
+netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>nul
+if not errorlevel 1 (
+    echo MySQL is already running on port 3306.
+) else if exist "%XAMPP_DIR%\mysql\bin\mysqld.exe" (
+    if exist "%MYSQL_DEFAULTS_FILE%" (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -LiteralPath '%MYSQL_DEFAULTS_FILE%') -replace '^(\s*)key_buffer\s*=', '${1}key_buffer_size=' | Set-Content -LiteralPath '%MYSQL_RUNTIME_DEFAULTS%' -Encoding ASCII" >nul 2>nul
+        if exist "%MYSQL_RUNTIME_DEFAULTS%" set "MYSQL_DEFAULTS_FILE=%MYSQL_RUNTIME_DEFAULTS%"
+    )
+    start "" /B "%XAMPP_DIR%\mysql\bin\mysqld.exe" --defaults-file="%MYSQL_DEFAULTS_FILE%" --standalone
 ) else (
     echo MySQL executable not found: %XAMPP_DIR%\mysql\bin\mysqld.exe
 )

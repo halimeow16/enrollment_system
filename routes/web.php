@@ -17,7 +17,9 @@ Route::get('/', function () {
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1')
+        ->name('login.store');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])
@@ -27,18 +29,22 @@ Route::post('/logout', [AuthController::class, 'logout'])
 Route::get('/submit-id-requirements', [IdRequirementController::class, 'create'])
     ->name('id-requirements.create');
 Route::post('/submit-id-requirements', [IdRequirementController::class, 'store'])
+    ->middleware('throttle:10,1')
     ->name('id-requirements.store');
 
 Route::get('/enrollment', [EnrollmentController::class, 'create'])
     ->name('enrollment.create');
 
 Route::post('/enrollment', [EnrollmentController::class, 'store'])
+    ->middleware('throttle:20,1')
     ->name('enrollment.store');
 
 Route::post('/enrollment/check-existing', [EnrollmentController::class, 'checkExisting'])
+    ->middleware('throttle:20,1')
     ->name('enrollment.check-existing');
 
 Route::post('/enrollment/preview', [EnrollmentController::class, 'preview'])
+    ->middleware('throttle:20,1')
     ->name('enrollment.preview');
 
 Route::prefix('address-data')->name('address-data.')->group(function () {
