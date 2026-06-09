@@ -1,12 +1,724 @@
 {
     "enrollment_templates": [
         {
-            "name": "Prebuilt Enrollment Form",
-            "file_path": "templates/test_template.pdf",
-            "original_filename": "test_template.pdf",
-            "page_width": "381.00",
-            "page_height": "508.00",
-            "field_mappings": "[{\"key\":\"school_year\",\"label\":\"School Year\",\"type\":\"text\",\"x\":313.63,\"y\":38.93,\"page\":1,\"font_size\":14},{\"key\":\"student_type\",\"label\":\"Student Type\",\"type\":\"text\",\"x\":58.86,\"y\":103.73,\"page\":1,\"font_size\":14},{\"key\":\"student_number\",\"label\":\"Student ID\",\"type\":\"text\",\"x\":88.59,\"y\":38.15,\"page\":1,\"font_size\":14},{\"key\":\"date_filed\",\"label\":\"Date Filed\",\"type\":\"text\",\"x\":203.31,\"y\":38.41,\"page\":1,\"font_size\":14},{\"key\":\"last_name\",\"label\":\"Last Name\",\"type\":\"text\",\"x\":96.16,\"y\":45.73,\"page\":1,\"font_size\":14},{\"key\":\"first_name\",\"label\":\"First Name\",\"type\":\"text\",\"x\":188.67,\"y\":46.24,\"page\":1,\"font_size\":14},{\"key\":\"middle_name\",\"label\":\"Middle Name\",\"type\":\"text\",\"x\":284.05,\"y\":46.25,\"page\":1,\"font_size\":14},{\"key\":\"cellphone\",\"label\":\"Cellphone\",\"type\":\"text\",\"x\":80.75,\"y\":59.31,\"page\":1,\"font_size\":14},{\"key\":\"email\",\"label\":\"Email\",\"type\":\"text\",\"x\":195.2,\"y\":59.58,\"page\":1,\"font_size\":14},{\"key\":\"last_school\",\"label\":\"Last School\",\"type\":\"text\",\"x\":104.53,\"y\":112.1,\"page\":1,\"font_size\":14},{\"key\":\"present_address\",\"label\":\"Present Address\",\"type\":\"text\",\"x\":86.5,\"y\":284.83,\"page\":1,\"font_size\":14},{\"key\":\"barangay\",\"label\":\"Barangay\",\"type\":\"text\",\"x\":225.51,\"y\":284.58,\"page\":1,\"font_size\":14},{\"key\":\"city\",\"label\":\"City\",\"type\":\"text\",\"x\":70.82,\"y\":292.41,\"page\":1,\"font_size\":14},{\"key\":\"province\",\"label\":\"Province\",\"type\":\"text\",\"x\":223.16,\"y\":291.89,\"page\":1,\"font_size\":14},{\"key\":\"date_of_birth\",\"label\":\"Date of Birth\",\"type\":\"text\",\"x\":77.08,\"y\":299.47,\"page\":1,\"font_size\":14},{\"key\":\"age\",\"label\":\"Age\",\"type\":\"text\",\"x\":195.2,\"y\":299.47,\"page\":1,\"font_size\":14},{\"key\":\"civil_status\",\"label\":\"Civil Status\",\"type\":\"text\",\"x\":260.53,\"y\":299.47,\"page\":1,\"font_size\":14},{\"key\":\"place_of_birth\",\"label\":\"Place of Birth\",\"type\":\"text\",\"x\":77.87,\"y\":307.05,\"page\":1,\"font_size\":14},{\"key\":\"gender\",\"label\":\"Gender\",\"type\":\"text\",\"x\":202.26,\"y\":306.79,\"page\":1,\"font_size\":14},{\"key\":\"religion\",\"label\":\"Religion\",\"type\":\"text\",\"x\":254.26,\"y\":307.05,\"page\":1,\"font_size\":14},{\"key\":\"father_name\",\"label\":\"Father Name\",\"type\":\"text\",\"x\":81,\"y\":314.89,\"page\":1,\"font_size\":14},{\"key\":\"father_address\",\"label\":\"Father Address\",\"type\":\"text\",\"x\":204.61,\"y\":314.63,\"page\":1,\"font_size\":14},{\"key\":\"father_cpNumber\",\"label\":\"Father Contact\",\"type\":\"text\",\"x\":301.04,\"y\":314.63,\"page\":1,\"font_size\":14},{\"key\":\"mother_name\",\"label\":\"Mother Name\",\"type\":\"text\",\"x\":102.95,\"y\":322.47,\"page\":1,\"font_size\":14},{\"key\":\"mother_address\",\"label\":\"Mother Address\",\"type\":\"text\",\"x\":204.61,\"y\":321.95,\"page\":1,\"font_size\":14},{\"key\":\"mother_cpNumber\",\"label\":\"Mother Contact\",\"type\":\"text\",\"x\":301.03,\"y\":322.47,\"page\":1,\"font_size\":14},{\"key\":\"department_head_name\",\"label\":\"Department Head\",\"type\":\"text\",\"x\":98.26,\"y\":263.14,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_1\",\"label\":\"Subject Code 1\",\"type\":\"text\",\"x\":49.91,\"y\":170.12,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_1\",\"label\":\"Subject Name 1\",\"type\":\"text\",\"x\":102.95,\"y\":170.64,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_1\",\"label\":\"Subject Units 1\",\"type\":\"text\",\"x\":234.4,\"y\":170.38,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_2\",\"label\":\"Subject Code 2\",\"type\":\"text\",\"x\":49.13,\"y\":177.7,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_2\",\"label\":\"Subject Name 2\",\"type\":\"text\",\"x\":102.96,\"y\":178.22,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_2\",\"label\":\"Subject Units 2\",\"type\":\"text\",\"x\":234.4,\"y\":178.22,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_3\",\"label\":\"Subject Code 3\",\"type\":\"text\",\"x\":49.39,\"y\":185.27,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_3\",\"label\":\"Subject Name 3\",\"type\":\"text\",\"x\":102.95,\"y\":186.31,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_3\",\"label\":\"Subject Units 3\",\"type\":\"text\",\"x\":234.39,\"y\":186.58,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_4\",\"label\":\"Subject Code 4\",\"type\":\"text\",\"x\":48.87,\"y\":193.37,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_4\",\"label\":\"Subject Name 4\",\"type\":\"text\",\"x\":102.69,\"y\":193.64,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_4\",\"label\":\"Subject Units 4\",\"type\":\"text\",\"x\":234.65,\"y\":193.64,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_5\",\"label\":\"Subject Code 5\",\"type\":\"text\",\"x\":48.87,\"y\":200.95,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_5\",\"label\":\"Subject Name 5\",\"type\":\"text\",\"x\":102.17,\"y\":200.43,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_5\",\"label\":\"Subject Units 5\",\"type\":\"text\",\"x\":234.4,\"y\":201.48,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_6\",\"label\":\"Subject Code 6\",\"type\":\"text\",\"x\":48.87,\"y\":209.05,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_6\",\"label\":\"Subject Name 6\",\"type\":\"text\",\"x\":101.91,\"y\":209.05,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_6\",\"label\":\"Subject Units 6\",\"type\":\"text\",\"x\":234.14,\"y\":208.79,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_7\",\"label\":\"Subject Code 7\",\"type\":\"text\",\"x\":48.34,\"y\":216.11,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_7\",\"label\":\"Subject Name 7\",\"type\":\"text\",\"x\":102.43,\"y\":216.1,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_7\",\"label\":\"Subject Units 7\",\"type\":\"text\",\"x\":234.41,\"y\":216.11,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_8\",\"label\":\"Subject Code 8\",\"type\":\"text\",\"x\":48.6,\"y\":223.69,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_8\",\"label\":\"Subject Name 8\",\"type\":\"text\",\"x\":102.43,\"y\":223.95,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_8\",\"label\":\"Subject Units 8\",\"type\":\"text\",\"x\":234.66,\"y\":224.21,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_9\",\"label\":\"Subject Code 9\",\"type\":\"text\",\"x\":48.34,\"y\":231.26,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_9\",\"label\":\"Subject Name 9\",\"type\":\"text\",\"x\":102.17,\"y\":231,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_9\",\"label\":\"Subject Units 9\",\"type\":\"text\",\"x\":234.4,\"y\":231.26,\"page\":1,\"font_size\":14},{\"key\":\"subject_code_10\",\"label\":\"Subject Code 10\",\"type\":\"text\",\"x\":48.34,\"y\":238.58,\"page\":1,\"font_size\":14},{\"key\":\"subject_name_10\",\"label\":\"Subject Name 10\",\"type\":\"text\",\"x\":102.17,\"y\":239.1,\"page\":1,\"font_size\":14},{\"key\":\"subject_units_10\",\"label\":\"Subject Units 10\",\"type\":\"text\",\"x\":234.4,\"y\":239.1,\"page\":1,\"font_size\":14},{\"key\":\"total_units\",\"label\":\"Total Units\",\"type\":\"text\",\"x\":234.4,\"y\":249.29,\"page\":1,\"font_size\":14},{\"key\":\"course_BSIT\",\"label\":\"BSIT Check\",\"type\":\"check\",\"x\":79.44,\"y\":74.74,\"page\":1,\"font_size\":20},{\"key\":\"course_BSCS\",\"label\":\"BSCS Check\",\"type\":\"check\",\"x\":160.18,\"y\":74.99,\"page\":1,\"font_size\":20},{\"key\":\"course_ACT\",\"label\":\"ACT Check\",\"type\":\"check\",\"x\":227.35,\"y\":75.78,\"page\":1,\"font_size\":20},{\"key\":\"course_BSBA\",\"label\":\"BSBA Check\",\"type\":\"check\",\"x\":78.66,\"y\":89.63,\"page\":1,\"font_size\":20},{\"key\":\"course_BSOM\",\"label\":\"BSOM Check\",\"type\":\"check\",\"x\":206.7,\"y\":89.63,\"page\":1,\"font_size\":20},{\"key\":\"course_BSA\",\"label\":\"BSA Check\",\"type\":\"check\",\"x\":286.92,\"y\":90.15,\"page\":1,\"font_size\":20},{\"key\":\"year_1\",\"label\":\"Year 1 Check\",\"type\":\"check\",\"x\":133.27,\"y\":101.91,\"page\":1,\"font_size\":20},{\"key\":\"year_2\",\"label\":\"Year 2 Check\",\"type\":\"check\",\"x\":153.92,\"y\":102.43,\"page\":1,\"font_size\":20},{\"key\":\"year_3\",\"label\":\"Year 3 Check\",\"type\":\"check\",\"x\":175.86,\"y\":102.7,\"page\":1,\"font_size\":20},{\"key\":\"year_4\",\"label\":\"Year 4 Check\",\"type\":\"check\",\"x\":197.03,\"y\":102.95,\"page\":1,\"font_size\":20},{\"key\":\"semester_1st\",\"label\":\"1st Sem Check\",\"type\":\"check\",\"x\":263.93,\"y\":102.17,\"page\":1,\"font_size\":20},{\"key\":\"semester_2nd\",\"label\":\"2nd Sem Check\",\"type\":\"check\",\"x\":289.8,\"y\":102.43,\"page\":1,\"font_size\":20},{\"key\":\"semester_summer\",\"label\":\"Summer Check\",\"type\":\"check\",\"x\":327.17,\"y\":102.43,\"page\":1,\"font_size\":20},{\"key\":\"credential_form_138\",\"label\":\"Form 138 Check\",\"type\":\"check\",\"x\":55.39,\"y\":129.09,\"page\":1,\"font_size\":20},{\"key\":\"credential_birth_certificate\",\"label\":\"Birth Cert Check\",\"type\":\"check\",\"x\":55.39,\"y\":140.07,\"page\":1,\"font_size\":20},{\"key\":\"credential_good_moral\",\"label\":\"Good Moral Check\",\"type\":\"check\",\"x\":54.88,\"y\":150.78,\"page\":1,\"font_size\":20},{\"key\":\"credential_certificate_grades\",\"label\":\"Cert. Grades Check\",\"type\":\"check\",\"x\":134.57,\"y\":129.35,\"page\":1,\"font_size\":20},{\"key\":\"credential_certificate_eligibility\",\"label\":\"Eligibility Check\",\"type\":\"check\",\"x\":134.31,\"y\":140.59,\"page\":1,\"font_size\":20},{\"key\":\"credential_transcript\",\"label\":\"Transcript Check\",\"type\":\"check\",\"x\":134.57,\"y\":151.82,\"page\":1,\"font_size\":20},{\"key\":\"credential_long_folder\",\"label\":\"Long Folder Check\",\"type\":\"check\",\"x\":267.85,\"y\":129.87,\"page\":1,\"font_size\":20},{\"key\":\"credential_picture\",\"label\":\"Picture Check\",\"type\":\"check\",\"x\":268.37,\"y\":140.85,\"page\":1,\"font_size\":20}]",
+            "name": "Enrollment Form",
+            "file_path": "templates/default_enrollment.pdf",
+            "original_filename": "default_enrollment.pdf",
+            "page_width": "215.90",
+            "page_height": "355.60",
+            "field_mappings": [
+                {
+                    "key": "student_number",
+                    "label": "Student ID",
+                    "type": "text",
+                    "x": 38.2,
+                    "y": 27.57,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "date_filed",
+                    "label": "Date Filed",
+                    "type": "text",
+                    "x": 116.54,
+                    "y": 27.7,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "school_year",
+                    "label": "School Year",
+                    "type": "text",
+                    "x": 190.5,
+                    "y": 27.42,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "student_type",
+                    "label": "Student Type",
+                    "type": "text",
+                    "x": 19.73,
+                    "y": 73.03,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "last_name",
+                    "label": "Last Name",
+                    "type": "text",
+                    "x": 42.6,
+                    "y": 33.05,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "first_name",
+                    "label": "First Name",
+                    "type": "text",
+                    "x": 106.49,
+                    "y": 32.66,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "middle_name",
+                    "label": "Middle Name",
+                    "type": "text",
+                    "x": 168.94,
+                    "y": 32.66,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "cellphone",
+                    "label": "Cellphone",
+                    "type": "text",
+                    "x": 33.97,
+                    "y": 42.47,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "email",
+                    "label": "Email",
+                    "type": "text",
+                    "x": 110.27,
+                    "y": 42.34,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "last_school",
+                    "label": "Last School",
+                    "type": "text",
+                    "x": 49.78,
+                    "y": 79.57,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "present_address",
+                    "label": "Present Address",
+                    "type": "text",
+                    "x": 36.84,
+                    "y": 197.42,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "barangay",
+                    "label": "Barangay",
+                    "type": "text",
+                    "x": 130.92,
+                    "y": 197.16,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "city",
+                    "label": "City",
+                    "type": "text",
+                    "x": 27.7,
+                    "y": 202.26,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "province",
+                    "label": "Province",
+                    "type": "text",
+                    "x": 130.79,
+                    "y": 202.52,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "date_of_birth",
+                    "label": "Date of Birth",
+                    "type": "text",
+                    "x": 31.22,
+                    "y": 207.87,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "age",
+                    "label": "Age",
+                    "type": "text",
+                    "x": 111.32,
+                    "y": 207.88,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "civil_status",
+                    "label": "Civil Status",
+                    "type": "text",
+                    "x": 155.22,
+                    "y": 207.88,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "place_of_birth",
+                    "label": "Place of Birth",
+                    "type": "text",
+                    "x": 32.4,
+                    "y": 212.97,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "gender",
+                    "label": "Gender",
+                    "type": "text",
+                    "x": 116.68,
+                    "y": 212.84,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "religion",
+                    "label": "Religion",
+                    "type": "text",
+                    "x": 151.17,
+                    "y": 212.98,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "father_name",
+                    "label": "Father Name",
+                    "type": "text",
+                    "x": 34.1,
+                    "y": 218.32,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "father_address",
+                    "label": "Father Address",
+                    "type": "text",
+                    "x": 117.38,
+                    "y": 218.22,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "father_cpNumber",
+                    "label": "Father Contact",
+                    "type": "text",
+                    "x": 182.26,
+                    "y": 218.33,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "mother_name",
+                    "label": "Mother Name",
+                    "type": "text",
+                    "x": 48.73,
+                    "y": 223.29,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "mother_address",
+                    "label": "Mother Address",
+                    "type": "text",
+                    "x": 117.72,
+                    "y": 223.43,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "mother_cpNumber",
+                    "label": "Mother Contact",
+                    "type": "text",
+                    "x": 182.14,
+                    "y": 223.43,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "department_head_name",
+                    "label": "Department Head",
+                    "type": "text",
+                    "x": 50.34,
+                    "y": 182.14,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_1",
+                    "label": "Subject Code 1",
+                    "type": "text",
+                    "x": 12.05,
+                    "y": 119.5,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_1",
+                    "label": "Subject Name 1",
+                    "type": "text",
+                    "x": 48.54,
+                    "y": 119.42,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_1",
+                    "label": "Subject Units 1",
+                    "type": "text",
+                    "x": 138.44,
+                    "y": 119.51,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_2",
+                    "label": "Subject Code 2",
+                    "type": "text",
+                    "x": 12.31,
+                    "y": 124.82,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_2",
+                    "label": "Subject Name 2",
+                    "type": "text",
+                    "x": 48.54,
+                    "y": 124.56,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_2",
+                    "label": "Subject Units 2",
+                    "type": "text",
+                    "x": 138.08,
+                    "y": 124.91,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_3",
+                    "label": "Subject Code 3",
+                    "type": "text",
+                    "x": 12.22,
+                    "y": 130.05,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_3",
+                    "label": "Subject Name 3",
+                    "type": "text",
+                    "x": 48.89,
+                    "y": 129.88,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_3",
+                    "label": "Subject Units 3",
+                    "type": "text",
+                    "x": 137.92,
+                    "y": 130.22,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_4",
+                    "label": "Subject Code 4",
+                    "type": "text",
+                    "x": 12.31,
+                    "y": 135.19,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_4",
+                    "label": "Subject Name 4",
+                    "type": "text",
+                    "x": 48.72,
+                    "y": 135.19,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_4",
+                    "label": "Subject Units 4",
+                    "type": "text",
+                    "x": 137.74,
+                    "y": 135.01,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_5",
+                    "label": "Subject Code 5",
+                    "type": "text",
+                    "x": 12.14,
+                    "y": 140.41,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_5",
+                    "label": "Subject Name 5",
+                    "type": "text",
+                    "x": 48.54,
+                    "y": 140.41,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_5",
+                    "label": "Subject Units 5",
+                    "type": "text",
+                    "x": 137.91,
+                    "y": 140.07,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_6",
+                    "label": "Subject Code 6",
+                    "type": "text",
+                    "x": 11.96,
+                    "y": 145.55,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_6",
+                    "label": "Subject Name 6",
+                    "type": "text",
+                    "x": 48.11,
+                    "y": 145.29,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_6",
+                    "label": "Subject Units 6",
+                    "type": "text",
+                    "x": 137.74,
+                    "y": 145.29,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_7",
+                    "label": "Subject Code 7",
+                    "type": "text",
+                    "x": 12.28,
+                    "y": 150.65,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_7",
+                    "label": "Subject Name 7",
+                    "type": "text",
+                    "x": 48.6,
+                    "y": 150.52,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_7",
+                    "label": "Subject Units 7",
+                    "type": "text",
+                    "x": 138.23,
+                    "y": 150.78,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_8",
+                    "label": "Subject Code 8",
+                    "type": "text",
+                    "x": 12.55,
+                    "y": 156.01,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_8",
+                    "label": "Subject Name 8",
+                    "type": "text",
+                    "x": 48.6,
+                    "y": 156.14,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_8",
+                    "label": "Subject Units 8",
+                    "type": "text",
+                    "x": 138.23,
+                    "y": 155.88,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_9",
+                    "label": "Subject Code 9",
+                    "type": "text",
+                    "x": 12.68,
+                    "y": 161.1,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_9",
+                    "label": "Subject Name 9",
+                    "type": "text",
+                    "x": 48.74,
+                    "y": 161.1,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_9",
+                    "label": "Subject Units 9",
+                    "type": "text",
+                    "x": 138.11,
+                    "y": 160.97,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_code_10",
+                    "label": "Subject Code 10",
+                    "type": "text",
+                    "x": 12.8,
+                    "y": 166.33,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_name_10",
+                    "label": "Subject Name 10",
+                    "type": "text",
+                    "x": 48.61,
+                    "y": 166.46,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "subject_units_10",
+                    "label": "Subject Units 10",
+                    "type": "text",
+                    "x": 138.11,
+                    "y": 166.33,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "total_units",
+                    "label": "Total Units",
+                    "type": "text",
+                    "x": 138.36,
+                    "y": 171.95,
+                    "page": 1,
+                    "font_size": 10
+                },
+                {
+                    "key": "course_BSIT",
+                    "label": "BSIT Check",
+                    "type": "check",
+                    "x": 31.27,
+                    "y": 52.58,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "course_BSCS",
+                    "label": "BSCS Check",
+                    "type": "check",
+                    "x": 90.79,
+                    "y": 52.59,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "course_ACT",
+                    "label": "ACT Check",
+                    "type": "check",
+                    "x": 138.53,
+                    "y": 52.38,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "course_BSBA",
+                    "label": "BSBA Check",
+                    "type": "check",
+                    "x": 31.8,
+                    "y": 63.2,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "course_BSOM",
+                    "label": "BSOM Check",
+                    "type": "check",
+                    "x": 115.39,
+                    "y": 63.35,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "course_BSA",
+                    "label": "BSA Check",
+                    "type": "check",
+                    "x": 170.31,
+                    "y": 63.68,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "year_1",
+                    "label": "Year 1 Check",
+                    "type": "check",
+                    "x": 70.41,
+                    "y": 72.19,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "year_2",
+                    "label": "Year 2 Check",
+                    "type": "check",
+                    "x": 86.09,
+                    "y": 72.19,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "year_3",
+                    "label": "Year 3 Check",
+                    "type": "check",
+                    "x": 104.04,
+                    "y": 72.24,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "year_4",
+                    "label": "Year 4 Check",
+                    "type": "check",
+                    "x": 121.62,
+                    "y": 72.23,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "semester_1st",
+                    "label": "1st Sem Check",
+                    "type": "check",
+                    "x": 165.71,
+                    "y": 72.34,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "semester_2nd",
+                    "label": "2nd Sem Check",
+                    "type": "check",
+                    "x": 180.53,
+                    "y": 72.16,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "semester_summer",
+                    "label": "Summer Check",
+                    "type": "check",
+                    "x": 201.81,
+                    "y": 72.3,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_form_138",
+                    "label": "Form 138 Check",
+                    "type": "check",
+                    "x": 14.48,
+                    "y": 91.31,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_birth_certificate",
+                    "label": "Birth Cert Check",
+                    "type": "check",
+                    "x": 14.26,
+                    "y": 98.74,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_good_moral",
+                    "label": "Good Moral Check",
+                    "type": "check",
+                    "x": 14.37,
+                    "y": 106.17,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_certificate_grades",
+                    "label": "Cert. Grades Check",
+                    "type": "check",
+                    "x": 67.65,
+                    "y": 91.28,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_certificate_eligibility",
+                    "label": "Eligibility Check",
+                    "type": "check",
+                    "x": 67.94,
+                    "y": 98.97,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_transcript",
+                    "label": "Transcript Check",
+                    "type": "check",
+                    "x": 67.97,
+                    "y": 106.42,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_long_folder",
+                    "label": "Long Folder Check",
+                    "type": "check",
+                    "x": 155.79,
+                    "y": 91.33,
+                    "page": 1,
+                    "font_size": 14
+                },
+                {
+                    "key": "credential_picture",
+                    "label": "Picture Check",
+                    "type": "check",
+                    "x": 155.63,
+                    "y": 99.17,
+                    "page": 1,
+                    "font_size": 14
+                }
+            ],
             "is_active": 1
         }
     ],
@@ -15,7 +727,97 @@
             "name": "Prebuilt Back ID Template",
             "side": "back",
             "school_year": null,
-            "layout_config": "{\"width\":639,\"height\":1017,\"fields\":[{\"key\":\"present_address\",\"label\":\"Address\",\"type\":\"text\",\"x\":171.75,\"y\":259,\"width\":429.51,\"height\":67.9,\"font_size\":24,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#ffffff\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"date_of_birth\",\"label\":\"Birthday\",\"type\":\"text\",\"x\":171.75,\"y\":333,\"width\":429.51,\"height\":41.56,\"font_size\":24,\"font_family\":\"Arial\",\"font_weight\":\"600\",\"font_color\":\"#ffffff\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"emergency_contact_name\",\"label\":\"Emergency Name\",\"type\":\"text\",\"x\":195.59,\"y\":465,\"width\":401.67,\"height\":34.31,\"font_size\":24,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#ffffff\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"emergency_contact_relationship\",\"label\":\"Emergency Relation\",\"type\":\"text\",\"x\":195.59,\"y\":499.79,\"width\":396.88,\"height\":34.31,\"font_size\":24,\"font_family\":\"Arial\",\"font_weight\":\"600\",\"font_color\":\"#ffffff\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"emergency_contact_number\",\"label\":\"Emergency Contact\",\"type\":\"text\",\"x\":195.59,\"y\":528,\"width\":398.18,\"height\":34.31,\"font_size\":24,\"font_family\":\"Arial\",\"font_weight\":\"600\",\"font_color\":\"#ffffff\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false}]}",
+            "layout_config": {
+                "width": 639,
+                "height": 1017,
+                "fields": [
+                    {
+                        "key": "present_address",
+                        "label": "Address",
+                        "type": "text",
+                        "x": 171.75,
+                        "y": 259,
+                        "width": 429.51,
+                        "height": 67.9,
+                        "font_size": 24,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#ffffff",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "date_of_birth",
+                        "label": "Birthday",
+                        "type": "text",
+                        "x": 171.75,
+                        "y": 333,
+                        "width": 429.51,
+                        "height": 41.56,
+                        "font_size": 24,
+                        "font_family": "Arial",
+                        "font_weight": "600",
+                        "font_color": "#ffffff",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "emergency_contact_name",
+                        "label": "Emergency Name",
+                        "type": "text",
+                        "x": 195.59,
+                        "y": 465,
+                        "width": 401.67,
+                        "height": 34.31,
+                        "font_size": 24,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#ffffff",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "emergency_contact_relationship",
+                        "label": "Emergency Relation",
+                        "type": "text",
+                        "x": 195.59,
+                        "y": 499.79,
+                        "width": 396.88,
+                        "height": 34.31,
+                        "font_size": 24,
+                        "font_family": "Arial",
+                        "font_weight": "600",
+                        "font_color": "#ffffff",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "emergency_contact_number",
+                        "label": "Emergency Contact",
+                        "type": "text",
+                        "x": 195.59,
+                        "y": 528,
+                        "width": 398.18,
+                        "height": 34.31,
+                        "font_size": 24,
+                        "font_family": "Arial",
+                        "font_weight": "600",
+                        "font_color": "#ffffff",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    }
+                ]
+            },
             "background_image_path": "templates/testBackIDLayout.jpg",
             "is_active": 1
         },
@@ -23,7 +825,131 @@
             "name": "Prebuilt Front ID Template",
             "side": "front",
             "school_year": null,
-            "layout_config": "{\"width\":639,\"height\":1017,\"fields\":[{\"key\":\"student_photo\",\"label\":\"Student Photo\",\"type\":\"image\",\"x\":117.31,\"y\":137.54,\"width\":384.06,\"height\":379.28,\"font_size\":18,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#111827\",\"text_align\":\"left\",\"shape\":\"hexagon\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"signature\",\"label\":\"Signature\",\"type\":\"image\",\"x\":152.57,\"y\":823.4,\"width\":334.73,\"height\":48,\"font_size\":18,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#111827\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"contain\",\"locked_shape\":true},{\"key\":\"student_number\",\"label\":\"Student ID\",\"type\":\"text\",\"x\":318.38,\"y\":717.19,\"width\":263.01,\"height\":40,\"font_size\":27,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#0f2f44\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"full_name\",\"label\":\"Name\",\"type\":\"text\",\"x\":55.16,\"y\":533.82,\"width\":522.96,\"height\":74.94,\"font_size\":60,\"font_family\":\"Arial\",\"font_weight\":\"800\",\"font_color\":\"#0f2f44\",\"text_align\":\"center\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"year_level\",\"label\":\"Year Level\",\"type\":\"text\",\"x\":318.38,\"y\":673,\"width\":264.3,\"height\":40,\"font_size\":30,\"font_family\":\"Arial\",\"font_weight\":\"700\",\"font_color\":\"#0f2f44\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"school_year\",\"label\":\"School Year\",\"type\":\"text\",\"x\":318.38,\"y\":766.3,\"width\":253.01,\"height\":40,\"font_size\":27,\"font_family\":\"Arial\",\"font_weight\":\"600\",\"font_color\":\"#0f2f44\",\"text_align\":\"left\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false},{\"key\":\"course_short_name\",\"label\":\"Course Short Name\",\"type\":\"text\",\"x\":59.35,\"y\":603.5,\"width\":517.29,\"height\":49.78,\"font_size\":40,\"font_family\":\"Arial\",\"font_weight\":\"400\",\"font_color\":\"#0f2f44\",\"text_align\":\"center\",\"shape\":\"rectangle\",\"object_fit\":\"cover\",\"locked_shape\":false}]}\n",
+            "layout_config": {
+                "width": 639,
+                "height": 1017,
+                "fields": [
+                    {
+                        "key": "student_photo",
+                        "label": "Student Photo",
+                        "type": "image",
+                        "x": 117.31,
+                        "y": 137.54,
+                        "width": 384.06,
+                        "height": 379.28,
+                        "font_size": 18,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#111827",
+                        "text_align": "left",
+                        "shape": "hexagon",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "signature",
+                        "label": "Signature",
+                        "type": "image",
+                        "x": 152.57,
+                        "y": 823.4,
+                        "width": 334.73,
+                        "height": 48,
+                        "font_size": 18,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#111827",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "contain",
+                        "locked_shape": true
+                    },
+                    {
+                        "key": "student_number",
+                        "label": "Student ID",
+                        "type": "text",
+                        "x": 318.38,
+                        "y": 717.19,
+                        "width": 263.01,
+                        "height": 40,
+                        "font_size": 27,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#0f2f44",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "full_name",
+                        "label": "Name",
+                        "type": "text",
+                        "x": 55.16,
+                        "y": 533.82,
+                        "width": 522.96,
+                        "height": 74.94,
+                        "font_size": 60,
+                        "font_family": "Arial",
+                        "font_weight": "800",
+                        "font_color": "#0f2f44",
+                        "text_align": "center",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "year_level",
+                        "label": "Year Level",
+                        "type": "text",
+                        "x": 318.38,
+                        "y": 673,
+                        "width": 264.3,
+                        "height": 40,
+                        "font_size": 30,
+                        "font_family": "Arial",
+                        "font_weight": "700",
+                        "font_color": "#0f2f44",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "school_year",
+                        "label": "School Year",
+                        "type": "text",
+                        "x": 318.38,
+                        "y": 766.3,
+                        "width": 253.01,
+                        "height": 40,
+                        "font_size": 27,
+                        "font_family": "Arial",
+                        "font_weight": "600",
+                        "font_color": "#0f2f44",
+                        "text_align": "left",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    },
+                    {
+                        "key": "course_short_name",
+                        "label": "Course Short Name",
+                        "type": "text",
+                        "x": 59.35,
+                        "y": 603.5,
+                        "width": 517.29,
+                        "height": 49.78,
+                        "font_size": 40,
+                        "font_family": "Arial",
+                        "font_weight": "400",
+                        "font_color": "#0f2f44",
+                        "text_align": "center",
+                        "shape": "rectangle",
+                        "object_fit": "cover",
+                        "locked_shape": false
+                    }
+                ]
+            },
             "background_image_path": "templates/testFrontIDLayout.jpg",
             "is_active": 1
         }

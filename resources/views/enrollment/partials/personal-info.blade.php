@@ -83,7 +83,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600 mb-1">Place of Birth <span class="text-red-500">*</span></label>
-            <input type="text" name="place_of_birth" placeholder="City, Province (e.g., Subic, Zambales)" required maxlength="50" value="{{ old('place_of_birth') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+            <input type="text" name="place_of_birth" placeholder="City, Province (e.g., Subic, Zambales)" required maxlength="30" value="{{ old('place_of_birth') }}" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
         </div>
 
         <div>
@@ -120,7 +120,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Address</label>
-                <input type="text" name="father_address" placeholder="City, Province (e.g., Subic, Zambales)" maxlength="40" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                <input type="text" name="father_address" placeholder="City, Province (e.g., Subic, Zambales)" maxlength="25" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Cellphone Number</label>
@@ -144,7 +144,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Address</label>
-                <input type="text" name="mother_address" placeholder="City, Province (e.g., Subic, Zambales)" maxlength="40" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                <input type="text" name="mother_address" placeholder="City, Province (e.g., Subic, Zambales)" maxlength="25" class="form-input w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Cellphone Number</label>

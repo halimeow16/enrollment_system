@@ -2682,6 +2682,8 @@
                             method: 'PUT',
                             body: JSON.stringify({
                                 mappings: this.mappedFields(),
+                                page_width: this.template.page_width,
+                                page_height: this.template.page_height,
                             }),
                             headers: {
                                 'Accept': 'application/json',

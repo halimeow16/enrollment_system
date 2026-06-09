@@ -1128,19 +1128,49 @@ class AcademicConfigurationController extends Controller
             'mappings.*.y' => ['required', 'numeric', 'min:0'],
             'mappings.*.page' => ['nullable', 'integer', 'min:1'],
             'mappings.*.font_size' => ['nullable', 'numeric', 'min:4', 'max:40'],
+            'page_width' => ['nullable', 'numeric', 'min:1'],
+            'page_height' => ['nullable', 'numeric', 'min:1'],
         ]);
 
-        $oldValues = ['field_count' => count($template->field_mappings ?? [])];
-        $template->update([
-            'field_mappings' => collect($data['mappings'])->map(fn ($mapping) => [
+        $template = $this->syncEnrollmentTemplatePageSize($template);
+        $sourceWidth = (float) ($data['page_width'] ?? $template->page_width);
+        $sourceHeight = (float) ($data['page_height'] ?? $template->page_height);
+        $targetWidth = max(1, (float) $template->page_width);
+        $targetHeight = max(1, (float) $template->page_height);
+        $scaleX = $sourceWidth > 0 ? $targetWidth / $sourceWidth : 1;
+        $scaleY = $sourceHeight > 0 ? $targetHeight / $sourceHeight : 1;
+
+        $normalizedMappings = collect($data['mappings'])->map(function ($mapping) use ($scaleX, $scaleY) {
+            return [
                 'key' => $mapping['key'],
                 'label' => $mapping['label'],
                 'type' => $mapping['type'] ?? 'text',
-                'x' => round((float) $mapping['x'], 2),
-                'y' => round((float) $mapping['y'], 2),
+                'x' => round((float) $mapping['x'] * $scaleX, 2),
+                'y' => round((float) $mapping['y'] * $scaleY, 2),
                 'page' => (int) ($mapping['page'] ?? 1),
                 'font_size' => round((float) ($mapping['font_size'] ?? 10), 1),
-            ])->values()->all(),
+            ];
+        })->values();
+
+        $outsideMappings = $normalizedMappings
+            ->filter(fn ($mapping) => $mapping['x'] > $targetWidth + 0.5 || $mapping['y'] > $targetHeight + 0.5)
+            ->pluck('label')
+            ->values();
+
+        if ($outsideMappings->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'mappings' => sprintf(
+                    'These mapped fields are outside the current PDF page size (%s x %s): %s. Move them back inside the PDF and save again.',
+                    number_format($targetWidth, 2),
+                    number_format($targetHeight, 2),
+                    $outsideMappings->take(5)->implode(', ') . ($outsideMappings->count() > 5 ? ', and more' : '')
+                ),
+            ]);
+        }
+
+        $oldValues = ['field_count' => count($template->field_mappings ?? [])];
+        $template->update([
+            'field_mappings' => $normalizedMappings->all(),
         ]);
         ActivityLog::record('enrollment_template_mapping_saved', $template, $oldValues, [
             'field_count' => count($template->field_mappings ?? []),
@@ -2570,8 +2600,54 @@ class AcademicConfigurationController extends Controller
         ];
     }
 
+    private function syncEnrollmentTemplatePageSize(EnrollmentTemplate $template): EnrollmentTemplate
+    {
+        $path = $this->templateAbsolutePath($template->file_path);
+
+        if (! $path) {
+            return $template;
+        }
+
+        try {
+            $size = $this->pdfFirstPageSize($path);
+        } catch (\Throwable) {
+            return $template;
+        }
+
+        $oldWidth = max(1, (float) $template->page_width);
+        $oldHeight = max(1, (float) $template->page_height);
+        $newWidth = max(1, (float) $size['width']);
+        $newHeight = max(1, (float) $size['height']);
+
+        if (abs($oldWidth - $newWidth) < 0.01 && abs($oldHeight - $newHeight) < 0.01) {
+            return $template;
+        }
+
+        $scaleX = $newWidth / $oldWidth;
+        $scaleY = $newHeight / $oldHeight;
+        $mappings = collect($template->field_mappings ?? [])
+            ->map(function ($mapping) use ($scaleX, $scaleY) {
+                $mapping['x'] = round((float) ($mapping['x'] ?? 0) * $scaleX, 2);
+                $mapping['y'] = round((float) ($mapping['y'] ?? 0) * $scaleY, 2);
+
+                return $mapping;
+            })
+            ->values()
+            ->all();
+
+        $template->update([
+            'page_width' => $newWidth,
+            'page_height' => $newHeight,
+            'field_mappings' => $mappings,
+        ]);
+
+        return $template->fresh() ?? $template;
+    }
+
     private function templatePayload(EnrollmentTemplate $template): array
     {
+        $template = $this->syncEnrollmentTemplatePageSize($template);
+
         return [
             'id' => $template->id,
             'name' => $template->name,

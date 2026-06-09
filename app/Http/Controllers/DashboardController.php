@@ -25,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use setasign\Fpdi\Tcpdf\Fpdi;
 
 class DashboardController extends Controller
 {
@@ -232,6 +233,9 @@ class DashboardController extends Controller
             ];
         });
         $activeEnrollmentTemplate = $this->preferredEnrollmentTemplate();
+        if ($activeEnrollmentTemplate) {
+            $activeEnrollmentTemplate = $this->syncEnrollmentTemplatePageSize($activeEnrollmentTemplate);
+        }
         $enrollmentTemplatePayload = $activeEnrollmentTemplate ? [
             'id' => $activeEnrollmentTemplate->id,
             'name' => $activeEnrollmentTemplate->name,
@@ -779,6 +783,53 @@ class DashboardController extends Controller
             ?? EnrollmentTemplate::where('file_path', 'like', 'templates/%')
                 ->latest()
                 ->first();
+    }
+
+    private function syncEnrollmentTemplatePageSize(EnrollmentTemplate $template): EnrollmentTemplate
+    {
+        $path = $this->templateAbsolutePath($template->file_path);
+
+        if (! $path) {
+            return $template;
+        }
+
+        try {
+            $pdf = new Fpdi();
+            $pdf->setSourceFile($path);
+            $templateId = $pdf->importPage(1);
+            $size = $pdf->getTemplateSize($templateId);
+        } catch (\Throwable) {
+            return $template;
+        }
+
+        $oldWidth = max(1, (float) $template->page_width);
+        $oldHeight = max(1, (float) $template->page_height);
+        $newWidth = max(1, (float) ($size['width'] ?? $oldWidth));
+        $newHeight = max(1, (float) ($size['height'] ?? $oldHeight));
+
+        if (abs($oldWidth - $newWidth) < 0.01 && abs($oldHeight - $newHeight) < 0.01) {
+            return $template;
+        }
+
+        $scaleX = $newWidth / $oldWidth;
+        $scaleY = $newHeight / $oldHeight;
+        $mappings = collect($template->field_mappings ?? [])
+            ->map(function ($mapping) use ($scaleX, $scaleY) {
+                $mapping['x'] = round((float) ($mapping['x'] ?? 0) * $scaleX, 2);
+                $mapping['y'] = round((float) ($mapping['y'] ?? 0) * $scaleY, 2);
+
+                return $mapping;
+            })
+            ->values()
+            ->all();
+
+        $template->update([
+            'page_width' => $newWidth,
+            'page_height' => $newHeight,
+            'field_mappings' => $mappings,
+        ]);
+
+        return $template->fresh() ?? $template;
     }
 
     private function preferredIdTemplate(string $side): ?IdTemplate

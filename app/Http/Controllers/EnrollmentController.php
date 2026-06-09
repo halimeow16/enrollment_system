@@ -465,6 +465,9 @@ class EnrollmentController extends Controller
         }
 
         $pdf = new Fpdi();
+        $pdf->SetPrintHeader(false);
+        $pdf->SetPrintFooter(false);
+        $pdf->SetMargins(0, 0, 0);
         $pdf->SetAutoPageBreak(false, 0);
         $pageCount = $pdf->setSourceFile($templatePath);
 
@@ -517,7 +520,7 @@ class EnrollmentController extends Controller
 
             $pdf->SetFont('Helvetica', '', $fontSize);
             $pdf->SetXY($x, $y);
-            $pdf->Write(0, $value);
+            $pdf->Cell(0, 0, $value, 0, 0, 'L', false, '', 0, false, 'T', 'T');
         }
 
         return $pdf->Output('', 'S');
